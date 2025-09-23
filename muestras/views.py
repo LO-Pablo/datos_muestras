@@ -3,8 +3,8 @@ from django.http import HttpResponse
 from .models import Muestra
 from django.template import loader
 # Create your views here.
-def main(request):
-    template = loader.get_template('main.html')
+def principal(request):
+    template = loader.get_template('principal.html')
     return HttpResponse(template.render())
 
 def muestras_todas(request):
