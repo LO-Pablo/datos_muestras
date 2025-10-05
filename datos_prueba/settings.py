@@ -79,10 +79,10 @@ DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
         'NAME': 'django_muestras',
-        'USER': 'root',
-        'PASSWORD': '1234abcd',
-        'HOST': '127.0.0.1',
-        'PORT': '3306',
+        'USER': 'muestras',
+        'PASSWORD': '',
+        'HOST': 'localhost',
+        'PORT': '',
     }
 }
 
