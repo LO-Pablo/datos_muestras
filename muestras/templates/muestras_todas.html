@@ -7,13 +7,22 @@ Lista de Muestras
 {% block content %}
 <p><a href="/"> Volver al inicio </a></p>
 
-<h1>Muestras</h1>
+<caption>Muestras</caption>
   
-<ul>
+<table>
+  <tr>
+    <th>ID Individuo</th>
+    <th>Nombre asignado por el laboratorio</th>
+    <th>Detalles</th>
+  </tr>
   {% for x in muestras %}
-    <li><a href='detalles_muestra/{{x.id_individuo}}/{{ x.nom_lab }}'>{{ x.id_individuo }} - {{ x.nom_lab }}</a></li>
+  <tr>
+    <td>{{ x.id_individuo }}</td>
+    <td>{{ x.nom_lab }}</td>
+    <td><a href='detalles_muestra/{{x.id_individuo}}/{{ x.nom_lab }}'>Detalles</a></td>
+  </tr>
   {% endfor %}
-</ul>
+</table>
 
 <a href="/muestras/nueva"> Añadir nueva muestra </a>
 {% endblock %}

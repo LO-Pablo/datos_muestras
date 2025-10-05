@@ -9,9 +9,9 @@ Detalles de la Muestra
 <p><strong>ID Individuo:</strong> {{ muestra.id_individuo }}</p>
 <p><strong>Nombre asignado por el laboratorio:</strong> {{ muestra.nom_lab }}</p> 
 <p><strong>Material:</strong> {{ muestra.id_material }}</p>
-<p><strong>Volumen actual:</strong> {{ muestra.volumen_actual }}{{muestra.unidad_volumen}}</p>  
-<p><strong>Concentración actual:</strong> {{ muestra.concentracion_actual }}{{muestra.unidad_concentracion}}</p>    
-<p><strong>Masa actual:</strong>{{muestra.masa_actual}}{{muestra.unidad_masa}}</p>
+<p><strong>Volumen actual:</strong> {{ muestra.volumen_actual }} {{muestra.unidad_volumen}}</p>  
+<p><strong>Concentración actual:</strong> {{ muestra.concentracion_actual }} {{muestra.unidad_concentracion}}</p>    
+<p><strong>Masa actual:</strong>{{muestra.masa_actual}} {{muestra.unidad_masa}}</p>
 <p><strong>Fecha de extracción:</strong> {{ muestra.fecha_extraccion }}</p>
 <p><strong>Fecha de llegada:</strong> {{ muestra.fecha_llegada }}</p>
 <p><strong>Observaciones:</strong> {{ muestra.observaciones }}</p>
@@ -21,5 +21,5 @@ Detalles de la Muestra
 
 <p><a href="{{ muestra.nom_lab }}/editar"> Editar muestra </a></p>
 <p><a href="{{ muestra.nom_lab }}/eliminar"> Eliminar muestra</a></p>
-<p><a href='muestras/'> Volver a la lista de muestras </a></p>
+<p><a href='/muestras'> Volver a la lista de muestras </a></p>
 {% endblock %}

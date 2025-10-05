@@ -3,7 +3,7 @@ from django.http import HttpResponse
 from .models import Muestra
 from django.template import loader
 from .forms import MuestraForm
-from django.shortcuts import redirect
+from django.shortcuts import redirect, get_object_or_404
 # Create your views here.
 def principal(request):
     template = loader.get_template('principal.html')
@@ -47,8 +47,7 @@ def editar_muestra(request, id_individuo, nom_lab):
     return render(request, 'editar_muestra.html', {'form': form, 'muestra': muestra})
 
 def eliminar_muestra(request, id_individuo, nom_lab):
-    muestra = Muestra.objects.get(id_individuo=id_individuo, nom_lab=nom_lab)
-    if request.method == 'POST':
-        muestra.delete()
-        return redirect('muestras_todas')
-    return render(request, 'eliminar_muestra.html', {'muestra': muestra})
+    muestra = get_object_or_404(Muestra,id_individuo=id_individuo, nom_lab=nom_lab)
+    muestra.delete()
+    return redirect('muestras_todas')
+    
