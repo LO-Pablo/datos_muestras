@@ -1,9 +1,8 @@
-from django.shortcuts import render
 from django.http import HttpResponse
 from .models import Muestra
 from django.template import loader
 from .forms import MuestraForm
-from django.shortcuts import redirect, get_object_or_404
+from django.shortcuts import render,redirect, get_object_or_404
 # Create your views here.
 def principal(request):
     template = loader.get_template('principal.html')

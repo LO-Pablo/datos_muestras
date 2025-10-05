@@ -20,6 +20,7 @@ Detalles de la Muestra
 <p><strong>Lugar de procedencia:</strong> {{ muestra.lugar_procedencia }}</p>
 
 <p><a href="{{ muestra.nom_lab }}/editar"> Editar muestra </a></p>
-<p><a href="{{ muestra.nom_lab }}/eliminar"> Eliminar muestra</a></p>
+<p><a href="{{ muestra.nom_lab}}/eliminar" onclick="return confirm('¿Estás seguro de que deseas eliminar esta muestra?');"> 
+    Eliminar muestra</a></p>
 <p><a href='/muestras'> Volver a la lista de muestras </a></p>
 {% endblock %}
