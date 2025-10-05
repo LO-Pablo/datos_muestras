@@ -11,7 +11,9 @@ Lista de Muestras
   
 <ul>
   {% for x in muestras %}
-    <li>{{ x.id_individuo }} - {{ x.nom_lab }}</li>
+    <li><a href='detalles_muestra/{{x.id_individuo}}/{{ x.nom_lab }}'>{{ x.id_individuo }} - {{ x.nom_lab }}</a></li>
   {% endfor %}
 </ul>
+
+<a href="/muestras/nueva"> Añadir nueva muestra </a>
 {% endblock %}

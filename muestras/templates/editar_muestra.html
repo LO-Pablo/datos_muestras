@@ -1,0 +1,15 @@
+{%extends 'master.html'%}
+
+{% block title %} 
+Añadir nueva muestra
+{% endblock %}
+
+{% block content %}
+<h1>Nueva muestra</h1>
+<form method="post">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <button type="submit">Guardar</button>
+</form>
+<p><a href="/muestras"> Volver a la lista de muestras </a></p>
+{% endblock %}
