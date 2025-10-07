@@ -3,11 +3,13 @@ from .models import Muestra
 from django.template import loader
 from .forms import MuestraForm
 from django.shortcuts import render,redirect, get_object_or_404
+from django.contrib.auth.decorators import login_required
 # Create your views here.
+
 def principal(request):
     template = loader.get_template('principal.html')
     return HttpResponse(template.render())
-
+@login_required
 def muestras_todas(request):
     muestras = Muestra.objects.all().values()
     template = loader.get_template('muestras_todas.html')
