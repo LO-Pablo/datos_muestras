@@ -20,5 +20,12 @@ class Muestra(models.Model):
     centro_procedencia = models.CharField(max_length=100)
     lugar_procedencia = models.CharField(max_length=100)
 
+    class Meta:
+        permissions = [
+            ("can_view_muestras_web", "Puede ver muestras en la web"),
+            ("can_add_muestras_web", "Puede añadir muestras en la web"),
+            ("can_change_muestras_web", "Puede cambiar muestras en la web"),
+            ("can_delete_muestras_web", "Puede eliminar muestras en la web"),
+        ]
     def __str__(self):
         return f"Muestra {self.id_individuo} - {self.nom_lab}"

@@ -23,10 +23,9 @@ Lista de Muestras
   </tr>
   {% endfor %}
 </table>
-
 <a href="/muestras/nueva"> Añadir nueva muestra </a>
 <form action="{% url 'logout' %}" method="post">
-    {% csrf_token %} 
-    <button type="submit">Logout</button>
+{% csrf_token %} 
+<p><button type="submit">Logout</button></p>
 </form>
 {% endblock %}
