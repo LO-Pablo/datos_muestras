@@ -54,7 +54,7 @@ def editar_muestra(request, id_individuo, nom_lab):
     return render(request, 'editar_muestra.html', {'form': form, 'muestra': muestra})
 @permission_required('muestras.can_delete_muestras_web')
 def eliminar_muestra(request, id_individuo, nom_lab):
-    # Vista para eliminar una muestra, requiere permiso para eliminar muestras
+    # ista para eliminar una muestra, requiere permiso para eliminar muestras
     muestra = get_object_or_404(Muestra,id_individuo=id_individuo, nom_lab=nom_lab)
     muestra.delete()
     return redirect('muestras_todas')
