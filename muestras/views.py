@@ -1,7 +1,7 @@
 from django.http import HttpResponse
-from .models import Muestra
+from .models import Muestra, Localizacion, Estudio, Envio
 from django.template import loader
-from .forms import MuestraForm
+from .forms import MuestraForm, LocalizacionForm
 from django.shortcuts import render,redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required, permission_required
 
@@ -15,8 +15,10 @@ def muestras_todas(request):
     # Vista que muestra todas las muestras, requiere que el usuario esté autenticado
     muestras = Muestra.objects.all().values()
     template = loader.get_template('muestras_todas.html')
-    context = {
+    localizacion = Localizacion.objects.all().values()
+    context = {    
         'muestras': muestras,
+        'localizacion': localizacion,
     }
     return HttpResponse(template.render(context, request))
 @login_required
