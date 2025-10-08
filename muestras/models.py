@@ -3,6 +3,7 @@ from django.conf import settings
 from django.utils import timezone
 
 class Muestra(models.Model):
+    # Campos del modelo Muestra
     id_individuo = models.CharField(max_length=20)
     nom_lab = models.CharField(max_length=100)
     id_material = models.CharField(max_length=20)
@@ -21,6 +22,7 @@ class Muestra(models.Model):
     lugar_procedencia = models.CharField(max_length=100)
 
     class Meta:
+        # Definición de permisos personalizados para el modelo Muestra
         permissions = [
             ("can_view_muestras_web", "Puede ver muestras en la web"),
             ("can_add_muestras_web", "Puede añadir muestras en la web"),
