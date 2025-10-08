@@ -17,18 +17,19 @@ Lista de Muestras
     <th>Detalles</th>
   </tr>
   {% for x in muestras %}
-  {% for y in localizacion %}
   <tr>
     <td>{{ x.id_individuo }}</td>
-    <td>{{ x.nom_lab }}</td>
-    {% if x.id_individuo == y.id_individuo_id and x.nom_lab == y.nom_lab_id %}
+    {% with locs=x.localizacion.all %}
+    {% if locs %}
+    {% with y=locs.first %}
     <td>{{y.congelador}}-{{y.estante}}-{{y.posicion_rack_estante}}-{{y.rack}}-{{y.posicion_caja_rack}}-{{y.caja}}-{{y.subposicion}}</td>
+    {% endwith %}
     {% else %}
     <td>Sin localización asignada</td>
     {% endif %}
     <td><a href='detalles_muestra/{{x.id_individuo}}/{{ x.nom_lab }}'>Detalles</a></td>
   </tr>
-  {% endfor %}
+  {% endwith %}
   {% endfor %}
 </table>
 <a href="/muestras/nueva"> Añadir nueva muestra </a>

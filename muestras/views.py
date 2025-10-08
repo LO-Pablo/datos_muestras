@@ -13,7 +13,7 @@ def principal(request):
 @login_required
 def muestras_todas(request):
     # Vista que muestra todas las muestras, requiere que el usuario esté autenticado
-    muestras = Muestra.objects.all().values()
+    muestras = Muestra.objects.prefetch_related('localizacion')
     template = loader.get_template('muestras_todas.html')
     localizacion = Localizacion.objects.all().values()
     context = {    

@@ -36,13 +36,9 @@ class Muestra(models.Model):
 
 class Localizacion(models.Model):
     # Campos del modelo Localizacion, que referencia a una muestra
-    id_individuo = models.ForeignKey(Muestra, 
-                                     to_field= "id_individuo", 
-                                     related_name="id_inidividuo_localizacion",
+    muestra = models.ForeignKey('Muestra', 
+                                     related_name="localizacion",
                                      on_delete=models.CASCADE)
-    nom_lab = models.ForeignKey(Muestra, to_field="nom_lab",
-                                related_name="nom_lab_localizacion",
-                                on_delete=models.CASCADE)
     congelador = models.CharField(max_length=50)
     estante = models.CharField(max_length=50)
     posicion_rack_estante = models.CharField(max_length=50)
