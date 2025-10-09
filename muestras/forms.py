@@ -11,3 +11,40 @@ class LocalizacionForm(forms.ModelForm):
     class Meta:
         model = Localizacion
         fields = '__all__'
+class LocalizacionForm_archivar(forms.ModelForm):
+    # Formulario basado en el modelo Localizacion, se incluyen todos los campos del modelo
+    class Meta:
+        model = Localizacion
+        fields = ['muestra']
+
+    congelador = forms.CharField(max_length=50)
+    estante = forms.CharField(max_length=50)
+    posicion_rack_estante = forms.CharField(max_length=50)
+    rack = forms.CharField(max_length=50)
+    posicion_caja_rack = forms.CharField(max_length=50)
+    caja = forms.CharField(max_length=50)
+    subposicion = forms.CharField(max_length=50)
+
+    def clean(self):
+        cleaned_data=super().clean()
+
+        #Verificar que la muestra no esté ya archivada
+        try:
+            Localizacion.objects.get(muestra='muestra')
+        
+        
+        # Verificar que la posición especificada esté vacía
+        try:
+            Localizacion.objects.get(
+                congelador=cleaned_data.get("congelador"),
+                estante=cleaned_data.get("estante"),
+                posicion_rack_estante=cleaned_data.get("posicion_rack_estante"),
+                rack=cleaned_data.get("rack"),
+                posicion_caja_rack=cleaned_data.get("posicion_caja_rack"),
+                caja=cleaned_data.get("caja"),
+                subposicion=cleaned_data.get("subposicion"),
+                muestra__isnull=True
+            )
+        except Localizacion.DoesNotExist:
+            raise forms.ValidationError("La posición no existe o ya está ocupada.")
+        return cleaned_data

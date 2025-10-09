@@ -4,7 +4,7 @@ from django.utils import timezone
 
 class Muestra(models.Model):
     # Campos del modelo Muestra
-    id_individuo = models.CharField(max_length=20, unique=True)
+    id_individuo = models.CharField(max_length=20)
     nom_lab = models.CharField(max_length=100, unique=True)
     id_material = models.CharField(max_length=20)
     volumen_actual = models.FloatField()
@@ -36,9 +36,7 @@ class Muestra(models.Model):
 
 class Localizacion(models.Model):
     # Campos del modelo Localizacion, que referencia a una muestra
-    muestra = models.ForeignKey('Muestra', 
-                                     related_name="localizacion",
-                                     on_delete=models.CASCADE)
+    muestra = models.ForeignKey('Muestra',to_field = "nom_lab",related_name="localizacion", blank=True, null=True, on_delete=models.SET_NULL)
     congelador = models.CharField(max_length=50)
     estante = models.CharField(max_length=50)
     posicion_rack_estante = models.CharField(max_length=50)
@@ -47,17 +45,16 @@ class Localizacion(models.Model):
     caja = models.CharField(max_length=50)
     subposicion = models.CharField(max_length=50)
 
+    class Meta:
+        # Campos unicos de localización
+        unique_together = ('congelador', 'estante', 'posicion_rack_estante', 'rack', 'posicion_caja_rack', 'caja', 'subposicion')
+
     def __str__(self):
         return f"{self.congelador} - {self.estante} - {self.posicion_rack_estante} - {self.rack} - {self.posicion_caja_rack} - {self.caja} - {self.subposicion}"
     
 class Estudio(models.Model):
     # Campos del modelo Estudio, que referencia a una muestra
-    id_individuo = models.ForeignKey(Muestra, to_field= "id_individuo", 
-                                     related_name="id_inidividuo_estudio",
-                                     on_delete=models.CASCADE)
-    nom_lab = models.ForeignKey(Muestra,to_field="nom_lab", 
-                                related_name="nom_lab_estudio",
-                                on_delete=models.CASCADE)
+    muestra = models.ForeignKey('Muestra', null=True, blank=True,related_name="estudio",on_delete=models.CASCADE)
     id_estudio = models.CharField(max_length=20)
     referencia_estudio = models.CharField(max_length=100)
     nombre_estudio = models.CharField(max_length=100)
@@ -71,12 +68,7 @@ class Estudio(models.Model):
 
 class Envio(models.Model):
     # Campos del modelo Envio, que referencia a una muestra
-    id_individuo = models.ForeignKey(Muestra, to_field= "id_individuo",
-                                     related_name="id_inidividuo_envio",
-                                     on_delete=models.CASCADE)
-    nom_lab = models.ForeignKey(Muestra, to_field="nom_lab",
-                                related_name="nom_lab_envio",
-                                on_delete=models.CASCADE)
+    muestra = models.ForeignKey('Muestra',related_name="envio",on_delete=models.CASCADE)
     volumen_enviado = models.FloatField()
     unidad_volumen_enviado = models.CharField(max_length=15)
     concentracion_enviada = models.FloatField()

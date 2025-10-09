@@ -1,7 +1,9 @@
 from django.http import HttpResponse
 from .models import Muestra, Localizacion, Estudio, Envio
 from django.template import loader
-from .forms import MuestraForm, LocalizacionForm
+from .forms import MuestraForm, LocalizacionForm, LocalizacionForm_archivar
+from django.db import transaction
+from django.contrib import messages  
 from django.shortcuts import render,redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required, permission_required
 
@@ -11,14 +13,15 @@ def principal(request):
     template = loader.get_template('principal.html')
     return HttpResponse(template.render(request=request))
 @login_required
+
+# Vistas para Muestras
+
 def muestras_todas(request):
     # Vista que muestra todas las muestras, requiere que el usuario esté autenticado
     muestras = Muestra.objects.prefetch_related('localizacion')
     template = loader.get_template('muestras_todas.html')
-    localizacion = Localizacion.objects.all().values()
     context = {    
         'muestras': muestras,
-        'localizacion': localizacion,
     }
     return HttpResponse(template.render(context, request))
 @login_required
@@ -60,4 +63,68 @@ def eliminar_muestra(request, id_individuo, nom_lab):
     muestra = get_object_or_404(Muestra,id_individuo=id_individuo, nom_lab=nom_lab)
     muestra.delete()
     return redirect('muestras_todas')
-    
+
+# Vistas para Localizacion
+
+def localizaciones(request):
+    # Vista que muestra todas las localizaciones, tengan o no muestra
+    localizaciones = Localizacion.objects.all().values().distinct()
+    template = loader.get_template('localizaciones_todas.html')
+    context = {
+        'localizaciones': localizaciones,
+    }
+    return HttpResponse(template.render(context, request))
+
+def nueva_localizacion(request):
+    # Vista para crear una nueva localizacion, con muestra o no
+    if request.method == 'POST':
+        form = LocalizacionForm(request.POST)
+        if form.is_valid():
+            form.save()
+            return redirect('localizaciones_todas')
+    else:
+        form = LocalizacionForm()   
+    return render(request, 'localizaciones_nueva.html', {'form': form})
+
+@transaction.atomic
+def archivar_muestra(request):
+    # Vista para archivar una muestra en una localización específica que esté vacía 
+    if request.method == 'POST':
+        form = LocalizacionForm_archivar(request.POST)
+        
+        if form.is_valid():
+            data = form.cleaned_data
+            
+            try:
+                muestra_obj = data['muestra']
+                slot = Localizacion.objects.select_for_update().get(
+                    congelador=data['congelador'],
+                    estante=data['estante'],
+                    posicion_rack_estante=data['posicion_rack_estante'],
+                    rack=data['rack'],
+                    posicion_caja_rack=data['posicion_caja_rack'],
+                    caja=data['caja'],
+                    subposicion=data['subposicion'],
+                    muestra__isnull=True 
+                )
+                
+            
+                slot.muestra = muestra_obj
+                slot.save()
+                
+        
+                return redirect('localizaciones_todas') 
+                
+            except Muestra.DoesNotExist:
+                
+                messages.error(request, "Error interno: La muestra no fue encontrada.")
+            
+            except Localizacion.DoesNotExist:
+                 
+                messages.error(request, "Error interno: La ubicación ya no está disponible o no existe.")
+                
+    else:
+        form =  LocalizacionForm_archivar()
+        
+    context = {'form': form}
+    return render(request, 'archivar_muestra.html', context)

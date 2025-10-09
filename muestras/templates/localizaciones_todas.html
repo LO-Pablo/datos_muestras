@@ -1,0 +1,34 @@
+{% extends "master.html" %}
+{% block title %}
+Archivo de muestras
+{% endblock %}
+
+{% block content %} 
+<table>
+  <tr>
+    <th>ID muestra</th>
+    <th>Congelador</th>
+    <th>Estante</th>
+    <th>Posicion del rack en el estante</th>
+    <th>Rack</th>
+    <th>Posicion de la caja en el rack</th>
+    <th>Caja</th>
+    <th>Subposicion</th>
+  </tr>
+{%for x in localizaciones%}
+<tr>
+    <td>{{ x.muestra_id}}</td>
+    <td>{{ x.congelador }}</td>
+    <td>{{ x.estante }}</td>
+    <td>{{ x.posicion_rack_estante }}</td>
+    <td>{{ x.rack}}</td>
+    <td>{{ x.posicion_caja_rack }}</td>
+    <td>{{ x.caja }}</td>
+    <td>{{ x.subposicion }}</td>
+</tr>
+{% endfor %}
+</table>
+<p><a href="/"> Volver al inicio </a></p>
+<p><a href="/archivo/nuevo"> Añadir posiciones al archivo </a></p>
+<p><a href="/archivo/archivar_muestra"> Archivar una muestra en una posición </a></p>
+{% endblock %}

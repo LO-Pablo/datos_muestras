@@ -9,6 +9,7 @@ Datos prueba
 <p>Esta es una base de datos de las muestras del instituto catalán de oncología, </p>
 <p>para acceder a todas las funcionalidades es necesario iniciar sesión.</p>
 <p><a href ="/muestras"> Ver muestras</a></p>
+<p><a href ="/archivo"> Ver archivo de muestras</a></p>
 {% if user.is_authenticated %}
 <p> Usuario: {{ user.username }} </p>
 <form action="{% url 'logout' %}" method="post">

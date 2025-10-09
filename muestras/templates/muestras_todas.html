@@ -19,6 +19,7 @@ Lista de Muestras
   {% for x in muestras %}
   <tr>
     <td>{{ x.id_individuo }}</td>
+    <td>{{ x.nom_lab }}</td>
     {% with locs=x.localizacion.all %}
     {% if locs %}
     {% with y=locs.first %}

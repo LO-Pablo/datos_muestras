@@ -1,0 +1,14 @@
+{% extends "master.html" %}
+{% block title %}
+Archivo de muestras
+{% endblock %}
+
+{% block content %}
+<h1>Indique una posición para una muestra</h1>
+<form method="post">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <button type="submit">Guardar</button>
+</form>
+<p><a href="/archivo"> Volver al archivo general</a></p>
+{% endblock %}
