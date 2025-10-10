@@ -6,6 +6,7 @@ from django.db import transaction
 from django.contrib import messages  
 from django.shortcuts import render,redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required, permission_required
+from django.db.models import Q
 
 
 def principal(request):
@@ -19,9 +20,16 @@ def principal(request):
 def muestras_todas(request):
     # Vista que muestra todas las muestras, requiere que el usuario esté autenticado
     muestras = Muestra.objects.prefetch_related('localizacion')
+    # Filtrado de muestras si se proporcionan parámetros de búsqueda
+    field_names = [f.name for f in Muestra._meta.local_fields if f.name not in ('id')]
+    for field in field_names:
+        if request.GET.get(field):
+            filter_kwargs = {f"{field}__icontains": request.GET[field]}
+            muestras = muestras.filter(**filter_kwargs).values()
     template = loader.get_template('muestras_todas.html')
     context = {    
         'muestras': muestras,
+        'field_names': field_names
     }
     return HttpResponse(template.render(context, request))
 @login_required

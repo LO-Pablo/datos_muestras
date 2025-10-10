@@ -31,6 +31,9 @@ class LocalizacionForm_archivar(forms.ModelForm):
         #Verificar que la muestra no esté ya archivada
         try:
             Localizacion.objects.get(muestra='muestra')
+            raise forms.ValidationError("La muestra ya está archivada en una localización.")
+        except Localizacion.DoesNotExist:
+            pass
         
         
         # Verificar que la posición especificada esté vacía

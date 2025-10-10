@@ -8,7 +8,12 @@ Lista de Muestras
 <p><a href="/"> Volver al inicio </a></p>
 
 <caption>Muestras</caption>
-  
+<form action=""> 
+  {% for field in field_names %} 
+  <input name={{field}} class="form-control"> {{field}}<br>
+  {% endfor %}
+  <button type="submit" class="btn btn-primary">Filtrar</button>
+</form> 
 <table>
   <tr>
     <th>ID Individuo</th>
@@ -20,17 +25,15 @@ Lista de Muestras
   <tr>
     <td>{{ x.id_individuo }}</td>
     <td>{{ x.nom_lab }}</td>
-    {% with locs=x.localizacion.all %}
-    {% if locs %}
-    {% with y=locs.first %}
+    {% with y=x.localizacion.all %}
+    {% if y %}
     <td>{{y.congelador}}-{{y.estante}}-{{y.posicion_rack_estante}}-{{y.rack}}-{{y.posicion_caja_rack}}-{{y.caja}}-{{y.subposicion}}</td>
-    {% endwith %}
     {% else %}
     <td>Sin localización asignada</td>
     {% endif %}
+    {% endwith %}
     <td><a href='detalles_muestra/{{x.id_individuo}}/{{ x.nom_lab }}'>Detalles</a></td>
   </tr>
-  {% endwith %}
   {% endfor %}
 </table>
 <a href="/muestras/nueva"> Añadir nueva muestra </a>
