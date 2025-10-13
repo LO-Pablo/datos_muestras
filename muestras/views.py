@@ -1,13 +1,13 @@
 from django.http import HttpResponse
 from .models import Muestra, Localizacion, Estudio, Envio
 from django.template import loader
-from .forms import MuestraForm, LocalizacionForm, LocalizacionForm_archivar
+from .forms import MuestraForm, LocalizacionForm, LocalizacionForm_archivar, UploadExcel
 from django.db import transaction
 from django.contrib import messages  
 from django.shortcuts import render,redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required, permission_required
 from django.db.models import Q
-
+import pandas as pd
 
 def principal(request):
     # Vista principal de la aplicación, muestra una página de bienvenida
@@ -57,6 +57,58 @@ def nueva_muestra(request):
     else:
         form = MuestraForm()
     return render(request, 'nueva_muestra.html', {'form': form})
+@permission_required('muestras.can_add_muestras_web')
+def upload_excel(request):
+    if request.method=="POST":
+        form = UploadExcel(request.POST, request.FILES)
+        if form.is_valid():
+            excel_file = request.FILES['excel_file']
+            df = pd.read_excel(excel_file)
+            rename_columns = {
+                'ID Individuo': 'id_individuo', 
+                'Nombre Laboratorio': 'nom_lab',
+                'ID Material': 'id_material',
+                'Volumen Actual': 'volumen_actual',
+                'Unidad Volumen': 'unidad_volumen',
+                'Concentracion Actual': 'concentracion_actual',
+                'Unidad Concentracion': 'unidad_concentracion',
+                'Masa Actual': 'masa_actual',
+                'Unidad Masa': 'unidad_masa',
+                'Fecha Extraccion': 'fecha_extraccion',
+                'Fecha Llegada': 'fecha_llegada',
+                'Observaciones': 'observaciones',
+                'Estado Inicial': 'estado_inicial',
+                'Centro Procedencia': 'centro_procedencia',
+                'Lugar Procedencia': 'lugar_procedencia'
+            }
+            df.rename(columns=rename_columns, inplace=True)
+            for _, row in df.iterrows():
+                muestra, created = Muestra.objects.update_or_create(
+                    id_individuo=row['id_individuo'],
+                    nom_lab=row['nom_lab'],
+                    id_material=row['id_material'],
+                    volumen_actual=row['volumen_actual'],
+                    unidad_volumen=row['unidad_volumen'],
+                    concentracion_actual=row['concentracion_actual'],
+                    unidad_concentracion=row['unidad_concentracion'],
+                    masa_actual=row['masa_actual'],
+                    unidad_masa=row['unidad_masa'],
+                    fecha_extraccion=row['fecha_extraccion'],
+                    fecha_llegada = row['fecha_llegada'],
+                    observaciones= row['observaciones'],
+                    estado_inicial=row['estado_inicial'],
+                    centro_procedencia=row['centro_procedencia'],
+                    lugar_procedencia=row['lugar_procedencia'],
+                )
+                if created:
+                    messages.success(request, f'Muestra {muestra.nom_lab} creada.')
+                else:
+                    messages.info(request, f'Muestra {muestra.nom_lab} ya existe, el excel no se ha procesado correctamente')
+                    break
+            return redirect('upload_excel')
+    else:
+        form = UploadExcel()
+    return render(request, 'upload_excel.html', {'form': form}) 
 @permission_required('muestras.can_change_muestras_web')
 def editar_muestra(request, id_individuo, nom_lab):
     # Vista para editar una muestra existente, requiere permiso para cambiar muestras

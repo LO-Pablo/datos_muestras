@@ -6,6 +6,9 @@ class MuestraForm(forms.ModelForm):
     class Meta:
         model = Muestra
         fields = '__all__'
+
+class UploadExcel(forms.Form):
+    excel_file = forms.FileField()
 class LocalizacionForm(forms.ModelForm):
     # Formulario basado en el modelo Localizacion, se incluyen todos los campos del modelo
     class Meta:
