@@ -16,13 +16,16 @@ Lista de Muestras
 </form> 
 <table>
   <tr>
+    <th>Eliminar</th>
     <th>ID Individuo</th>
     <th>Nombre asignado por el laboratorio</th>
     <th>Localización</th>
     <th>Detalles</th>
   </tr>
+  <form action="">
   {% for x in muestras %}
   <tr>
+    <td><input type="checkbox" name="{{x.id}}" class="form-control"></td>
     <td>{{ x.id_individuo }}</td>
     <td>{{ x.nom_lab }}</td>
     {% with y=x.localizacion.all %}
@@ -35,6 +38,8 @@ Lista de Muestras
     <td><a href='detalles_muestra/{{x.id_individuo}}/{{ x.nom_lab }}'>Detalles</a></td>
   </tr>
   {% endfor %}
+  <button type="submit" class="btn btn-primary">Eliminar muestras seleccionadas</button>
+</form>
 </table>
 <a href="/muestras/nueva"> Añadir nueva muestra </a>
 <form action="{% url 'logout' %}" method="post">

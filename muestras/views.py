@@ -25,7 +25,11 @@ def muestras_todas(request):
     for field in field_names:
         if request.GET.get(field):
             filter_kwargs = {f"{field}__icontains": request.GET[field]}
-            muestras = muestras.filter(**filter_kwargs).values()
+            muestras = muestras.filter(**filter_kwargs)
+    # Eliminación de muestras seleccionadas en la tabla 
+    for muestra in muestras:    
+        if request.GET.get(f'{muestra.id}'):
+            eliminar_muestra(request, muestra.id_individuo, muestra.nom_lab)
     template = loader.get_template('muestras_todas.html')
     context = {    
         'muestras': muestras,
