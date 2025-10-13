@@ -100,11 +100,10 @@ def upload_excel(request):
                     centro_procedencia=row['centro_procedencia'],
                     lugar_procedencia=row['lugar_procedencia'],
                 )
-                if created:
-                    messages.success(request, f'Muestra {muestra.nom_lab} creada.')
-                else:
+                if not created:
                     messages.info(request, f'Muestra {muestra.nom_lab} ya existe, el excel no se ha procesado correctamente')
-                    break
+            if created:
+                messages.success(request, 'Archivo excel procesado correctamente.')
             return redirect('upload_excel')
     else:
         form = UploadExcel()
