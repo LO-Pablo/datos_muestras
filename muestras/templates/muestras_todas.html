@@ -23,6 +23,17 @@ Lista de Muestras
     <th>Detalles</th>
   </tr>
   <form action="">
+  <input type ="button" value="Seleccionar todo" onclick="seleccionar_todo(true)"/>
+  <input type ="button" value="Deseleccionar todo" onclick="seleccionar_todo(false)"/>
+  <script language="JavaScript">
+    function seleccionar_todo(valor) {
+      checkboxes = document.getElementsByTagName('input');
+      for (var i=0; i<checkboxes.length; i++) {
+        if (checkboxes[i].type == 'checkbox')
+          checkboxes[i].checked = valor;
+      }
+    }
+  </script>
   {% for x in muestras %}
   <tr>
     <td><input type="checkbox" name="{{x.id}}" class="form-control"></td>
