@@ -8,6 +8,7 @@ class MuestraForm(forms.ModelForm):
         fields = '__all__'
 
 class UploadExcel(forms.Form):
+    # Formulario para subir un archivo Excel de las muestras
     excel_file = forms.FileField()
 class LocalizacionForm(forms.ModelForm):
     # Formulario basado en el modelo Localizacion, se incluyen todos los campos del modelo

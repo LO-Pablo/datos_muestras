@@ -57,6 +57,12 @@ def nueva_muestra(request):
     else:
         form = MuestraForm()
     return render(request, 'nueva_muestra.html', {'form': form})
+@permission_required('muestras.can_delete_muestras_web')
+def eliminar_muestra(request, id_individuo, nom_lab):
+    # Vista para eliminar una muestra, requiere permiso para eliminar muestras
+    muestra = get_object_or_404(Muestra,id_individuo=id_individuo, nom_lab=nom_lab)
+    muestra.delete()
+    return redirect('muestras_todas')
 @permission_required('muestras.can_add_muestras_web')
 def upload_excel(request):
     if request.method=="POST":
@@ -82,28 +88,37 @@ def upload_excel(request):
                 'Lugar Procedencia': 'lugar_procedencia'
             }
             df.rename(columns=rename_columns, inplace=True)
+            errors = 0
             for _, row in df.iterrows():
-                muestra, created = Muestra.objects.update_or_create(
-                    id_individuo=row['id_individuo'],
-                    nom_lab=row['nom_lab'],
-                    id_material=row['id_material'],
-                    volumen_actual=row['volumen_actual'],
-                    unidad_volumen=row['unidad_volumen'],
-                    concentracion_actual=row['concentracion_actual'],
-                    unidad_concentracion=row['unidad_concentracion'],
-                    masa_actual=row['masa_actual'],
-                    unidad_masa=row['unidad_masa'],
-                    fecha_extraccion=row['fecha_extraccion'],
-                    fecha_llegada = row['fecha_llegada'],
-                    observaciones= row['observaciones'],
-                    estado_inicial=row['estado_inicial'],
-                    centro_procedencia=row['centro_procedencia'],
-                    lugar_procedencia=row['lugar_procedencia'],
-                )
-                if not created:
-                    messages.info(request, f'Muestra {muestra.nom_lab} ya existe, el excel no se ha procesado correctamente')
-            if created:
+                try:
+                    muestra, created = Muestra.objects.update_or_create(
+                        id_individuo=row['id_individuo'],
+                        nom_lab=row['nom_lab'],
+                        id_material=row['id_material'],
+                        volumen_actual=row['volumen_actual'],
+                        unidad_volumen=row['unidad_volumen'],
+                        concentracion_actual=row['concentracion_actual'],
+                        unidad_concentracion=row['unidad_concentracion'],
+                        masa_actual=row['masa_actual'],
+                        unidad_masa=row['unidad_masa'],
+                        fecha_extraccion=row['fecha_extraccion'],
+                        fecha_llegada = row['fecha_llegada'],
+                        observaciones= row['observaciones'],
+                        estado_inicial=row['estado_inicial'],
+                        centro_procedencia=row['centro_procedencia'],
+                        lugar_procedencia=row['lugar_procedencia']
+                    )
+                    if not created:
+                        messages.info(request, f'Muestra {muestra.nom_lab} ya existe, el excel no se ha procesado correctamente')
+                        errors+=1
+                except ValueError:
+                    messages.error(request, f'El formato de alguno de los campos de la muestra {row["nom_lab"]} no es el correcto. Revisa el formato de los datos.')
+                    errors+=1
+                    redirect('upload_excel')
+            if errors==0:
                 messages.success(request, 'Archivo excel procesado correctamente.')
+            else:
+                messages.warning(request, f'El archivo excel se ha procesado con {errors} errores.')
             return redirect('upload_excel')
     else:
         form = UploadExcel()
@@ -120,12 +135,6 @@ def editar_muestra(request, id_individuo, nom_lab):
     else:
         form = MuestraForm(instance=muestra)
     return render(request, 'editar_muestra.html', {'form': form, 'muestra': muestra})
-@permission_required('muestras.can_delete_muestras_web')
-def eliminar_muestra(request, id_individuo, nom_lab):
-    # Vista para eliminar una muestra, requiere permiso para eliminar muestras
-    muestra = get_object_or_404(Muestra,id_individuo=id_individuo, nom_lab=nom_lab)
-    muestra.delete()
-    return redirect('muestras_todas')
 
 # Vistas para Localizacion
 

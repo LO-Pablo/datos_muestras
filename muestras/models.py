@@ -31,6 +31,7 @@ class Muestra(models.Model):
             ("can_change_muestras_web", "Puede cambiar muestras en la web"),
             ("can_delete_muestras_web", "Puede eliminar muestras en la web"),
         ]
+        
     def __str__(self):
         return f"{self.id_individuo} - {self.nom_lab}"
 
