@@ -8,12 +8,20 @@ Lista de Muestras
 <p><a href="/"> Volver al inicio </a></p>
 
 <caption>Muestras</caption>
-<form action=""> 
+<form action="" id="filter-form"> 
   {% for field in field_names %} 
   <input name={{field}} class="form-control"> {{field}}<br>
   {% endfor %}
   <button type="submit" class="btn btn-primary">Filtrar</button>
 </form> 
+<form action="" method="GET" style="display:inline;">
+    {% for key, value in request.GET.items %}
+        {% if key != 'crear_pdf' %}
+            <input type="hidden" name="{{ key }}" value="{{ value }}">
+        {% endif %}
+    {% endfor %}
+    <input name="crear_pdf" type="submit" class="btn btn-success" value="Crear PDF de la Búsqueda">
+</form>
 <table>
   <tr>
     <th>Eliminar</th>
@@ -49,7 +57,7 @@ Lista de Muestras
     <td><a href='detalles_muestra/{{x.id_individuo}}/{{ x.nom_lab }}'>Detalles</a></td>
   </tr>
   {% endfor %}
-  <button type="submit" class="btn btn-primary">Eliminar muestras seleccionadas</button>
+  <button type="submit" class="btn btn-primary" id='eliminar'>Eliminar muestras seleccionadas</button>
 </form>
 </table>
 <a href="/muestras/nueva"> Añadir nueva muestra </a> <br>

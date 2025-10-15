@@ -1,4 +1,4 @@
-from django.http import HttpResponse
+from django.http import HttpResponse, FileResponse
 from .models import Muestra, Localizacion, Estudio, Envio
 from django.template import loader
 from .forms import MuestraForm, LocalizacionForm, LocalizacionForm_archivar, UploadExcel
@@ -6,8 +6,9 @@ from django.db import transaction
 from django.contrib import messages  
 from django.shortcuts import render,redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required, permission_required
-from django.db.models import Q
 import pandas as pd
+from io import BytesIO
+from reportlab.pdfgen import canvas
 
 def principal(request):
     # Vista principal de la aplicación, muestra una página de bienvenida
@@ -26,10 +27,30 @@ def muestras_todas(request):
         if request.GET.get(field):
             filter_kwargs = {f"{field}__icontains": request.GET[field]}
             muestras = muestras.filter(**filter_kwargs)
+    if request.GET.get('crear_pdf'):    
+        buffer = BytesIO()
+        p = canvas.Canvas(buffer)
+        y = 800
+        p.setFont("Helvetica", 12)
+        p.drawString(100, y, "Listado de Muestras")
+        y -= 30
+        p.drawString
+        for muestra in muestras:
+            line = f"ID Individuo: {muestra.id_individuo}, Nombre Laboratorio: {muestra.nom_lab}, Localización: {muestra.localizacion.first() if muestra.localizacion.exists() else 'No archivada'}"
+            p.drawString(30, y, line)
+            y -= 20
+            if y < 50:
+                p.showPage()
+                y = 800
+        p.save()
+        buffer.seek(0)
+        return FileResponse(buffer, as_attachment=True, filename='listado_muestras.pdf')
     # Eliminación de muestras seleccionadas en la tabla 
     for muestra in muestras:    
         if request.GET.get(f'{muestra.id}'):
             eliminar_muestra(request, muestra.id_individuo, muestra.nom_lab)
+    # Crear un PDF con las muestras filtradas
+    
     template = loader.get_template('muestras_todas.html')
     context = {    
         'muestras': muestras,
@@ -139,6 +160,7 @@ def editar_muestra(request, id_individuo, nom_lab):
     else:
         form = MuestraForm(instance=muestra)
     return render(request, 'editar_muestra.html', {'form': form, 'muestra': muestra})
+
 
 # Vistas para Localizacion
 
