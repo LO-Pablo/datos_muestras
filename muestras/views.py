@@ -6,6 +6,7 @@ from django.db import transaction
 from django.contrib import messages  
 from django.shortcuts import render,redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required, permission_required
+from django.forms import formset_factory
 import pandas as pd
 from io import BytesIO
 from reportlab.pdfgen import canvas
@@ -72,16 +73,17 @@ def detalles_muestra(request, id_individuo, nom_lab):
     }
     return HttpResponse(template.render(context, request))
 @permission_required('muestras.can_add_muestras_web')
-def nueva_muestra(request):
-    # Vista para crear una nueva muestra, requiere permiso para añadir muestras
+def añadir_muestras(request):
+    MuestraFormset = formset_factory(MuestraForm)
+    formset= MuestraFormset()
     if request.method == 'POST':
-        form = MuestraForm(request.POST)
-        if form.is_valid():
-            form.save()
-            return redirect('detalles_muestra', id_individuo=form.instance.id_individuo, nom_lab=form.instance.nom_lab)
+        formset = MuestraFormset(request.POST)
+        if formset.is_valid():
+            for form in formset:
+                form.save()
     else:
-        form = MuestraForm()
-    return render(request, 'nueva_muestra.html', {'form': form})
+        formset = MuestraFormset()
+    return render(request, 'añadir_muestras.html', {'formset': formset})
 @permission_required('muestras.can_delete_muestras_web')
 def eliminar_muestra(request, id_individuo, nom_lab):
     # Vista para eliminar una muestra, requiere permiso para eliminar muestras

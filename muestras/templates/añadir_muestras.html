@@ -1,14 +1,21 @@
 {%extends 'master.html'%}
 
 {% block title %} 
-Añadir nueva muestra
+Añadir 1 o varias muestras
 {% endblock %}
 
 {% block content %}
-<h1>Nueva muestra</h1>
+<h1>Añada 1 o más muestras</h1>
+<form>
+    
+</form>
 <form method="post">
     {% csrf_token %}
-    {{ form.as_p }}
+    {{formset.management_form}}
+    {% for form in formset %}
+        {{ form.as_p }}
+        <hr>
+    {% endfor %}
     <button type="submit">Guardar</button>
 </form>
 <p><a href="/muestras"> Volver a la lista de muestras </a></p>
