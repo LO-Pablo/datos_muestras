@@ -118,7 +118,11 @@ def upload_excel(request):
             if errors==0:
                 messages.success(request, 'Archivo excel procesado correctamente.')
             else:
-                messages.warning(request, f'El archivo excel se ha procesado con {errors} errores.')
+                messages.warning(request, f'El archivo excel no se ha procesado por contener {errors} errores.')
+                # IDs de las muestras añadidas del excel para eliminarlas
+                ids_to_delete = list(Muestra.objects.order_by('-id').values_list('id', flat=True)[:(df.shape[0]-errors)])
+                # Filtrado de las muestras añadidas en base a esos ids y eliminacion de las mismas
+                Muestra.objects.filter(id__in=ids_to_delete).delete()
             return redirect('upload_excel')
     else:
         form = UploadExcel()
