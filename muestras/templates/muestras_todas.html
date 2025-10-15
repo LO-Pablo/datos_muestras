@@ -8,12 +8,14 @@ Lista de Muestras
 <p><a href="/"> Volver al inicio </a></p>
 
 <caption>Muestras</caption>
+
 <form action="" id="filter-form"> 
   {% for field in field_names %} 
   <input name={{field}} class="form-control"> {{field}}<br>
   {% endfor %}
   <button type="submit" class="btn btn-primary">Filtrar</button>
 </form> 
+
 <form action="" method="GET" style="display:inline;">
     {% for key, value in request.GET.items %}
         {% if key != 'crear_pdf' %}
@@ -22,6 +24,7 @@ Lista de Muestras
     {% endfor %}
     <input name="crear_pdf" type="submit" class="btn btn-success" value="Crear PDF de la Búsqueda">
 </form>
+
 <table>
   <tr>
     <th>Eliminar</th>

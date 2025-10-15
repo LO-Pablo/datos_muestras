@@ -27,17 +27,23 @@ def muestras_todas(request):
         if request.GET.get(field):
             filter_kwargs = {f"{field}__icontains": request.GET[field]}
             muestras = muestras.filter(**filter_kwargs)
+    # Crear un PDF con las muestras filtradas
     if request.GET.get('crear_pdf'):    
         buffer = BytesIO()
         p = canvas.Canvas(buffer)
         y = 800
+        p.setFont("Helvetica", 16)
+        p.drawString(30,y, "Listado de Muestras")
         p.setFont("Helvetica", 12)
-        p.drawString(100, y, "Listado de Muestras")
         y -= 30
-        p.drawString
+        p.drawString(30, y, "ID Individuo")
+        p.drawString(150, y, "Nombre Laboratorio")
+        p.drawString(300, y, "Localización")
+        y-= 30
         for muestra in muestras:
-            line = f"ID Individuo: {muestra.id_individuo}, Nombre Laboratorio: {muestra.nom_lab}, Localización: {muestra.localizacion.first() if muestra.localizacion.exists() else 'No archivada'}"
-            p.drawString(30, y, line)
+            p.drawString(30, y, muestra.id_individuo)
+            p.drawString(150, y, muestra.nom_lab)
+            p.drawString(300, y, str(muestra.localizacion.first()) if muestra.localizacion.exists() else 'No archivada')
             y -= 20
             if y < 50:
                 p.showPage()
@@ -49,8 +55,6 @@ def muestras_todas(request):
     for muestra in muestras:    
         if request.GET.get(f'{muestra.id}'):
             eliminar_muestra(request, muestra.id_individuo, muestra.nom_lab)
-    # Crear un PDF con las muestras filtradas
-    
     template = loader.get_template('muestras_todas.html')
     context = {    
         'muestras': muestras,
