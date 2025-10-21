@@ -6,16 +6,9 @@ Añadir 1 o varias muestras
 
 {% block content %}
 <h1>Añada 1 o más muestras</h1>
-<form>
-    
-</form>
 <form method="post">
     {% csrf_token %}
-    {{formset.management_form}}
-    {% for form in formset %}
-        {{ form.as_p }}
-        <hr>
-    {% endfor %}
+    {{ form.as_p}}
     <button type="submit">Guardar</button>
 </form>
 <p><a href="/muestras"> Volver a la lista de muestras </a></p>
