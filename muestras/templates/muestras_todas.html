@@ -24,6 +24,14 @@ Lista de Muestras
     {% endfor %}
     <input name="crear_pdf" type="submit" class="btn btn-success" value="Crear PDF de la Búsqueda">
 </form>
+<form action="" method="GET" style="display:inline;">
+    {% for key, value in request.GET.items %}
+        {% if key != 'exportar_excel' %}
+            <input type="hidden" name="{{ key }}" value="{{ value }}">
+        {% endif %}
+    {% endfor %}
+    <input name="exportar_excel" type="submit" class="btn btn-success" value="Exportar excel de la Búsqueda">
+</form>
 
 <table>
   <tr>
