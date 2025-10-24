@@ -11,7 +11,8 @@ from .forms import MuestraForm
 import pandas as pd
 from io import BytesIO
 from reportlab.pdfgen import canvas
-
+from django.conf import settings
+import os
 def principal(request):
     # Vista principal de la aplicación, muestra una página de bienvenida
     template = loader.get_template('principal.html')
@@ -167,6 +168,14 @@ def upload_excel(request):
     else:
         form = UploadExcel()
     return render(request, 'upload_excel.html', {'form': form}) 
+def descargar_plantilla(request):
+    # Vista para descargar la plantilla de Excel para subir muestras
+    plantilla_path = os.path.join(settings.BASE_DIR, 'datos_prueba', 'globalstaticfiles', 'Plantilla_muestras.xlsx')
+    if os.path.exists(plantilla_path):
+        return FileResponse(open(plantilla_path, 'rb'), as_attachment=True, filename='plantilla_muestras.xlsx')
+    else:
+        return HttpResponse("La plantilla no se encuentra disponible.", status=404)
+   
 @permission_required('muestras.can_change_muestras_web')
 def editar_muestra(request, id_individuo, nom_lab):
     # Vista para editar una muestra existente, requiere permiso para cambiar muestras

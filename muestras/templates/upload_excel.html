@@ -1,11 +1,11 @@
 {% extends "master.html" %}
 
 {% block title %}
-Subir archivo Excel, utilizando la siguiente <a href="datos_prueba/muestras/Plantilla_muestras.xlsx" download="plantilla_muestras.xlsx">plantilla</a>
+Subir archivo Excel
 {% endblock %}
-
 {% block content %}
 <h2>Subir archivo Excel</h2>
+Utilizando la siguiente <a href="{% url 'descargar_plantilla' %}" download="Plantilla_muestras.xlsx">plantilla</a>
 {% if messages %}
   {% for message in messages %}
         {{ message }}<br>
