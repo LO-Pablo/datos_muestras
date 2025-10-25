@@ -12,7 +12,7 @@ import pandas as pd
 from io import BytesIO
 from reportlab.pdfgen import canvas
 from django.conf import settings
-import xlwt, openpyxl,os
+import openpyxl,os
 def principal(request):
     # Vista principal de la aplicación, muestra una página de bienvenida
     template = loader.get_template('principal.html')
@@ -54,13 +54,13 @@ def muestras_todas(request):
         p.save()
         buffer.seek(0)
         return FileResponse(buffer, as_attachment=True, filename='listado_muestras.pdf')
+    # Crear un Excel con las muestras filtradas 
     if request.GET.get('exportar_excel'):
         response = HttpResponse(content_type='application/ms-excel')
         response['Content-Disposition'] = 'attachment; filename="listado_muestras.xlsx"'
         wb = openpyxl.load_workbook(os.path.join(settings.BASE_DIR, 'datos_prueba', 'globalstaticfiles', 'Plantilla_muestras.xlsx'))
         ws = wb.active
         row_num = 2
-        font_style = xlwt.XFStyle()
         for muestra in muestras:
             col_num = 1
             for field in field_names:
