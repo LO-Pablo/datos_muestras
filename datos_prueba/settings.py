@@ -136,7 +136,7 @@ USE_TZ = True
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 STATIC_URL = 'static/'
 STATICFILES_DIRS = [
-    BASE_DIR / 'globalstaticfiles'
+    BASE_DIR /'datos_prueba/globalstaticfiles'
 ]
 
 # Default primary key field type

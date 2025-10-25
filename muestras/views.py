@@ -173,14 +173,27 @@ def upload_excel(request):
                     errors+=1
                     redirect('upload_excel')
             if errors==0:
-                messages.success(request, 'Archivo excel procesado correctamente.')
+                messages.success(request, 'El archivo excel es correcto.')
+                if 'confirmar' in request.POST:
+                    messages.success(request, 'Las muestras se han añadido correctamente.')
+                elif 'cancelar' in request.POST:
+                    # Eliminación de las muestras añadidas del excel
+                    ids_to_delete = list(Muestra.objects.order_by('-id').values_list('id', flat=True)[:df.shape[0]])
+                    Muestra.objects.filter(id__in=ids_to_delete).delete()
+                else:
+                    return render(request, 'confirmacion_upload.html')
+
             else:
-                messages.warning(request, f'El archivo excel no se ha procesado por contener {errors} errores.')
-                # IDs de las muestras añadidas del excel para eliminarlas
-                ids_to_delete = list(Muestra.objects.order_by('-id').values_list('id', flat=True)[:(df.shape[0]-errors)])
-                # Filtrado de las muestras añadidas en base a esos ids y eliminacion de las mismas
-                Muestra.objects.filter(id__in=ids_to_delete).delete()
-            return redirect('upload_excel')
+                messages.warning(request, f'El archivo excel contiene {errors} errores.')
+                if 'confirmar' in request.POST:
+                    messages.success(request, 'Las muestras se han añadido correctamente.')
+                elif 'cancelar' in request.POST:
+                    # Eliminación de las muestras añadidas del excel
+                    ids_to_delete = list(Muestra.objects.order_by('-id').values_list('id', flat=True)[:df.shape[0]])
+                    Muestra.objects.filter(id__in=ids_to_delete).delete()
+                else:
+                    return render(request, 'confirmacion_upload.html')
+            redirect('muestras_todas')
     else:
         form = UploadExcel()
     return render(request, 'upload_excel.html', {'form': form}) 

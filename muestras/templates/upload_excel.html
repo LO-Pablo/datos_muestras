@@ -6,11 +6,6 @@ Subir archivo Excel
 {% block content %}
 <h2>Subir archivo Excel</h2>
 Utilizando la siguiente <a href="{% url 'descargar_plantilla' %}" download="Plantilla_muestras.xlsx">plantilla</a>
-{% if messages %}
-  {% for message in messages %}
-        {{ message }}<br>
-  {% endfor %}
-{% endif %}
 <form method="post" enctype="multipart/form-data">
   {% csrf_token %}
   {{ form.as_p }}
