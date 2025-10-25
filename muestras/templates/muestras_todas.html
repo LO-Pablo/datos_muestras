@@ -35,12 +35,27 @@ Lista de Muestras
 
 <table>
   <tr>
+    {% if perms.muestras.can_delete_muestras_web %}
     <th>Eliminar</th>
+    {% endif %}
     <th>ID Individuo</th>
     <th>Nombre asignado por el laboratorio</th>
     <th>Localización</th>
-    <th>Detalles</th>
+    <th>Material</th>
+    <th>Volumen actual</th>
+    <th>Unidad de volumen</th>
+    <th>Concentración actual</th>
+    <th>Unidad de concentración</th>
+    <th>Masa actual</th>
+    <th>Unidad de masa</th>
+    <th>Fecha de extracción</th>
+    <th>Fecha de llegada</th>
+    <th>Observaciones</th>
+    <th>Estado inicial</th>
+    <th>Centro de procedencia</th>
+    <th>Lugar de procedencia</th>
   </tr>
+  {% if perms.muestras.can_delete_muestras_web %}
   <form action="">
   <input type ="button" value="Seleccionar todo" onclick="seleccionar_todo(true)"/>
   <input type ="button" value="Deseleccionar todo" onclick="seleccionar_todo(false)"/>
@@ -53,26 +68,47 @@ Lista de Muestras
       }
     }
   </script>
+  {% endif %}
   {% for x in muestras %}
   <tr>
+    {% if perms.muestras.can_delete_muestras_web %}
     <td><input type="checkbox" name="{{x.id}}" class="form-control"></td>
+    {% endif %}
     <td>{{ x.id_individuo }}</td>
     <td>{{ x.nom_lab }}</td>
     {% with y=x.localizacion.all %}
     {% if y %}
+    {% for y in x.localizacion.all %}
     <td>{{y.congelador}}-{{y.estante}}-{{y.posicion_rack_estante}}-{{y.rack}}-{{y.posicion_caja_rack}}-{{y.caja}}-{{y.subposicion}}</td>
+    {% endfor %}
     {% else %}
     <td>Sin localización asignada</td>
     {% endif %}
     {% endwith %}
-    <td><a href='detalles_muestra/{{x.id_individuo}}/{{ x.nom_lab }}'>Detalles</a></td>
+    <td>{{ x.id_material}}</td>
+    <td>{{ x.volumen_actual}}</td>
+    <td>{{ x.unidad_volumen }}</td>
+    <td>{{ x.concentracion_actual }}</td>
+    <td>{{ x.unidad_concentracion }}</td>
+    <td>{{ x.masa_actual }}</td>
+    <td>{{ x.unidad_masa }}</td>
+    <td>{{ x.fecha_extraccion }}</td>
+    <td>{{ x.fecha_llegada }}</td>
+    <td>{{ x.observaciones }}</td>
+    <td>{{ x.estado_inicial }}</td>
+    <td>{{ x.centro_procedencia }}</td>
+    <td>{{ x.lugar_procedencia }}</td>
   </tr>
   {% endfor %}
-  <button type="submit" class="btn btn-primary" id='eliminar'>Eliminar muestras seleccionadas</button>
+  {% if perms.muestras.can_delete_muestras_web %}
+  <button type="submit" class="btn btn-primary" id='eliminar' onclick="return confirm('¿Quieres eliminar las muestras seleccionadas?')">Eliminar muestras seleccionadas</button>
+  {% endif %}
 </form>
 </table>
+{% if perms.muestras.can_delete_muestras_web %}
 <a href="/muestras/nueva"> Añadir nuevas muestras </a> <br>
 <a href="/muestras/upload_excel"> Subir archivo excel de muestras</a>
+{% endif %}
 <form action="{% url 'logout' %}" method="post">
 {% csrf_token %} 
 <p><button type="submit">Logout</button></p>
