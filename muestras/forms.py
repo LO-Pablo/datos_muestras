@@ -9,7 +9,7 @@ class MuestraForm(forms.ModelForm):
 
 class UploadExcel(forms.Form):
     # Formulario para subir un archivo Excel de las muestras
-    excel_file = forms.FileField()
+    excel_file = forms.FileField(required=False)
 class LocalizacionForm(forms.ModelForm):
     # Formulario basado en el modelo Localizacion, se incluyen todos los campos del modelo
     class Meta:

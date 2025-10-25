@@ -15,7 +15,7 @@ Lista de Muestras
   {% endfor %}
   <button type="submit" class="btn btn-primary">Filtrar</button>
 </form> 
-{% if perms.muestras.can_delete_muestras_web %}
+{% if perms.muestras.can_add_muestras_web %}
 <a href="/muestras/nueva"> Añadir nuevas muestras </a> <br>
 <a href="/muestras/upload_excel"> Subir archivo excel de muestras</a>
 {% endif %}
