@@ -15,7 +15,14 @@ Lista de Muestras
   {% endfor %}
   <button type="submit" class="btn btn-primary">Filtrar</button>
 </form> 
-
+{% if perms.muestras.can_delete_muestras_web %}
+<a href="/muestras/nueva"> Añadir nuevas muestras </a> <br>
+<a href="/muestras/upload_excel"> Subir archivo excel de muestras</a>
+{% endif %}
+<form action="{% url 'logout' %}" method="post">
+{% csrf_token %} 
+<p><button type="submit">Logout</button></p>
+</form>
 <form action="" method="GET" style="display:inline;">
     {% for key, value in request.GET.items %}
         {% if key != 'crear_pdf' %}
@@ -105,12 +112,4 @@ Lista de Muestras
   {% endif %}
 </form>
 </table>
-{% if perms.muestras.can_delete_muestras_web %}
-<a href="/muestras/nueva"> Añadir nuevas muestras </a> <br>
-<a href="/muestras/upload_excel"> Subir archivo excel de muestras</a>
-{% endif %}
-<form action="{% url 'logout' %}" method="post">
-{% csrf_token %} 
-<p><button type="submit">Logout</button></p>
-</form>
 {% endblock %}
