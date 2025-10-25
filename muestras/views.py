@@ -124,78 +124,74 @@ def eliminar_muestra(request, id_individuo, nom_lab):
 def upload_excel(request):
     if request.method=="POST":
         form = UploadExcel(request.POST, request.FILES)
-        if form.is_valid():
-            excel_file = request.FILES['excel_file']
-            df = pd.read_excel(excel_file)
-            rename_columns = {
-                'ID Individuo': 'id_individuo', 
-                'Nombre Laboratorio': 'nom_lab',
-                'ID Material': 'id_material',
-                'Volumen Actual': 'volumen_actual',
-                'Unidad Volumen': 'unidad_volumen',
-                'Concentracion Actual': 'concentracion_actual',
-                'Unidad Concentracion': 'unidad_concentracion',
-                'Masa Actual': 'masa_actual',
-                'Unidad Masa': 'unidad_masa',
-                'Fecha Extraccion': 'fecha_extraccion',
-                'Fecha Llegada': 'fecha_llegada',
-                'Observaciones': 'observaciones',
-                'Estado Inicial': 'estado_inicial',
-                'Centro Procedencia': 'centro_procedencia',
-                'Lugar Procedencia': 'lugar_procedencia'
-            }
-            df.rename(columns=rename_columns, inplace=True)
-            errors = 0
-            for _, row in df.iterrows():
-                try:
-                    muestra, created = Muestra.objects.update_or_create(
-                        id_individuo=row['id_individuo'],
-                        nom_lab=row['nom_lab'],
-                        id_material=row['id_material'],
-                        volumen_actual=row['volumen_actual'],
-                        unidad_volumen=row['unidad_volumen'],
-                        concentracion_actual=row['concentracion_actual'],
-                        unidad_concentracion=row['unidad_concentracion'],
-                        masa_actual=row['masa_actual'],
-                        unidad_masa=row['unidad_masa'],
-                        fecha_extraccion=row['fecha_extraccion'],
-                        fecha_llegada = row['fecha_llegada'],
-                        observaciones= row['observaciones'],
-                        estado_inicial=row['estado_inicial'],
-                        centro_procedencia=row['centro_procedencia'],
-                        lugar_procedencia=row['lugar_procedencia']
-                    )
-                    if not created:
-                        messages.info(request, f'Muestra {muestra.nom_lab} ya existe, el excel no se ha procesado correctamente')
+        if 'confirmar' in request.POST:
+            messages.success(request, 'Las muestras se han añadido correctamente.')
+            
+        elif 'cancelar' in request.POST:
+            # Eliminación de las muestras añadidas del excel
+            ids_to_delete = request.session.pop('nuevos_ids', [])
+            Muestra.objects.filter(id__in=ids_to_delete).delete()
+        elif 'excel_file' in request.FILES:
+            if form.is_valid():
+                excel_file = request.FILES['excel_file']
+                df = pd.read_excel(excel_file)
+                rename_columns = {
+                    'ID Individuo': 'id_individuo', 
+                    'Nombre Laboratorio': 'nom_lab',
+                    'ID Material': 'id_material',
+                    'Volumen Actual': 'volumen_actual',
+                    'Unidad Volumen': 'unidad_volumen',
+                    'Concentracion Actual': 'concentracion_actual',
+                    'Unidad Concentracion': 'unidad_concentracion',
+                    'Masa Actual': 'masa_actual',
+                    'Unidad Masa': 'unidad_masa',
+                    'Fecha Extraccion': 'fecha_extraccion',
+                    'Fecha Llegada': 'fecha_llegada',
+                    'Observaciones': 'observaciones',
+                    'Estado Inicial': 'estado_inicial',
+                    'Centro Procedencia': 'centro_procedencia',
+                    'Lugar Procedencia': 'lugar_procedencia'
+                }
+                df.rename(columns=rename_columns, inplace=True)
+                errors = 0
+                nuevos_ids = []
+                for _, row in df.iterrows():
+                    try:
+                        muestra, created = Muestra.objects.update_or_create(
+                            id_individuo=row['id_individuo'],
+                            nom_lab=row['nom_lab'],
+                            id_material=row['id_material'],
+                            volumen_actual=row['volumen_actual'],
+                            unidad_volumen=row['unidad_volumen'],
+                            concentracion_actual=row['concentracion_actual'],
+                            unidad_concentracion=row['unidad_concentracion'],
+                            masa_actual=row['masa_actual'],
+                            unidad_masa=row['unidad_masa'],
+                            fecha_extraccion=row['fecha_extraccion'],
+                            fecha_llegada = row['fecha_llegada'],
+                            observaciones= row['observaciones'],
+                            estado_inicial=row['estado_inicial'],
+                            centro_procedencia=row['centro_procedencia'],
+                            lugar_procedencia=row['lugar_procedencia']
+                        )
+                        if created:
+                            nuevos_ids.append(muestra.id)
+                        else:
+                            messages.info(request, f'Muestra {muestra.nom_lab} ya existe, el excel no se ha procesado correctamente')
+                            errors+=1
+                    except ValueError:
+                        messages.error(request, f'El formato de alguno de los campos de la muestra {row["nom_lab"]} no es el correcto. Revisa el formato de los datos.')
                         errors+=1
-                except ValueError:
-                    messages.error(request, f'El formato de alguno de los campos de la muestra {row["nom_lab"]} no es el correcto. Revisa el formato de los datos.')
-                    errors+=1
-                    redirect('upload_excel')
-            if errors==0:
-                messages.success(request, 'El archivo excel es correcto.')
-                if 'confirmar' in request.POST:
-                    messages.success(request, 'Las muestras se han añadido correctamente.')
-                elif 'cancelar' in request.POST:
-                    # Eliminación de las muestras añadidas del excel
-                    ids_to_delete = list(Muestra.objects.order_by('-id').values_list('id', flat=True)[:df.shape[0]])
-                    Muestra.objects.filter(id__in=ids_to_delete).delete()
+                        redirect('upload_excel')
+                request.session['nuevos_ids'] = nuevos_ids
+                nuevos_ids = []
+                if errors==0:
+                    messages.success(request, 'El archivo excel es correcto.')
                 else:
-                    return render(request, 'confirmacion_upload.html')
-
-            else:
-                messages.warning(request, f'El archivo excel contiene {errors} errores.')
-                if 'confirmar' in request.POST:
-                    messages.success(request, 'Las muestras se han añadido correctamente.')
-                elif 'cancelar' in request.POST:
-                    # Eliminación de las muestras añadidas del excel
-                    ids_to_delete = list(Muestra.objects.order_by('-id').values_list('id', flat=True)[:df.shape[0]])
-                    Muestra.objects.filter(id__in=ids_to_delete).delete()
-                else:
-                    return render(request, 'confirmacion_upload.html')
-            redirect('muestras_todas')
+                    messages.warning(request, f'El archivo excel contiene {errors} errores.') 
+                return render(request, 'confirmacion_upload.html') 
     else:
-        form = UploadExcel()
+        form = UploadExcel(request)     
     return render(request, 'upload_excel.html', {'form': form}) 
 def descargar_plantilla(request):
     # Vista para descargar la plantilla de Excel para subir muestras

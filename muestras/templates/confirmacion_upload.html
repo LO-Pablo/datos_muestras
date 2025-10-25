@@ -3,10 +3,9 @@
         {{ message }}<br>
   {% endfor %}
 {% endif %}
-<p>¿Está seguro de que desea subir el archivo excel?</p>
-<form method="post">
+<p>¿Desea subir el archivo excel?</p>
+<form method="post" action="">
     {% csrf_token %}
-    <input type="hidden" name="confirmar" value="true">
-    <input type="submit" value="Confirmar">
-    <button name="cancelar">Cancelar</button>
+    <button type ="submit" name="confirmar" value="true" class="btn btn-success" onclick="windows.print('Se han subido las muestras')">Confirmar</button>
+    <button type ="submit" name="cancelar" value="true" class="btn btn-success">Cancelar</button>
 </form>
