@@ -1,0 +1,12 @@
+{% if messages %}
+  {% for message in messages %}
+        {{ message }}<br>
+  {% endfor %}
+{% endif %}
+<p>¿Está seguro de que desea subir el archivo excel?</p>
+<form method="post">
+    {% csrf_token %}
+    <input type="hidden" name="confirmar" value="true">
+    <input type="submit" value="Confirmar">
+    <button name="cancelar">Cancelar</button>
+</form>
