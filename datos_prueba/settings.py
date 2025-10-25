@@ -15,18 +15,6 @@ import os
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
-# --- CONFIGURACIÓN DE ENTORNO
-# Importar la librería
-import environ 
-
-# Inicializar el objeto 'env'
-env = environ.Env(
-    # Puedes definir tipos y valores por defecto aquí (p.e. DEBUG a False si no se define)
-    DEBUG=(bool, False) 
-)
-
-# Carga las variables de archivo .env, si existe.
-environ.Env.read_env(os.path.join(BASE_DIR, '.env')) 
 
 
 # Quick-start development settings - unsuitable for production
@@ -34,7 +22,7 @@ environ.Env.read_env(os.path.join(BASE_DIR, '.env'))
 
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = 'django-insecure-c7@r#)7#85)+w1^+j6894bxpwsx_!k7b2^@+_!sg*cg&p@+0v2'
-# os.environ.get('KEY', 'default_value') --> Si falla la variable KEY, retorna 'default_value', permitiendo que la aplicación continúe
+
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
@@ -89,15 +77,14 @@ WSGI_APPLICATION = 'datos_prueba.wsgi.application'
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.mysql',    
-        'HOST': os.environ.get('MYSQL_HOST', '127.0.0.1'), 
-        'PORT': os.environ.get('MYSQL_PORT', '3306'),
-        'NAME': os.environ.get('MYSQL_DATABASE', 'django_muestras'),
-        'USER': os.environ.get('MYSQL_USER', 'muestras'),
-        'PASSWORD': os.environ.get('MYSQL_PASSWORD', 'muestras'),
+        'ENGINE': 'django.db.backends.mysql',
+        'NAME': 'django_muestras',
+        'USER': 'muestras',
+        'PASSWORD': '',
+        'HOST': 'localhost',
+        'PORT': '',
     }
 }
-
 
 
 # Password validation
