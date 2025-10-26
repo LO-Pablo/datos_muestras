@@ -6,6 +6,6 @@
 <p>¿Desea subir el archivo excel?</p>
 <form method="post" action="">
     {% csrf_token %}
-    <button type ="submit" name="confirmar" value="true" class="btn btn-success" onclick="windows.print('Se han subido las muestras')">Confirmar</button>
+    <button type ="submit" name="confirmar" value="true" class="btn btn-success">Confirmar</button>
     <button type ="submit" name="cancelar" value="true" class="btn btn-success">Cancelar</button>
 </form>

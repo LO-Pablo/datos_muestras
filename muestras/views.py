@@ -82,9 +82,9 @@ def muestras_todas(request):
     return HttpResponse(template.render(context, request))
 @login_required
 @permission_required('muestras.can_view_muestras_web')
-def detalles_muestra(request, id_individuo, nom_lab):
+def detalles_muestra(request, nom_lab):
     # Vista que muestra los detalles de una muestra específica, requiere permiso para ver muestras
-    muestra = Muestra.objects.get(id_individuo=id_individuo, nom_lab=nom_lab)
+    muestra = Muestra.objects.get(nom_lab=nom_lab)
     template = loader.get_template('detalles_muestra.html')
     context = {
         'muestra': muestra,
@@ -220,9 +220,23 @@ def editar_muestra(request, id_individuo, nom_lab):
 def localizaciones(request):
     # Vista que muestra todas las localizaciones, tengan o no muestra
     localizaciones = Localizacion.objects.all().values().distinct()
+    congeladores = Localizacion.objects.values_list('congelador', flat=True).distinct()
+    estantes = Localizacion.objects.values_list('congelador','estante').distinct()
+    posicion_estante = Localizacion.objects.values_list('congelador','estante','posicion_rack_estante').distinct()
+    racks = Localizacion.objects.values_list('congelador','estante','posicion_rack_estante','rack').distinct()
+    posiciones_caja_rack = Localizacion.objects.values_list('congelador','estante','posicion_rack_estante','rack','posicion_caja_rack').distinct()
+    cajas = Localizacion.objects.values_list('congelador','estante','posicion_rack_estante','rack','posicion_caja_rack','caja').distinct()
+    muestras = Localizacion.objects.values_list('congelador','estante','posicion_rack_estante','rack','posicion_caja_rack','caja','subposicion','muestra_id').distinct()
     template = loader.get_template('localizaciones_todas.html')
     context = {
         'localizaciones': localizaciones,
+        'congeladores': congeladores,
+        'estantes': estantes,
+        'posicion_estante': posicion_estante,
+        'racks': racks,
+        'posiciones_caja_rack': posiciones_caja_rack,   
+        'cajas': cajas,
+        'muestras': muestras  
     }
     return HttpResponse(template.render(context, request))
 
