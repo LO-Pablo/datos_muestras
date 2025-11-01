@@ -1,5 +1,6 @@
 from django import forms
 from .models import Muestra, Localizacion, Estudio, Envio
+from itertools import product
 
 class MuestraForm(forms.ModelForm):
     # Formulario basado en el modelo Muestra, se incluyen todos los campos del modelo
@@ -10,11 +11,31 @@ class MuestraForm(forms.ModelForm):
 class UploadExcel(forms.Form):
     # Formulario para subir un archivo Excel de las muestras
     excel_file = forms.FileField(required=False)
-class LocalizacionForm(forms.ModelForm):
+class LocalizacionForm(forms.Form):
     # Formulario basado en el modelo Localizacion, se incluyen todos los campos del modelo
-    class Meta:
-        model = Localizacion
-        fields = '__all__'
+    Congelador = forms.IntegerField(min_value=1)
+    Estante = forms.IntegerField(min_value=1)
+    Posicion_estante = forms.IntegerField(min_value=1)
+    Rack= forms.IntegerField(min_value=1)
+    Caja= forms.IntegerField(min_value=1)
+    Posicion_caja = forms.IntegerField(min_value=1)
+    Subposiciones = forms.IntegerField(min_value=1)
+        #self.fields['muestra'].queryset = Muestra.objects.filter(localizacion__isnull=True)
+        
+    def save(self):
+        if self.is_valid():
+            congelador = self.cleaned_data.get('Congelador')
+            estante = self.cleaned_data.get('Estante')
+            rack = self.cleaned_data.get('Rack')
+            caja = self.cleaned_data.get('Caja')
+            subposiciones = self.cleaned_data.get('Subposiciones')
+            for a,b,c,d,e in product(range(congelador),range(estante),range(rack),range(caja),range(subposiciones)):
+                    Localizacion.objects.update_or_create(
+                        congelador=a+1, estante=b+1, posicion_rack_estante=c+1,
+                        rack=c+1, caja=d+1, posicion_caja_rack=d+1, subposicion=e+1
+                    )
+
+    
 class LocalizacionForm_archivar(forms.ModelForm):
     # Formulario basado en el modelo Localizacion, se incluyen todos los campos del modelo
     class Meta:
