@@ -1,7 +1,7 @@
 from django.http import HttpResponse, FileResponse
 from .models import Muestra, Localizacion, Estudio, Envio
 from django.template import loader
-from .forms import MuestraForm, LocalizacionForm, LocalizacionForm_archivar, UploadExcel
+from .forms import MuestraForm, LocalizacionForm, UploadExcel, archivar_muestra_form
 from django.db import transaction
 from django.contrib import messages  
 from django.shortcuts import render,redirect, get_object_or_404
@@ -255,7 +255,7 @@ def nueva_localizacion(request):
 def archivar_muestra(request):
     # Vista para archivar una muestra en una localización específica que esté vacía 
     if request.method == 'POST':
-        form = LocalizacionForm_archivar(request.POST)
+        form = archivar_muestra_form(request.POST)
         
         if form.is_valid():
             data = form.cleaned_data
@@ -289,7 +289,7 @@ def archivar_muestra(request):
                 messages.error(request, "Error interno: La ubicación ya no está disponible o no existe.")
                 
     else:
-        form =  LocalizacionForm_archivar()
+        form =  archivar_muestra_form()
         
     context = {'form': form}
     return render(request, 'archivar_muestra.html', context)
