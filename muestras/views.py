@@ -226,8 +226,32 @@ def localizaciones(request):
     racks = Localizacion.objects.values_list('congelador','estante','posicion_rack_estante','rack').distinct()
     posiciones_caja_rack = Localizacion.objects.values_list('congelador','estante','posicion_rack_estante','rack','posicion_caja_rack').distinct()
     cajas = Localizacion.objects.values_list('congelador','estante','posicion_rack_estante','rack','posicion_caja_rack','caja').distinct()
+    subposiciones = Localizacion.objects.values_list('congelador','estante','posicion_rack_estante','rack','posicion_caja_rack','caja','subposicion').distinct()
     muestras = Localizacion.objects.values_list('congelador','estante','posicion_rack_estante','rack','posicion_caja_rack','caja','subposicion','muestra_id').distinct()
     template = loader.get_template('localizaciones_todas.html')
+    param = ['congelador', 'estante', 'posicion_rack_estante', 'rack', 'posicion_caja_rack', 'caja', 'subposicion']
+    for congelador in congeladores:
+        if f'congelador{congelador}' in request.GET:
+            eliminar_localizacion(request, congelador, param[0])
+    for estante in estantes: 
+        if f'congelador{estante[0]} estante{estante[1]}' in request.GET:
+            eliminar_localizacion(request, "|".join(estante), param[1])
+    for posicion_rack_estante in posicion_estante:
+        if request.GET.get(f'posicion_rack_estante_{"|".join(posicion_rack_estante)}'):
+            eliminar_localizacion(request, "|".join(posicion_rack_estante), param[2])
+    for rack in racks:
+        if request.GET.get(f'rack_{"|".join(rack)}'):
+            eliminar_localizacion(request, "|".join(rack), param[3])
+    for posicion_caja_rack in posiciones_caja_rack:
+        if request.GET.get(f'posicion_caja_rack_{"|".join(posicion_caja_rack)}'):
+            eliminar_localizacion(request, "|".join(posicion_caja_rack), param[4])
+    for caja in cajas:
+        if request.GET.get(f'caja_{"|".join(caja)}'):
+            eliminar_localizacion(request, "|".join(caja), param[5])
+    for subposicion in subposiciones:
+        if request.GET.get(f'subposicion_{"|".join(subposicion)}'):
+            eliminar_localizacion(request, "|".join(subposicion), param[6])   
+
     context = {
         'localizaciones': localizaciones,
         'congeladores': congeladores,
@@ -239,6 +263,40 @@ def localizaciones(request):
         'muestras': muestras  
     }
     return HttpResponse(template.render(context, request))
+
+def eliminar_localizacion(request, loc, param):
+    # Vista para eliminar una localización específica
+    if param == 'congelador':
+        localizaciones = Localizacion.objects.filter(congelador=loc)
+        localizaciones.delete()
+    elif param == 'estante':
+        congelador,estante = loc.split('|')
+        localizaciones = Localizacion.objects.filter(congelador=congelador, estante=estante)
+        field_names = [f.name for f in Localizacion._meta.local_fields if f.name not in ('congelador','muestra','id')]
+        for unit in localizaciones:
+            for field in field_names:    
+                setattr(unit, field, '')
+            unit.save()
+        Localizacion.objects.filter(estante='').delete()
+    elif param == 'posicion_rack_estante':
+        congelador, estante, posicion_rack_estante = loc.split('|')
+        localizaciones = Localizacion.objects.filter(congelador=congelador, estante=estante, posicion_rack_estante=posicion_rack_estante)
+    elif param == 'rack':
+        congelador, estante, posicion_rack_estante, rack = loc.split('|')
+        localizaciones = Localizacion.objects.filter(congelador=congelador, estante=estante, posicion_rack_estante=posicion_rack_estante, rack=rack)
+    elif param == 'posicion_caja_rack':
+        congelador, estante, posicion_rack_estante, rack, posicion_caja_rack = loc.split('|')
+        localizaciones = Localizacion.objects.filter(congelador=congelador, estante=estante, posicion_rack_estante=posicion_rack_estante, rack=rack, posicion_caja_rack=posicion_caja_rack)
+    elif param == 'caja':
+        congelador, estante, posicion_rack_estante, rack, posicion_caja_rack, caja = loc.split('|')
+        localizaciones = Localizacion.objects.filter(congelador=congelador, estante=estante, posicion_rack_estante=posicion_rack_estante, rack=rack, posicion_caja_rack=posicion_caja_rack, caja=caja)
+    elif param == 'subposicion':
+        congelador, estante, posicion_rack_estante, rack, posicion_caja_rack, caja, subposicion = loc.split('|')
+        localizaciones = Localizacion.objects.filter(congelador=congelador, estante=estante, posicion_rack_estante=posicion_rack_estante, rack=rack, posicion_caja_rack=posicion_caja_rack, caja=caja, subposicion=subposicion)
+    else:
+        return redirect('localizaciones_todas')
+    
+    return redirect('localizaciones_todas')
 
 def nueva_localizacion(request):
     # Vista para crear una nueva localizacion, con muestra o no
@@ -293,3 +351,6 @@ def archivar_muestra(request):
         
     context = {'form': form}
     return render(request, 'archivar_muestra.html', context)
+
+
+

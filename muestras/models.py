@@ -39,12 +39,12 @@ class Localizacion(models.Model):
     # Campos del modelo Localizacion, que referencia a una muestra
     muestra = models.ForeignKey('Muestra',to_field = "nom_lab",related_name="localizacion", blank=True, null=True, on_delete=models.SET_NULL)
     congelador = models.CharField(max_length=50)
-    estante = models.CharField(max_length=50)
-    posicion_rack_estante = models.CharField(max_length=50)
-    rack = models.CharField(max_length=50)
-    posicion_caja_rack = models.CharField(max_length=50)
-    caja = models.CharField(max_length=50)
-    subposicion = models.CharField(max_length=50)
+    estante = models.CharField(max_length=50,blank=True)
+    posicion_rack_estante = models.CharField(max_length=50,blank=True)
+    rack = models.CharField(max_length=50,blank=True)
+    posicion_caja_rack = models.CharField(max_length=50,blank=True)
+    caja = models.CharField(max_length=50,blank=True)
+    subposicion = models.CharField(max_length=50,blank=True)
 
     class Meta:
         # Campos unicos de localización
