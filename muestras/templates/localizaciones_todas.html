@@ -10,37 +10,39 @@ Archivo de muestras
 <p><a href="/archivo/archivar_muestra"> Archivar una muestra en una posición </a></p>
 <link rel="stylesheet" href="{% static 'archivo.css' %}">
 <script src="{% static 'mostrar.js' %}"></script>
+<form action = "">
+<button type="submit" class="btn btn-primary" id='eliminar' onclick="return confirm('¿Quieres eliminar las posiciones seleccionadas?')">Eliminar posiciones seleccionadas</button>
 <nav id="archivo">
   <ul class="congeladores">
     {% for a in congeladores %}
-    <li> <button onclick = "desplegar(this,'estantes')" class="dropbtn">Congelador {{a}}</button>
+    <li> <input type="checkbox" name="congelador{{a}}" class="form-control"><button type ="button" onclick = "desplegar(this,'estantes')" class="dropbtn">Congelador {{a}}</button>
         <ul class="estantes">
         {% for b in estantes %}
           {% if b.0 == a %}
-            <li> <button onclick = "desplegar(this,'posicion_estante')" class="dropbtn">Estante {{ b.1 }}</button>
+            <li><input type="checkbox" name="congelador{{b.0}} estante{{b.1}}" class="form-control"><button type ="button" onclick = "desplegar(this,'posicion_estante')" class="dropbtn">Estante {{ b.1 }}</button>
               <ul class="posicion_estante">
               {% for c in posicion_estante %}
               {% if c.1 == b.1 and c.0 == b.0 %}
-                <li> <button onclick = "desplegar(this,'racks')" class="dropbtn">Posición del rack en el estante: {{ c.2 }}</button> 
+                <li><input type="checkbox" name="posicion_estante {{c.2}}" class="form-control"> <button type ="button" onclick = "desplegar(this,'racks')" class="dropbtn">Posición del rack en el estante: {{ c.2 }}</button> 
                   {% for d in racks %}
                   {% if d.2 == c.2 and d.1 == b.1 and d.0 == b.0 %}
                     <ul class="racks">
-                      <li> <button onclick = "desplegar(this,'posicion_caja_rack')" class="dropbtn">Rack {{ d.3 }}</button>
+                      <li> <input type="checkbox" name="rack {{d.3}}" class="form-control"><button type ="button" onclick = "desplegar(this,'posicion_caja_rack')" class="dropbtn">Rack {{ d.3 }}</button>
                         <ul class="posicion_caja_rack">
                         {% for e in posiciones_caja_rack %}
                         {% if e.3 == d.3 and e.2 == c.2 and e.1 == b.1 and e.0 == b.0 %}
-                          <li> <button onclick = "desplegar(this,'cajas')" class="dropbtn">Posición de la caja en el rack: {{ e.4 }}</button>
+                          <li> <input type="checkbox" name="posicion_caja_rack {{e.4}}" class="form-control"><button type ="button" onclick = "desplegar(this,'cajas')" class="dropbtn">Posición de la caja en el rack: {{ e.4 }}</button>
                             <ul class="cajas">
                             {% for f in cajas %}
                             {% if f.4 == e.4 and f.3 == d.3 and f.2 == c.2 and f.1 == b.1 and f.0 == b.0 %}
-                              <li> <button onclick = "desplegar(this,'muestras')" class="dropbtn">Caja {{ f.5 }}</button>
+                              <li> <input type="checkbox" name="caja {{f.5}}" class="form-control"><button type ="button" onclick = "desplegar(this,'muestras')" class="dropbtn">Caja {{ f.5 }}</button>
                                 <ul class="muestras">
                                 {% for g in muestras %}
                                 {% if g.5 == f.5 and g.4 == e.4 and g.3 == d.3 and g.2 == c.2 and g.1 == b.1 and g.0 == b.0 %}
                                 {% if g.7 != None %}
-                                  <li> Subposición {{ g.6 }}: <a href="detalles_muestra/{{g.7}}">{{g.7}}</a> </li>
+                                  <li><input type="checkbox" name="subposicion {{g.6}}" class="form-control"> Subposición {{ g.6 }}: <a href="detalles_muestra/{{g.7}}">{{g.7}}</a> </li>
                                 {% else %}
-                                <li> Subposición {{ g.6 }}: {{g.7}}</li>
+                                <li> <input type="checkbox" name="subposicion {{g.6}}" class="form-control">Subposición {{ g.6 }}: {{g.7}}</li>
                                 {% endif %}
                                 {% endif %}
                                 {% endfor %}
@@ -67,7 +69,7 @@ Archivo de muestras
         </ul>
     </li>
     {% endfor %}
-  </ul>  
+  </ul> 
 </nav>
-
+</form>
 {% endblock %}

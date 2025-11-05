@@ -9,70 +9,95 @@ class MuestraForm(forms.ModelForm):
         fields = '__all__'
 
 class UploadExcel(forms.Form):
-    # Formulario para subir un archivo Excel de las muestras
+    # Formulario para subir un archivo Excel 
     excel_file = forms.FileField(required=False)
 class LocalizacionForm(forms.Form):
-    # Formulario basado en el modelo Localizacion, se incluyen todos los campos del modelo
-    Congelador = forms.IntegerField(min_value=1)
-    Estante = forms.IntegerField(min_value=1)
-    Posicion_estante = forms.IntegerField(min_value=1)
-    Rack= forms.IntegerField(min_value=1)
-    Caja= forms.IntegerField(min_value=1)
-    Posicion_caja = forms.IntegerField(min_value=1)
-    Subposiciones = forms.IntegerField(min_value=1)
-        #self.fields['muestra'].queryset = Muestra.objects.filter(localizacion__isnull=True)
-        
+    """Bulk creator: crea varias Localizacion a la vez.
+
+    Campos (enteros) indican cuántas posiciones crear en cada dimensión.
+    Para cada dimensión hay un campo is_bulk_X que determina si el número X
+    significa "crear posiciones 1..X" (bulk=True) o "crear solo posición X" (bulk=False).
+    """
+
+    Congeladores = forms.IntegerField(min_value=1, initial=1, help_text="Número de congeladores")
+    is_bulk_congeladores = forms.BooleanField(required=False, initial=True, label="Crear congeladores 1 a N")
+
+    Estantes = forms.IntegerField(min_value=1, initial=1, help_text="Número de estantes por congelador")
+    is_bulk_estantes = forms.BooleanField(required=False, initial=True, label="Crear estantes 1 a N")
+
+    Posiciones_de_los_racks_en_el_estante = forms.IntegerField(min_value=1, initial=1, help_text="Número de posiciones de rack por estante")
+    is_bulk_posiciones_de_los_racks_en_el_estante = forms.BooleanField(required=False, initial=True, label="Crear posiciones 1 a N")
+
+    Racks = forms.IntegerField(min_value=1, initial=1, help_text="Número de racks por posición de estante")
+    is_bulk_racks = forms.BooleanField(required=False, initial=True, label="Crear racks 1 a N")
+
+    Posiciones_de_la_cajas_en_los_racks = forms.IntegerField(min_value=1, initial=1, help_text="Número de posiciones de caja por rack")
+    is_bulk_posiciones_de_la_cajas_en_los_racks = forms.BooleanField(required=False, initial=True, label="Crear posiciones 1 a N")
+
+    Cajas = forms.IntegerField(min_value=1, initial=1, help_text="Número de cajas por posición de caja en el rack")
+    is_bulk_cajas = forms.BooleanField(required=False, initial=True, label="Crear cajas 1 a N")
+
+    Subposiciones = forms.IntegerField(min_value=1, initial=1, help_text="Número de subposiciones por caja")
+    is_bulk_subposiciones = forms.BooleanField(required=False, initial=True, label="Crear subposiciones 1 a N")
+
     def save(self):
-        if self.is_valid():
-            congelador = self.cleaned_data.get('Congelador')
-            estante = self.cleaned_data.get('Estante')
-            rack = self.cleaned_data.get('Rack')
-            caja = self.cleaned_data.get('Caja')
-            subposiciones = self.cleaned_data.get('Subposiciones')
-            for a,b,c,d,e in product(range(congelador),range(estante),range(rack),range(caja),range(subposiciones)):
-                    Localizacion.objects.update_or_create(
-                        congelador=a+1, estante=b+1, posicion_rack_estante=c+1,
-                        rack=c+1, caja=d+1, posicion_caja_rack=d+1, subposicion=e+1
-                    )
+        """Crear las localizaciones según los valores y modos (bulk/single) especificados."""
+        if not self.is_valid():
+            raise ValueError("Formulario no válido")
 
-    
-class LocalizacionForm_archivar(forms.ModelForm):
-    # Formulario basado en el modelo Localizacion, se incluyen todos los campos del modelo
-    class Meta:
-        model = Localizacion
-        fields = ['muestra']
+        # Obtener valores y modos para cada dimensión
+        dims = {
+            'congelador': (self.cleaned_data['Congeladores'], self.cleaned_data['is_bulk_congeladores']),
+            'estante': (self.cleaned_data['Estantes'], self.cleaned_data['is_bulk_estantes']),
+            'posicion_rack_estante': (self.cleaned_data['Posiciones_de_los_racks_en_el_estante'], self.cleaned_data['is_bulk_posiciones_de_los_racks_en_el_estante']),
+            'rack': (self.cleaned_data['Racks'], self.cleaned_data['is_bulk_racks']),
+            'posicion_caja_rack': (self.cleaned_data['Posiciones_de_la_cajas_en_los_racks'], self.cleaned_data['is_bulk_posiciones_de_la_cajas_en_los_racks']),
+            'caja': (self.cleaned_data['Cajas'], self.cleaned_data['is_bulk_cajas']),
+            'subposicion': (self.cleaned_data['Subposiciones'], self.cleaned_data['is_bulk_subposiciones'])
+        }
 
-    congelador = forms.CharField(max_length=50)
-    estante = forms.CharField(max_length=50)
-    posicion_rack_estante = forms.CharField(max_length=50)
-    rack = forms.CharField(max_length=50)
-    posicion_caja_rack = forms.CharField(max_length=50)
-    caja = forms.CharField(max_length=50)
-    subposicion = forms.CharField(max_length=50)
+        # Convertir cada dimensión a su rango de valores según el modo
+        ranges = {}
+        for dim, (value, is_bulk) in dims.items():
+            if is_bulk:
+                # Modo bulk: generar posiciones 1 a N
+                ranges[dim] = range(1, value + 1)
+            else:
+                # Modo single: usar solo el valor N
+                ranges[dim] = [value]
 
-    def clean(self):
-        cleaned_data=super().clean()
-
-        #Verificar que la muestra no esté ya archivada
-        try:
-            Localizacion.objects.get(muestra='muestra')
-            raise forms.ValidationError("La muestra ya está archivada en una localización.")
-        except Localizacion.DoesNotExist:
-            pass
-        
-        
-        # Verificar que la posición especificada esté vacía
-        try:
-            Localizacion.objects.get(
-                congelador=cleaned_data.get("congelador"),
-                estante=cleaned_data.get("estante"),
-                posicion_rack_estante=cleaned_data.get("posicion_rack_estante"),
-                rack=cleaned_data.get("rack"),
-                posicion_caja_rack=cleaned_data.get("posicion_caja_rack"),
-                caja=cleaned_data.get("caja"),
-                subposicion=cleaned_data.get("subposicion"),
-                muestra__isnull=True
+        # Crear todas las combinaciones válidas
+        created = 0
+        for cong, est, pos_rack, rack, pos_caja, caja, sub in product(
+            ranges['congelador'],
+            ranges['estante'],
+            ranges['posicion_rack_estante'],
+            ranges['rack'],
+            ranges['posicion_caja_rack'],
+            ranges['caja'],
+            ranges['subposicion']
+        ):
+            # Convertir números a strings como espera el modelo
+            loc_data = {
+                'congelador': str(cong),
+                'estante': str(est),
+                'posicion_rack_estante': str(pos_rack),
+                'rack': str(rack),
+                'posicion_caja_rack': str(pos_caja),
+                'caja': str(caja),
+                'subposicion': str(sub),
+            }
+            # Crear o actualizar la localización
+            obj, was_created = Localizacion.objects.update_or_create(
+                **loc_data,  # usamos los mismos campos como lookup
+                defaults={'muestra': None}  # siempre vacía al crear
             )
-        except Localizacion.DoesNotExist:
-            raise forms.ValidationError("La posición no existe o ya está ocupada.")
-        return cleaned_data
+            created += 1
+
+        return created
+class archivar_muestra_form(forms.ModelForm):
+        """Archivar una muestra en una localización específica."""
+        class Meta:
+            model = Localizacion
+            fields = ['muestra', 'congelador', 'estante', 'posicion_rack_estante', 'rack', 'posicion_caja_rack', 'caja', 'subposicion']
+    
