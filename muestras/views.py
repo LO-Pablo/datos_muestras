@@ -193,7 +193,7 @@ def upload_excel(request):
     else:
         form = UploadExcel(request)     
     return render(request, 'upload_excel.html', {'form': form}) 
-def descargar_plantilla(request):
+def descargar_plantilla_muestras(request):
     # Vista para descargar la plantilla de Excel para subir muestras
     plantilla_path = os.path.join(settings.BASE_DIR, 'datos_prueba', 'globalstaticfiles', 'Plantilla_muestras.xlsx')
     if os.path.exists(plantilla_path):
@@ -220,15 +220,37 @@ def editar_muestra(request, id_individuo, nom_lab):
 def localizaciones(request):
     # Vista que muestra todas las localizaciones, tengan o no muestra
     localizaciones = Localizacion.objects.all().values().distinct()
-    congeladores = Localizacion.objects.values_list('congelador', flat=True).distinct()
-    estantes = Localizacion.objects.values_list('congelador','estante').distinct()
-    posicion_estante = Localizacion.objects.values_list('congelador','estante','posicion_rack_estante').distinct()
-    racks = Localizacion.objects.values_list('congelador','estante','posicion_rack_estante','rack').distinct()
-    posiciones_caja_rack = Localizacion.objects.values_list('congelador','estante','posicion_rack_estante','rack','posicion_caja_rack').distinct()
-    cajas = Localizacion.objects.values_list('congelador','estante','posicion_rack_estante','rack','posicion_caja_rack','caja').distinct()
-    subposiciones = Localizacion.objects.values_list('congelador','estante','posicion_rack_estante','rack','posicion_caja_rack','caja','subposicion').distinct()
-    muestras = Localizacion.objects.values_list('congelador','estante','posicion_rack_estante','rack','posicion_caja_rack','caja','subposicion','muestra_id').distinct()
+    congeladores = Localizacion.objects.exclude(congelador__isnull=True).values_list('congelador', flat=True).distinct()
+    
+    estantes = (Localizacion.objects.exclude(estante__isnull=True)
+                .values_list('congelador','estante')
+                .distinct())
+    
+    posicion_estante = (Localizacion.objects.exclude(posicion_rack_estante__isnull=True)
+                       .values_list('congelador','estante','posicion_rack_estante')
+                       .distinct())
+    
+    racks = (Localizacion.objects.exclude(rack__isnull=True)
+             .values_list('congelador','estante','posicion_rack_estante','rack')
+             .distinct())
+    
+    posiciones_caja_rack = (Localizacion.objects.exclude(posicion_caja_rack__isnull=True)
+                           .values_list('congelador','estante','posicion_rack_estante','rack','posicion_caja_rack')
+                           .distinct())
+    
+    cajas = (Localizacion.objects.exclude(caja__isnull=True)
+             .values_list('congelador','estante','posicion_rack_estante','rack','posicion_caja_rack','caja')
+             .distinct())
+    
+    subposiciones = (Localizacion.objects.exclude(subposicion__isnull=True)
+                    .values_list('congelador','estante','posicion_rack_estante','rack','posicion_caja_rack','caja','subposicion','id')
+                    .distinct())
+    
+    muestras = (Localizacion.objects.exclude(subposicion__isnull=True)
+                .values_list('congelador','estante','posicion_rack_estante','rack','posicion_caja_rack','caja','subposicion','muestra_id')
+                .distinct())
     template = loader.get_template('localizaciones_todas.html')
+    
     param = ['congelador', 'estante', 'posicion_rack_estante', 'rack', 'posicion_caja_rack', 'caja', 'subposicion']
     for congelador in congeladores:
         if f'congelador{congelador}' in request.GET:
@@ -237,20 +259,20 @@ def localizaciones(request):
         if f'congelador{estante[0]} estante{estante[1]}' in request.GET:
             eliminar_localizacion(request, "|".join(estante), param[1])
     for posicion_rack_estante in posicion_estante:
-        if request.GET.get(f'posicion_rack_estante_{"|".join(posicion_rack_estante)}'):
+        if f'congelador{posicion_rack_estante[0]} estante{posicion_rack_estante[1]} posicion_rack_estante{posicion_rack_estante[2]}' in request.GET:
             eliminar_localizacion(request, "|".join(posicion_rack_estante), param[2])
     for rack in racks:
-        if request.GET.get(f'rack_{"|".join(rack)}'):
+        if f'congelador{rack[0]} estante{rack[1]} posicion_rack_estante{rack[2]} rack{rack[3]}' in request.GET:
             eliminar_localizacion(request, "|".join(rack), param[3])
     for posicion_caja_rack in posiciones_caja_rack:
-        if request.GET.get(f'posicion_caja_rack_{"|".join(posicion_caja_rack)}'):
+        if f'congelador{posicion_caja_rack[0]} estante{posicion_caja_rack[1]} posicion_rack_estante{posicion_caja_rack[2]} rack{posicion_caja_rack[3]} posicion_caja_rack{posicion_caja_rack[4]}' in request.GET:
             eliminar_localizacion(request, "|".join(posicion_caja_rack), param[4])
     for caja in cajas:
-        if request.GET.get(f'caja_{"|".join(caja)}'):
+        if f'congelador{caja[0]} estante{caja[1]} posicion_rack_estante{caja[2]} rack{caja[3]} posicion_caja_rack{caja[4]} caja{caja[5]}' in request.GET:
             eliminar_localizacion(request, "|".join(caja), param[5])
     for subposicion in subposiciones:
-        if request.GET.get(f'subposicion_{"|".join(subposicion)}'):
-            eliminar_localizacion(request, "|".join(subposicion), param[6])   
+        if f'congelador{subposicion[0]} estante{subposicion[1]} posicion_rack_estante{subposicion[2]} rack{subposicion[3]} posicion_caja_rack{subposicion[4]} caja{subposicion[5]} subposicion{subposicion[6]}' in request.GET:
+            eliminar_localizacion(request, "|".join(subposicion), param[6]) 
 
     context = {
         'localizaciones': localizaciones,
@@ -264,6 +286,69 @@ def localizaciones(request):
     }
     return HttpResponse(template.render(context, request))
 
+def upload_excel_localizaciones(request):
+    if request.method=="POST":
+        form = UploadExcel(request.POST, request.FILES)
+        if 'confirmar' in request.POST:
+            messages.success(request, 'Las localizaciones se han añadido correctamente.')
+            
+        elif 'cancelar' in request.POST:
+            # Eliminación de las muestras añadidas del excel
+            ids_to_delete = request.session.pop('nuevos_ids', [])
+            Localizacion.objects.filter(id__in=ids_to_delete).delete()
+        elif 'excel_file' in request.FILES:
+            if form.is_valid():
+                excel_file = request.FILES['excel_file']
+                df = pd.read_excel(excel_file)
+                rename_columns = {
+                    'Congelador': 'congelador', 
+                    'Estante': 'estante',
+                    'Posición del rack en el estante': 'posicion_rack_estante',
+                    'Rack': 'rack',
+                    'Posición de la caja en el rack': 'posicion_caja_rack',
+                    'Caja': 'caja',
+                    'Subposición': 'subposicion'
+                }
+                df.rename(columns=rename_columns, inplace=True)
+                errors = 0
+                nuevos_ids = []
+                for _, row in df.iterrows():
+                    try:
+                        localizacion, created = Localizacion.objects.update_or_create(
+                            congelador=row['congelador'],
+                            estante=row['estante'], 
+                            posicion_rack_estante=row['posicion_rack_estante'],
+                            rack=row['rack'],
+                            posicion_caja_rack=row['posicion_caja_rack'],
+                            caja=row['caja'],
+                            subposicion=row['subposicion']    
+                        )
+                        if created:
+                            nuevos_ids.append(localizacion.id)
+                        else:
+                            messages.info(request, f'Localizacion {localizacion} ya existe, el excel no se ha procesado correctamente')
+                            errors+=1
+                    except ValueError:
+                        messages.error(request, f'El formato de alguno de los campos de la localizacion {localizacion} no es el correcto. Revisa el formato de los datos.')
+                        errors+=1
+                        redirect('localizacion_nueva')
+                request.session['nuevos_ids'] = nuevos_ids
+                nuevos_ids = []
+                if errors==0:
+                    messages.success(request, 'El archivo excel es correcto.')
+                else:
+                    messages.warning(request, f'El archivo excel contiene {errors} errores.') 
+                return render(request, 'confirmacion_upload.html') 
+    else:
+        form = UploadExcel(request)     
+    return render(request, 'localizacion_nueva.html', {'form': form}) 
+def descargar_plantilla_localizaciones(request):
+    # Vista para descargar la plantilla de Excel para subir localizaciones
+    plantilla_path = os.path.join(settings.BASE_DIR, 'datos_prueba', 'globalstaticfiles', 'plantilla_localizaciones.xlsx')
+    if os.path.exists(plantilla_path):
+        return FileResponse(open(plantilla_path, 'rb'), as_attachment=True, filename='plantilla_localizaciones.xlsx')
+    else:
+        return HttpResponse("La plantilla no se encuentra disponible.", status=404)
 def eliminar_localizacion(request, loc, param):
     # Vista para eliminar una localización específica
     if param == 'congelador':
@@ -297,17 +382,6 @@ def eliminar_localizacion(request, loc, param):
         return redirect('localizaciones_todas')
     
     return redirect('localizaciones_todas')
-
-def nueva_localizacion(request):
-    # Vista para crear una nueva localizacion, con muestra o no
-    if request.method == 'POST':
-        form = LocalizacionForm(request.POST)
-        if form.is_valid():
-            form.save()
-            return redirect('localizaciones_todas')
-    else:
-        form = LocalizacionForm()   
-    return render(request, 'localizaciones_nueva.html', {'form': form})
 
 @transaction.atomic
 def archivar_muestra(request):
