@@ -13,6 +13,7 @@ from io import BytesIO
 from reportlab.pdfgen import canvas
 from django.conf import settings
 import openpyxl,os
+from itertools import product
 def principal(request):
     # Vista principal de la aplicación, muestra una página de bienvenida
     template = loader.get_template('principal.html')
@@ -229,59 +230,84 @@ def descargar_plantilla(request,macro:int):
 def localizaciones(request):
     # Vista que muestra todas las localizaciones, tengan o no muestra
     localizaciones = Localizacion.objects.all().values().distinct()
-    congeladores = Localizacion.objects.exclude(congelador__isnull=True).values_list('congelador', flat=True).distinct()
+    congeladores = Localizacion.objects.exclude(congelador='').values_list('congelador', flat=True).distinct()
     
-    estantes = (Localizacion.objects.exclude(estante__isnull=True)
+    estantes = (Localizacion.objects.exclude(estante='')
                 .values_list('congelador','estante')
                 .distinct())
     
-    posicion_estante = (Localizacion.objects.exclude(posicion_rack_estante__isnull=True)
+    posicion_estante = (Localizacion.objects.exclude(posicion_rack_estante='')
                        .values_list('congelador','estante','posicion_rack_estante')
                        .distinct())
     
-    racks = (Localizacion.objects.exclude(rack__isnull=True)
+    racks = (Localizacion.objects.exclude(rack='')
              .values_list('congelador','estante','posicion_rack_estante','rack')
              .distinct())
     
-    posiciones_caja_rack = (Localizacion.objects.exclude(posicion_caja_rack__isnull=True)
+    posiciones_caja_rack = (Localizacion.objects.exclude(posicion_caja_rack='')
                            .values_list('congelador','estante','posicion_rack_estante','rack','posicion_caja_rack')
                            .distinct())
     
-    cajas = (Localizacion.objects.exclude(caja__isnull=True)
+    cajas = (Localizacion.objects.exclude(caja='')
              .values_list('congelador','estante','posicion_rack_estante','rack','posicion_caja_rack','caja')
              .distinct())
     
-    subposiciones = (Localizacion.objects.exclude(subposicion__isnull=True)
+    subposiciones = (Localizacion.objects
                     .values_list('congelador','estante','posicion_rack_estante','rack','posicion_caja_rack','caja','subposicion','id')
                     .distinct())
     
-    muestras = (Localizacion.objects.exclude(subposicion__isnull=True)
+    muestras = (Localizacion.objects
                 .values_list('congelador','estante','posicion_rack_estante','rack','posicion_caja_rack','caja','subposicion','muestra_id')
                 .distinct())
     template = loader.get_template('localizaciones_todas.html')
     
     param = ['congelador', 'estante', 'posicion_rack_estante', 'rack', 'posicion_caja_rack', 'caja', 'subposicion']
-    for congelador in congeladores:
-        if f'congelador{congelador}' in request.GET:
-            eliminar_localizacion(request, congelador, param[0])
-    for estante in estantes: 
-        if f'congelador{estante[0]} estante{estante[1]}' in request.GET:
-            eliminar_localizacion(request, "|".join(estante), param[1])
-    for posicion_rack_estante in posicion_estante:
-        if f'congelador{posicion_rack_estante[0]} estante{posicion_rack_estante[1]} posicion_rack_estante{posicion_rack_estante[2]}' in request.GET:
-            eliminar_localizacion(request, "|".join(posicion_rack_estante), param[2])
-    for rack in racks:
-        if f'congelador{rack[0]} estante{rack[1]} posicion_rack_estante{rack[2]} rack{rack[3]}' in request.GET:
-            eliminar_localizacion(request, "|".join(rack), param[3])
-    for posicion_caja_rack in posiciones_caja_rack:
-        if f'congelador{posicion_caja_rack[0]} estante{posicion_caja_rack[1]} posicion_rack_estante{posicion_caja_rack[2]} rack{posicion_caja_rack[3]} posicion_caja_rack{posicion_caja_rack[4]}' in request.GET:
-            eliminar_localizacion(request, "|".join(posicion_caja_rack), param[4])
-    for caja in cajas:
-        if f'congelador{caja[0]} estante{caja[1]} posicion_rack_estante{caja[2]} rack{caja[3]} posicion_caja_rack{caja[4]} caja{caja[5]}' in request.GET:
-            eliminar_localizacion(request, "|".join(caja), param[5])
-    for subposicion in subposiciones:
-        if f'congelador{subposicion[0]} estante{subposicion[1]} posicion_rack_estante{subposicion[2]} rack{subposicion[3]} posicion_caja_rack{subposicion[4]} caja{subposicion[5]} subposicion{subposicion[6]}' in request.GET:
-            eliminar_localizacion(request, "|".join(subposicion), param[6]) 
+    # Convertimos las claves de request.GET a un set para búsquedas rápidas
+    keys = set(request.GET.keys())
+
+    # Lista de niveles y sus nombres en orden jerárquico
+    niveles = [
+        (congeladores, "congelador"),
+        (estantes, "estante"),
+        (posicion_estante, "posicion_rack_estante"),
+        (racks, "rack"),
+        (posiciones_caja_rack, "posicion_caja_rack"),
+        (cajas, "caja"),
+        (subposiciones, "subposicion"),
+    ]
+
+    # Inicializamos flag para saber si se ejecutó alguna combinación completa
+    combinacion_ejecutada = False
+
+    # Procesamos primero combinaciones completas (subposiciones)
+    for subpos in subposiciones:
+        claves_combinacion = [f'{nombre}{subpos[i]}' for i, (nivel, nombre) in enumerate(niveles)]  # excluimos id/subposicion final
+        if all(clave in keys for clave in claves_combinacion):
+            eliminar_localizacion(request, "|".join([str(s) for s in subpos]), "subposicion")
+            combinacion_ejecutada = True
+
+    # Si no se ejecutó ninguna combinación completa, procesamos niveles parciales de arriba hacia abajo
+    
+    if not combinacion_ejecutada:
+        for nivel, nombre in reversed(niveles[:-1]):  # excluimos subposiciones para procesarlas solo en combinaciones completas
+            for elemento in nivel:
+                key= []
+                # Construimos la clave según la estructura de cada nivel
+                if isinstance(elemento, tuple):
+                    key_values = [str(e) for e in elemento]
+                    for i, (niv, nom) in enumerate(niveles):
+                        if i < len(elemento):
+                            key.append(f'{nom}{elemento[i]}')
+                else:
+                    key = [f'{nombre}{elemento}']
+                    key_values = [str(elemento)]
+
+                if all(clave in keys for clave in key):
+                    eliminar_localizacion(request, "|".join(key_values), nombre)
+                    combinacion_ejecutada = True
+                    break
+            if combinacion_ejecutada:
+                break
 
     context = {
         'localizaciones': localizaciones,
@@ -357,6 +383,7 @@ def eliminar_localizacion(request, loc, param):
     if param == 'congelador':
         localizaciones = Localizacion.objects.filter(congelador=loc)
         localizaciones.delete()
+
     elif param == 'estante':
         congelador,estante = loc.split('|')
         localizaciones = Localizacion.objects.filter(congelador=congelador, estante=estante)
@@ -364,27 +391,60 @@ def eliminar_localizacion(request, loc, param):
         for unit in localizaciones:
             for field in field_names:    
                 setattr(unit, field, '')
+            Localizacion.objects.filter(estante='').delete()
             unit.save()
-        Localizacion.objects.filter(estante='').delete()
+
     elif param == 'posicion_rack_estante':
         congelador, estante, posicion_rack_estante = loc.split('|')
         localizaciones = Localizacion.objects.filter(congelador=congelador, estante=estante, posicion_rack_estante=posicion_rack_estante)
+        field_names = [f.name for f in Localizacion._meta.local_fields if f.name not in ('congelador','muestra','id','estante')]
+        for unit in localizaciones:
+            for field in field_names:    
+                setattr(unit, field, '')
+            Localizacion.objects.filter(posicion_rack_estante='').delete()
+            unit.save() 
+
     elif param == 'rack':
         congelador, estante, posicion_rack_estante, rack = loc.split('|')
         localizaciones = Localizacion.objects.filter(congelador=congelador, estante=estante, posicion_rack_estante=posicion_rack_estante, rack=rack)
+        field_names = [f.name for f in Localizacion._meta.local_fields if f.name not in ('congelador','muestra','id','estante','posicion_rack_estante')]
+        for unit in localizaciones:
+            for field in field_names:    
+                setattr(unit, field, '')
+            Localizacion.objects.filter(rack='').delete()
+            unit.save()
+
     elif param == 'posicion_caja_rack':
         congelador, estante, posicion_rack_estante, rack, posicion_caja_rack = loc.split('|')
         localizaciones = Localizacion.objects.filter(congelador=congelador, estante=estante, posicion_rack_estante=posicion_rack_estante, rack=rack, posicion_caja_rack=posicion_caja_rack)
+        field_names = [f.name for f in Localizacion._meta.local_fields if f.name not in ('congelador','muestra','id','estante','posicion_rack_estante','rack')]
+        for unit in localizaciones:
+            for field in field_names:    
+                setattr(unit, field, '')
+            Localizacion.objects.filter(posicion_caja_rack='').delete()
+            unit.save()
+
     elif param == 'caja':
         congelador, estante, posicion_rack_estante, rack, posicion_caja_rack, caja = loc.split('|')
         localizaciones = Localizacion.objects.filter(congelador=congelador, estante=estante, posicion_rack_estante=posicion_rack_estante, rack=rack, posicion_caja_rack=posicion_caja_rack, caja=caja)
+        field_names = [f.name for f in Localizacion._meta.local_fields if f.name not in ('congelador','muestra','id','estante','posicion_rack_estante','rack','posicion_caja_rack')]
+        for unit in localizaciones:
+            for field in field_names:    
+                setattr(unit, field, '')
+            Localizacion.objects.filter(caja='').delete()
+            unit.save()
+
     elif param == 'subposicion':
         congelador, estante, posicion_rack_estante, rack, posicion_caja_rack, caja, subposicion = loc.split('|')
         localizaciones = Localizacion.objects.filter(congelador=congelador, estante=estante, posicion_rack_estante=posicion_rack_estante, rack=rack, posicion_caja_rack=posicion_caja_rack, caja=caja, subposicion=subposicion)
-    else:
-        return redirect('localizaciones_todas')
+        for unit in localizaciones:
+            unit.muestra = None
+            unit.save()
     
-    return redirect('localizaciones_todas')
+    else:
+        return redirect('archivo/')
+    
+    return redirect('archivo/')
 
 @transaction.atomic
 def archivar_muestra(request):
