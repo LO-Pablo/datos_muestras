@@ -193,13 +193,6 @@ def upload_excel(request):
     else:
         form = UploadExcel(request)     
     return render(request, 'upload_excel.html', {'form': form}) 
-def descargar_plantilla_muestras(request):
-    # Vista para descargar la plantilla de Excel para subir muestras
-    plantilla_path = os.path.join(settings.BASE_DIR, 'datos_prueba', 'globalstaticfiles', 'Plantilla_muestras.xlsx')
-    if os.path.exists(plantilla_path):
-        return FileResponse(open(plantilla_path, 'rb'), as_attachment=True, filename='plantilla_muestras.xlsx')
-    else:
-        return HttpResponse("La plantilla no se encuentra disponible.", status=404)
    
 @permission_required('muestras.can_change_muestras_web')
 def editar_muestra(request, id_individuo, nom_lab):
@@ -214,7 +207,23 @@ def editar_muestra(request, id_individuo, nom_lab):
         form = MuestraForm(instance=muestra)
     return render(request, 'editar_muestra.html', {'form': form, 'muestra': muestra})
 
-
+def descargar_plantilla(request,macro:int):
+    # Vista para descargar la plantilla de Excel para subir localizaciones o muestras
+    if macro == 0:
+        plantilla_path = os.path.join(settings.BASE_DIR, 'datos_prueba', 'globalstaticfiles', 'plantilla_localizaciones.xlsx')
+        if os.path.exists(plantilla_path):
+            return FileResponse(open(plantilla_path, 'rb'), as_attachment=True, filename='plantilla_localizaciones.xlsx')
+    elif macro == 1:
+        plantilla_path = os.path.join(settings.BASE_DIR, 'datos_prueba', 'globalstaticfiles', 'plantilla_localizaciones_macros.xlsm')
+        if os.path.exists(plantilla_path):
+            return FileResponse(open(plantilla_path, 'rb'), as_attachment=True, filename='plantilla_localizaciones_macros.xlsm')
+    elif macro == 2:
+        plantilla_path = os.path.join(settings.BASE_DIR, 'datos_prueba', 'globalstaticfiles', 'plantilla_muestras.xlsx')
+        if os.path.exists(plantilla_path):
+            return FileResponse(open(plantilla_path, 'rb'), as_attachment=True, filename='plantilla_muestras.xlsx')
+    else:
+        return HttpResponse("La plantilla no se encuentra disponible.", status=404)
+    
 # Vistas para Localizacion
 
 def localizaciones(request):
@@ -342,13 +351,7 @@ def upload_excel_localizaciones(request):
     else:
         form = UploadExcel(request)     
     return render(request, 'localizacion_nueva.html', {'form': form}) 
-def descargar_plantilla_localizaciones(request):
-    # Vista para descargar la plantilla de Excel para subir localizaciones
-    plantilla_path = os.path.join(settings.BASE_DIR, 'datos_prueba', 'globalstaticfiles', 'plantilla_localizaciones.xlsx')
-    if os.path.exists(plantilla_path):
-        return FileResponse(open(plantilla_path, 'rb'), as_attachment=True, filename='plantilla_localizaciones.xlsx')
-    else:
-        return HttpResponse("La plantilla no se encuentra disponible.", status=404)
+
 def eliminar_localizacion(request, loc, param):
     # Vista para eliminar una localización específica
     if param == 'congelador':
