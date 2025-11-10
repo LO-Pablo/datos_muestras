@@ -5,7 +5,8 @@ Subir archivo Excel con las localizaciones nuevas
 {% endblock %}
 {% block content %}
 <h2>Subir archivo Excel</h2>
-Utilizando la siguiente <a href="{% url 'descargar_plantilla_localizaciones' %}" download="plantilla_localizaciones.xlsx">plantilla</a>
+Utilizando la siguiente <a href="{% url 'descargar_plantilla_localizaciones_macros' macro=1 %}" download="plantilla_localizaciones_macros.xlsm">plantilla</a> 
+Si, las macros del excel dan errores, utilizar esta <a href="{% url 'descargar_plantilla_localizaciones' macro=0 %}" download="plantilla_localizaciones.xlsx">plantilla</a>
 <form method="post" enctype="multipart/form-data">
   {% csrf_token %}
   {{ form.as_p }}
