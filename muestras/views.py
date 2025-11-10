@@ -31,6 +31,7 @@ def muestras_todas(request):
         if request.GET.get(field):
             filter_kwargs = {f"{field}__icontains": request.GET[field]}
             muestras = muestras.filter(**filter_kwargs)
+    '''
     # Crear un PDF con las muestras filtradas
     if request.GET.get('crear_pdf'):    
         buffer = BytesIO()
@@ -55,7 +56,8 @@ def muestras_todas(request):
         p.save()
         buffer.seek(0)
         return FileResponse(buffer, as_attachment=True, filename='listado_muestras.pdf')
-    # Crear un Excel con las muestras filtradas 
+    '''
+     # Crear un Excel con las muestras filtradas 
     if request.GET.get('exportar_excel'):
         response = HttpResponse(content_type='application/ms-excel')
         response['Content-Disposition'] = 'attachment; filename="listado_muestras.xlsx"'
