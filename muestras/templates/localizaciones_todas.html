@@ -43,7 +43,7 @@ Archivo de muestras
                                   {% for g in muestras %}
                                   {% if g.5 == f.5 and g.4 == e.4 and g.3 == d.3 and g.2 == c.2 and g.1 == b.1 and g.0 == b.0 %}
                                   {% if g.7 != None %}
-                                    <li><input type="checkbox" name="subposicion{{g.6}}" class="form-control"> Subposición {{ g.6 }}: <a href="detalles_muestra/{{g.7}}">{{g.7}}</a> </li>
+                                  <li><input type="checkbox" name="subposicion{{g.6}}" class="form-control"> Subposición {{ g.6 }}: <a href="detalles_muestra/{{g.7}}">{{g.7}}</a> </li>
                                   {% else %}
                                   <li> <input type="checkbox" name="subposicion{{g.6}}" class="form-control">Subposición {{ g.6 }}: {{g.7}}</li>
                                   {% endif %}

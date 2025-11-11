@@ -9,7 +9,7 @@ from django.contrib.auth.decorators import login_required, permission_required
 from django.forms import formset_factory
 from .forms import MuestraForm
 import pandas as pd
-from io import BytesIO
+import io
 from reportlab.pdfgen import canvas
 from django.conf import settings
 import openpyxl,os
@@ -131,9 +131,11 @@ def upload_excel(request):
             messages.success(request, 'Las muestras se han añadido correctamente.')
             
         elif 'cancelar' in request.POST:
-            # Eliminación de las muestras añadidas del excel
+            # Eliminación de las muestras y localizaciones añadidas del excel
             ids_to_delete = request.session.pop('nuevos_ids', [])
             Muestra.objects.filter(id__in=ids_to_delete).delete()
+            ids_to_delete_loc = request.session.pop('nuevos_ids_loc', [])
+            Localizacion.objects.filter(id__in=ids_to_delete_loc).delete()
         elif 'excel_file' in request.FILES:
             if form.is_valid():
                 excel_file = request.FILES['excel_file']
@@ -153,11 +155,23 @@ def upload_excel(request):
                     'Observaciones': 'observaciones',
                     'Estado Inicial': 'estado_inicial',
                     'Centro Procedencia': 'centro_procedencia',
-                    'Lugar Procedencia': 'lugar_procedencia'
+                    'Lugar Procedencia': 'lugar_procedencia',
+                    'Congelador': 'congelador', 
+                    'Estante': 'estante',
+                    'Posición del rack en el estante': 'posicion_rack_estante',
+                    'Rack': 'rack',
+                    'Posición de la caja en el rack': 'posicion_caja_rack',
+                    'Caja': 'caja',
+                    'Subposición': 'subposicion'
+                    
                 }
                 df.rename(columns=rename_columns, inplace=True)
                 errors = 0
+                errors_loc = 0
                 nuevos_ids = []
+                nuevos_ids_loc = []
+                ids_error_muestras = []
+                ids_error_localizaciones = []
                 for _, row in df.iterrows():
                     try:
                         muestra, created = Muestra.objects.update_or_create(
@@ -177,22 +191,67 @@ def upload_excel(request):
                             centro_procedencia=row['centro_procedencia'],
                             lugar_procedencia=row['lugar_procedencia']
                         )
+                        localizacion, loc_created = Localizacion.objects.update_or_create(
+                            muestra = muestra,
+                            congelador=row['congelador'],
+                            estante=row['estante'], 
+                            posicion_rack_estante=row['posicion_rack_estante'],
+                            rack=row['rack'],
+                            posicion_caja_rack=row['posicion_caja_rack'],
+                            caja=row['caja'],
+                            subposicion=row['subposicion']    
+                        )
                         if created:
                             nuevos_ids.append(muestra.id)
-                        else:
+                        if loc_created:
+                            nuevos_ids_loc.append(localizacion.id)
+                            Localizacion.objects.filter(congelador = localizacion.congelador, 
+                                                        estante = localizacion.estante,
+                                                        posicion_rack_estante = localizacion.posicion_rack_estante,
+                                                        rack = localizacion.rack,
+                                                        posicion_caja_rack = localizacion.posicion_caja_rack,
+                                                        caja = localizacion.caja,
+                                                        subposicion = localizacion.subposicion,
+                                                        muestra__isnull=True).delete()
+                        elif not created:
                             messages.info(request, f'Muestra {muestra.nom_lab} ya existe, el excel no se ha procesado correctamente')
+                            ids_error_muestras.append(muestra.nom_lab)
                             errors+=1
+                        elif not loc_created:
+                            messages.info(request, f'Localizacion para la muestra {muestra.nom_lab} ya existe, el excel no se ha procesado correctamente')
+                            errors_loc+=1
+                            ids_error_localizaciones.append(muestra.nom_lab)
                     except ValueError:
                         messages.error(request, f'El formato de alguno de los campos de la muestra {row["nom_lab"]} no es el correcto. Revisa el formato de los datos.')
                         errors+=1
                         redirect('upload_excel')
                 request.session['nuevos_ids'] = nuevos_ids
+                request.session['nuevos_ids_loc'] = nuevos_ids_loc
                 nuevos_ids = []
-                if errors==0:
+                nuevos_ids_loc = []
+                if errors==0 and errors_loc==0:
                     messages.success(request, 'El archivo excel es correcto.')
                 else:
-                    messages.warning(request, f'El archivo excel contiene {errors} errores.') 
-                return render(request, 'confirmacion_upload.html') 
+                    messages.warning(request, f'El archivo excel contiene {errors} errores de los campos de las muestras y {errors_loc} de los campos de localización.')
+                
+                return render(request, 'confirmacion_upload.html')
+        elif 'exportar_excel' in request.POST:
+                    response = HttpResponse(content_type='application/ms-excel')
+                    response['Content-Disposition'] = 'attachment; filename="listado_errores.xlsx"'
+                    wb = openpyxl.load_workbook(excel_file)
+                    ws = wb.active
+                    for row in ws.iter_rows(min_row=2, max_row=ws.max_row):
+                        if row[1].value in ids_error_muestras or row[1].value in ids_error_localizaciones:
+                            for cell in row:
+                                cell.fill = openpyxl.styles.PatternFill(start_color="FF0000", end_color="FF0000", fill_type = "solid")
+                    wb.save(response)
+                    output = io.BytesIO()
+                    wb.save(output)
+                    wb.close()
+                    output.seek(0)
+                    response.write(output.getvalue())
+                    return response        
+ 
     else:
         form = UploadExcel(request)     
     return render(request, 'upload_excel.html', {'form': form}) 
@@ -255,12 +314,12 @@ def localizaciones(request):
              .distinct())
     
     subposiciones = (Localizacion.objects
-                    .values_list('congelador','estante','posicion_rack_estante','rack','posicion_caja_rack','caja','subposicion','id')
+                    .values_list('congelador','estante','posicion_rack_estante','rack','posicion_caja_rack','caja','subposicion')
                     .distinct())
     
     muestras = (Localizacion.objects
-                .values_list('congelador','estante','posicion_rack_estante','rack','posicion_caja_rack','caja','subposicion','muestra_id')
-                .distinct())
+                .values_list('congelador','estante','posicion_rack_estante','rack','posicion_caja_rack','caja','subposicion','muestra')
+                .distinct().order_by('subposicion'))
     template = loader.get_template('localizaciones_todas.html')
     
     param = ['congelador', 'estante', 'posicion_rack_estante', 'rack', 'posicion_caja_rack', 'caja', 'subposicion']
