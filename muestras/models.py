@@ -44,11 +44,11 @@ class Localizacion(models.Model):
     rack = models.CharField(max_length=50,blank=True)
     posicion_caja_rack = models.CharField(max_length=50,blank=True)
     caja = models.CharField(max_length=50,blank=True)
-    subposicion = models.CharField(max_length=50,blank=True)
+    subposicion = models.IntegerField(blank=True)
 
     class Meta:
-        # Campos unicos de localización
-        unique_together = ('congelador', 'estante', 'posicion_rack_estante', 'rack', 'posicion_caja_rack', 'caja', 'subposicion')
+        # Campos unicos de localización en conjunción
+        unique_together = ('muestra','congelador', 'estante', 'posicion_rack_estante', 'rack', 'posicion_caja_rack', 'caja', 'subposicion')
 
     def __str__(self):
         return f"{self.congelador} - {self.estante} - {self.posicion_rack_estante} - {self.rack} - {self.posicion_caja_rack} - {self.caja} - {self.subposicion}"
