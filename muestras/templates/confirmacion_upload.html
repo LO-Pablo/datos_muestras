@@ -3,12 +3,19 @@
         {{ message }}<br>
   {% endfor %}
 {% endif %}
+<p>Se ha creado un excel en el que se marcan las filas del excel original según los errores encontrados:</p>
+<li>En rojo, si la muestra ya existe en la base de datos o alguno de los campos obligatorios no se ha rellenado.</li>
+<li>En naranja, si alguno de los campos no tiene el formato correcto, marcando el campo en cuestión.</li>
+<li>En amarilo, si falta por rellenar alguno de los campos no obligatorios y de qué campo se trata.</li>
+<li>En azul, si la localización ya está asociada a otra muestra.</li>
+<p>Si una fila tiene varios errores, se marca primero el más grave (rojo) hasta el menos grave (azul), si se vuelve a subir se marcará el siguiente error</p>
+<form method="post" action="">
+  {% csrf_token %}
+  <button name="excel_errores" type="submit" class="btn btn-success">Descargar excel con errores</button>
+</form>
 <p>¿Desea subir el archivo excel?</p>
 <form method="post" action="">
     {% csrf_token %}
-    <button type ="submit" name="confirmar" value="true" class="btn btn-success">Confirmar</button>
-    <button type ="submit" name="cancelar" value="true" class="btn btn-success">Cancelar</button>
-</form>
-<form action="">
-    <input name="exportar_excel" type="submit" class="btn btn-success" value="Exportar excel de los errores encontrados">
+    <button type ="submit" name="confirmar" class="btn btn-success">Confirmar</button>
+    <button type ="submit" name="cancelar"  class="btn btn-success">Cancelar</button>
 </form>

@@ -5,7 +5,8 @@ Subir archivo Excel
 {% endblock %}
 {% block content %}
 <h2>Subir archivo Excel</h2>
-Utilizando la siguiente <a href="{% url 'descargar_plantilla_muestras' macro=2 %}" download="plantilla_muestras.xlsx">plantilla</a>, en la cual están marcadas en rojo las columnas obligatorias 
+Utilizando la siguiente <a href="{% url 'descargar_plantilla_muestras' macro=2 %}" download="plantilla_muestras.xlsx">plantilla</a>, en la cual están marcadas en rojo las columnas obligatorias.
+Si estas columnas obligatorias no se rellenan, la muestra no se subirá a la base de datos. 
 <form method="post" enctype="multipart/form-data">
   {% csrf_token %}
   {{ form.as_p }}
