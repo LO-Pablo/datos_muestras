@@ -6,22 +6,22 @@ class Muestra(models.Model):
     # Campos del modelo Muestra
     id_individuo = models.CharField(max_length=20)
     nom_lab = models.CharField(max_length=100, unique=True)
-    id_material = models.CharField(max_length=20)
-    volumen_actual = models.FloatField()
-    unidad_volumen = models.CharField(max_length=15)
-    concentracion_actual = models.FloatField()
-    unidad_concentracion = models.CharField(max_length=15)
-    masa_actual = models.FloatField()
-    unidad_masa = models.CharField(max_length=15)
-    fecha_extraccion = models.DateField()
-    fecha_llegada = models.DateField()
+    id_material = models.CharField(max_length=20,blank=True, null=True)
+    volumen_actual = models.FloatField(blank=True, null=True)
+    unidad_volumen = models.CharField(max_length=15,blank=True, null=True)
+    concentracion_actual = models.FloatField(blank=True, null=True)
+    unidad_concentracion = models.CharField(max_length=15,blank=True, null=True)
+    masa_actual = models.FloatField(blank=True, null=True)
+    unidad_masa = models.CharField(max_length=15,blank=True, null=True)
+    fecha_extraccion = models.DateField(blank=True, null=True)
+    fecha_llegada = models.DateField(blank=True, null=True)
     observaciones = models.TextField(blank=True, null=True)
     estado_inicial = models.CharField(max_length=50, 
-                                      choices=[('CONG','Congelado'), ('REF','Refrigerado'), ('AMB','Ambiente')])
-    centro_procedencia = models.CharField(max_length=100)
-    lugar_procedencia = models.CharField(max_length=100)
+                                      choices=[('CONG','Congelado'), ('REF','Refrigerado'), ('AMB','Ambiente')],blank=True, null=True)
+    centro_procedencia = models.CharField(max_length=100,blank=True, null=True)
+    lugar_procedencia = models.CharField(max_length=100,blank=True, null=True)
     estado_actual = models.CharField(max_length=50, default='Disponible',
-                                        choices=[('DISP','Disponible'), ('ENV','Enviada'), ('ENVP','Parcialmente enviada'), ('DEST','Destruida')])
+                                        choices=[('DISP','Disponible'), ('ENV','Enviada'), ('ENVP','Parcialmente enviada'), ('DEST','Destruida')],blank=True, null=True)
 
     class Meta:
         # Definición de permisos personalizados para el modelo Muestra

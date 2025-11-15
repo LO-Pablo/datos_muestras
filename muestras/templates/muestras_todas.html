@@ -39,7 +39,7 @@ Lista de Muestras
             <input type="hidden" name="{{ key }}" value="{{ value }}">
         {% endif %}
     {% endfor %}
-    <input name="exportar_excel" type="submit" class="btn btn-success" value="Exportar excel de la Búsqueda">
+    <input name="exportar_excel" type="submit" class="btn btn-success" value="Exportar excel de la búsqueda">
 </form>
 
 <table>
@@ -63,6 +63,7 @@ Lista de Muestras
     <th>Estado inicial</th>
     <th>Centro de procedencia</th>
     <th>Lugar de procedencia</th>
+    <th>Estado actual</th>
   </tr>
   {% if perms.muestras.can_delete_muestras_web %}
   <form action="">
@@ -107,6 +108,7 @@ Lista de Muestras
     <td>{{ x.estado_inicial }}</td>
     <td>{{ x.centro_procedencia }}</td>
     <td>{{ x.lugar_procedencia }}</td>
+    <td>{{ x.estado_actual }}</td>
   </tr>
   {% endfor %}
   {% if perms.muestras.can_delete_muestras_web %}

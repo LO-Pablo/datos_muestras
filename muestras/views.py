@@ -9,11 +9,12 @@ from django.contrib.auth.decorators import login_required, permission_required
 from django.forms import formset_factory
 from .forms import MuestraForm
 import pandas as pd
-import io
+import io,base64
 from reportlab.pdfgen import canvas
 from django.conf import settings
 import openpyxl,os
-from itertools import product
+from django.db.models import Q
+from django.db import IntegrityError
 def principal(request):
     # Vista principal de la aplicación, muestra una página de bienvenida
     template = loader.get_template('principal.html')
@@ -27,6 +28,7 @@ def muestras_todas(request):
     muestras = Muestra.objects.prefetch_related('localizacion')
     # Filtrado de muestras si se proporcionan parámetros de búsqueda
     field_names = [f.name for f in Muestra._meta.local_fields if f.name not in ('id')]
+    fields_loc = [f.name for f in Localizacion._meta.local_fields if f.name not in ('id','muestra')]
     for field in field_names:
         if request.GET.get(field):
             filter_kwargs = {f"{field}__icontains": request.GET[field]}
@@ -61,16 +63,24 @@ def muestras_todas(request):
     if request.GET.get('exportar_excel'):
         response = HttpResponse(content_type='application/ms-excel')
         response['Content-Disposition'] = 'attachment; filename="listado_muestras.xlsx"'
-        wb = openpyxl.load_workbook(os.path.join(settings.BASE_DIR, 'datos_prueba', 'globalstaticfiles', 'Plantilla_muestras.xlsx'))
+        wb = openpyxl.load_workbook(os.path.join(settings.BASE_DIR, 'datos_prueba', 'globalstaticfiles', 'listado_muestras.xlsx'))
         ws = wb.active
         row_num = 2
         for muestra in muestras:
             col_num = 1
+            
             for field in field_names:
                 value = muestra.__dict__[field]
                 ws.cell(row_num, col_num).value= str(value)
                 col_num += 1
-            row_num += 1
+            try:
+                loc = Localizacion.objects.get(muestra=muestra.nom_lab)
+                for field in fields_loc:
+                    value = loc.__dict__[field]
+                    ws.cell(row_num, col_num).value= str(value)
+                    col_num += 1
+            except:
+                row_num += 1
         wb.save(response)
         return response
     # Eliminación de muestras seleccionadas en la tabla 
@@ -134,12 +144,14 @@ def upload_excel(request):
             # Eliminación de las muestras y localizaciones añadidas del excel
             ids_to_delete = request.session.pop('nuevos_ids', [])
             Muestra.objects.filter(id__in=ids_to_delete).delete()
-            ids_to_delete_loc = request.session.pop('nuevos_ids_loc', [])
-            Localizacion.objects.filter(id__in=ids_to_delete_loc).delete()
         elif 'excel_file' in request.FILES:
             if form.is_valid():
                 excel_file = request.FILES['excel_file']
-                df = pd.read_excel(excel_file)
+                excel_bytes = excel_file.read()
+                request.session['excel_file_name'] = excel_file.name
+                request.session['excel_file_base64']= base64.b64encode(excel_bytes).decode()
+                excel_stream = io.BytesIO(excel_bytes)
+                df = pd.read_excel(excel_stream)
                 rename_columns = {
                     'ID Individuo': 'id_individuo', 
                     'Nombre Laboratorio': 'nom_lab',
@@ -156,6 +168,7 @@ def upload_excel(request):
                     'Estado Inicial': 'estado_inicial',
                     'Centro Procedencia': 'centro_procedencia',
                     'Lugar Procedencia': 'lugar_procedencia',
+                    'Estado actual': 'estado_actual',
                     'Congelador': 'congelador', 
                     'Estante': 'estante',
                     'Posición del rack en el estante': 'posicion_rack_estante',
@@ -168,11 +181,30 @@ def upload_excel(request):
                 df.rename(columns=rename_columns, inplace=True)
                 errors = 0
                 errors_loc = 0
+                campos_vacios = 0
+                localizaciones_ocupadas = 0
                 nuevos_ids = []
                 nuevos_ids_loc = []
                 ids_error_muestras = []
                 ids_error_localizaciones = []
+                ids_formato_incorrecto = []
+                ids_campos_vacios =[]
+                ids_localizaciones_ocupadas = []
+                columna_errores_formato = []
+                numero_registros = 0
                 for _, row in df.iterrows():
+                    numero_registros += 1
+                    for campo in ['volumen_actual', 'concentracion_actual', 'masa_actual']:
+                        try:
+                            float(row[campo])
+                        except:
+                            columna_errores_formato.append(df.columns.get_loc(campo))
+                    for campo in ['fecha_extraccion', 'fecha_llegada']:
+                        try:
+                            pd.to_datetime(row[campo], errors='raise')
+                        except:
+                           columna_errores_formato.append(df.columns.get_loc(campo)) 
+
                     try:
                         muestra, created = Muestra.objects.update_or_create(
                             id_individuo=row['id_individuo'],
@@ -189,7 +221,8 @@ def upload_excel(request):
                             observaciones= row['observaciones'],
                             estado_inicial=row['estado_inicial'],
                             centro_procedencia=row['centro_procedencia'],
-                            lugar_procedencia=row['lugar_procedencia']
+                            lugar_procedencia=row['lugar_procedencia'],
+                            estado_actual=row['estado_actual']
                         )
                         localizacion, loc_created = Localizacion.objects.update_or_create(
                             muestra = muestra,
@@ -213,43 +246,101 @@ def upload_excel(request):
                                                         caja = localizacion.caja,
                                                         subposicion = localizacion.subposicion,
                                                         muestra__isnull=True).delete()
+                   
                         elif not created:
-                            messages.info(request, f'Muestra {muestra.nom_lab} ya existe, el excel no se ha procesado correctamente')
                             ids_error_muestras.append(muestra.nom_lab)
                             errors+=1
                         elif not loc_created:
-                            messages.info(request, f'Localizacion para la muestra {muestra.nom_lab} ya existe, el excel no se ha procesado correctamente')
                             errors_loc+=1
                             ids_error_localizaciones.append(muestra.nom_lab)
-                    except ValueError:
-                        messages.error(request, f'El formato de alguno de los campos de la muestra {row["nom_lab"]} no es el correcto. Revisa el formato de los datos.')
-                        errors+=1
                         redirect('upload_excel')
+                    except IntegrityError:
+                        ids_error_muestras.append(row['nom_lab'])
+                        errors+=1
+                    except (ValueError, TypeError):
+                        errors+=1
+                        ids_formato_incorrecto.append(row["nom_lab"])
+                    for column in df.columns:
+                        if pd.isna(row[column]):
+                            if column in [f.name for f in Muestra._meta.local_fields if f.name in ('nom_lab','id_individuo')] or column in [f.name for f in Localizacion._meta.local_fields]:
+                                if column =='nom_lab':
+                                    ids_error_muestras.append(None)
+                                    errors+=1
+                                elif column =='id_individuo':
+                                    ids_error_muestras.append(row["nom_lab"])
+                                    errors += 1
+                                else:
+                                    ids_error_muestras.append(row["nom_lab"])
+                                    errors_loc+=1
+                                    localizacion.delete()
+                                Muestra.objects.filter(id=nuevos_ids[len(nuevos_ids)-1]).delete()
+                            elif column in [f.name for f in Muestra._meta.local_fields if f.name not in ('nom_lab','id_individuo')]:
+                                Muestra.objects.filter(nom_lab=row['nom_lab']).update(**{column : ''}) 
+                                ids_campos_vacios.append(row['nom_lab']) 
+                                campos_vacios += 1
+                    if Localizacion.objects.filter(
+                        ~Q(muestra__nom_lab=row['nom_lab']) | Q(muestra__isnull=True),
+                        congelador=row['congelador'],
+                        estante=row['estante'], 
+                        posicion_rack_estante=row['posicion_rack_estante'],
+                        rack=row['rack'],
+                        posicion_caja_rack=row['posicion_caja_rack'],
+                        caja=row['caja'],
+                        subposicion=row['subposicion']
+                    ):
+                        ids_localizaciones_ocupadas.append(row['nom_lab'])
+                        localizaciones_ocupadas += 1
                 request.session['nuevos_ids'] = nuevos_ids
                 request.session['nuevos_ids_loc'] = nuevos_ids_loc
-                nuevos_ids = []
-                nuevos_ids_loc = []
+                request.session['ids_error_muestras'] = ids_error_muestras
+                request.session['ids_error_localizaciones'] = ids_error_localizaciones
+                request.session['ids_formato_incorrecto'] = ids_formato_incorrecto
+                request.session['ids_campos_vacios'] = ids_campos_vacios
+                request.session['ids_localizaciones_ocupadas'] = ids_localizaciones_ocupadas
+                request.session['columna_errores_formato'] = columna_errores_formato
+                messages.info(request, f'El excel subido tiene {numero_registros} registros.')
                 if errors==0 and errors_loc==0:
-                    messages.success(request, 'El archivo excel es correcto.')
+                    messages.success(request, 'Y no tiene errores en ningún campo.')
+                    if campos_vacios!=0:
+                        messages.info(request,f"Aunque tiene {campos_vacios} campos vacios en algunas muestras.")
+                    elif localizaciones_ocupadas!=0:
+                        messages.info(request,f"Aunque hay {localizaciones_ocupadas} muestras que se están intentando archivar en una posición ocupada por otra muestra.")
                 else:
-                    messages.warning(request, f'El archivo excel contiene {errors} errores de los campos de las muestras y {errors_loc} de los campos de localización.')
-                
+                    messages.warning(request, f'Y contiene {errors} errores de los campos de las muestras y {errors_loc} de los campos de localización.')
                 return render(request, 'confirmacion_upload.html')
-        elif 'exportar_excel' in request.POST:
-                    response = HttpResponse(content_type='application/ms-excel')
-                    response['Content-Disposition'] = 'attachment; filename="listado_errores.xlsx"'
+        elif 'excel_errores' in request.POST:
+                    ids_error_muestras = request.session.get('ids_error_muestras', [])
+                    ids_error_localizaciones = request.session.get('ids_error_localizaciones', [])
+                    ids_formato_incorrecto = request.session.get('ids_formato_incorrecto', [])
+                    ids_campos_vacios=request.session.get('ids_campos_vacios', [])
+                    ids_localizaciones_ocupadas=request.session.get('ids_localizaciones_ocupadas', [])
+                    columna_errores_formato = request.session.get('columna_errores_formato',[])
+                    excel_bytes = base64.b64decode(request.session.get('excel_file_base64'))
+                    excel_file = io.BytesIO(excel_bytes)
                     wb = openpyxl.load_workbook(excel_file)
                     ws = wb.active
                     for row in ws.iter_rows(min_row=2, max_row=ws.max_row):
-                        if row[1].value in ids_error_muestras or row[1].value in ids_error_localizaciones:
+                        
+                        if row[1].value in ids_error_muestras:
                             for cell in row:
                                 cell.fill = openpyxl.styles.PatternFill(start_color="FF0000", end_color="FF0000", fill_type = "solid")
-                    wb.save(response)
-                    output = io.BytesIO()
+                        elif row[1].value in ids_formato_incorrecto:
+                            for cell in row:
+                                if cell.col_idx - 1 in columna_errores_formato:
+                                    cell.fill = openpyxl.styles.PatternFill(start_color="FF8000", end_color="FF8000", fill_type = "solid")
+                        elif row[1].value in ids_campos_vacios:
+                            for cell in row:
+                                if cell.value == None:
+                                    cell.fill = openpyxl.styles.PatternFill(start_color="FFFF00", end_color="FFFF00", fill_type = "solid")
+                        elif row[1].value in ids_localizaciones_ocupadas:
+                            for cell in row:
+                                cell.fill = openpyxl.styles.PatternFill(start_color="51D1F6", end_color="51D1F6", fill_type = "solid")
+                       
+                    output = io.BytesIO()    
                     wb.save(output)
                     wb.close()
-                    output.seek(0)
-                    response.write(output.getvalue())
+                    response = HttpResponse(output.getvalue(),content_type='application/ms-excel')
+                    response['Content-Disposition'] = 'attachment; filename="listado_errores.xlsx"'
                     return response        
  
     else:
