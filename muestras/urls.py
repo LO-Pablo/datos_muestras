@@ -14,4 +14,5 @@ urlpatterns = [
     path('archivo/nuevo/<int:macro>', views.descargar_plantilla, name='descargar_plantilla_localizaciones'),
     path('archivo/nuevo/<int:macro>', views.descargar_plantilla, name='descargar_plantilla_localizaciones_macros'),
     path('archivo/archivar_muestra', views.archivar_muestra, name='archivar_muestra'),
+    path('estudios/',views.estudios_todos, name='estudios_todos')
 ]

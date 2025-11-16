@@ -1,0 +1,32 @@
+{% extends "master.html" %}
+
+{% block title %}
+Lista de estudios del investigador
+{% endblock %}
+
+{% block content %}
+<p><a href="/"> Volver al inicio </a></p>
+
+<table>
+    <tr>
+        <th>Id del estudio</th>
+        <th>Referencia del estudio</th>
+        <th>Nombre del estudio</th>
+        <th>Descripción del estudio</th>
+        <th>Fecha de inicio del estudio</th>
+        <th>Fecha de fin del estudio</th>
+        <th>Investigador principal</th>
+    </tr>
+    <tr>
+        {% for estudio in estudios %}
+        <td>{{estudio.id_estudio}}</td>
+        <td>{{estudio.referencia_estudio}}</td>
+        <td>{{estudio.nombre_estudio}}</td>
+        <td>{{estudio.descripcion_estudio}}</td>
+        <td>{{estudio.fecha_inicio_estudio}}</td>
+        <td>{{estudio.fecha_fin_estudio}}</td>
+        <td>{{estudio.investigador_principal}}</td>
+        {% endfor %} 
+    </tr> 
+</table>
+{%endblock%}
