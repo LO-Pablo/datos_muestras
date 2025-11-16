@@ -1,0 +1,38 @@
+services:
+  db:
+    image: mysql:8 # o mariadb:10.6
+    container_name: django_mysql_db
+    volumes:
+      # Mount the configuration file here:        
+      - ./mysql.cnf:/etc/mysql/conf.d/mysql.cnf
+      - mysql_data:/var/lib/mysql # Volumen persistente para los datos de la BD
+    env_file: # Credenciales BD MySQL). Deben coincidir con settings.py de Django!
+      - ./.env
+    ports:
+      - "3306:3306" # Expone el puerto por defecto de MySQL (Opcional, útil para herramientas externas)
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "mi_usuario", "-pmi_password_segura"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: always
+    
+  web:
+    build: . 
+    container_name: django_web_app
+    # El script entrypoint.sh se ejecuta automaticamente
+    command: python manage.py runserver 0.0.0.0:8000
+    env_file:
+      - ./.env
+    volumes:
+      - .:/usr/src/app # Montaje de Código (Host al Contenedor)
+      - static_volume:/usr/src/app/static # Archivos estáticos      
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy # Espera hasta que la BD esté marcada como "healthy"
+            
+volumes:
+  mysql_data:
+  static_volume: # Volumen para archivos estáticos
