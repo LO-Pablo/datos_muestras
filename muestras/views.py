@@ -641,5 +641,14 @@ def archivar_muestra(request):
     context = {'form': form}
     return render(request, 'archivar_muestra.html', context)
 
+# Vistas relacionadas con el modelo estudio
+def estudios_todos(request):
+    estudios = Estudio.objects.all().values()
+    template = loader.get_template('estudios_todos.html')
+    context = {
+        'estudios':estudios
+    }
+    return HttpResponse(template.render(context,request))
 
+# Vistas relacionadas con el envio de muestras
 

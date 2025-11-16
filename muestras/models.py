@@ -1,7 +1,7 @@
 from django.db import models
 from django.conf import settings
 from django.utils import timezone
-
+from django.contrib.auth.models import User
 class Muestra(models.Model):
     # Campos del modelo Muestra
     id_individuo = models.CharField(max_length=20)
@@ -55,18 +55,27 @@ class Localizacion(models.Model):
     
 class Estudio(models.Model):
     # Campos del modelo Estudio, que referencia a una muestra
-    muestra = models.ForeignKey('Muestra', null=True, blank=True,related_name="estudio",on_delete=models.CASCADE)
-    id_estudio = models.CharField(max_length=20)
+    muestra = models.ForeignKey('Muestra', to_field ="nom_lab", null=True, blank=True,related_name="estudio",on_delete=models.SET_NULL)
+    id_estudio = models.CharField(max_length=20, unique=True)
     referencia_estudio = models.CharField(max_length=100)
     nombre_estudio = models.CharField(max_length=100)
     descripcion_estudio = models.TextField(blank=True, null=True)
     fecha_inicio_estudio = models.DateField()
     fecha_fin_estudio = models.DateField(blank=True, null=True)
-    investigador_principal = models.CharField(max_length=100)
-
+    investigador_principal_id = models.ForeignKey(User, on_delete=models.PROTECT, default=None)
     def __str__(self):
-        return f"Estudio {self.nombre_estudio} para Muestra {self.id_individuo} - {self.nom_lab}"
-
+        return f"Estudio {self.nombre_estudio} para Muestra {self.muestra}"
+def ruta_documentos(instance,filename):
+    return f"estudios/{0}/{1}".format(instance.estudio.id_estudio,filename)
+class Documento(models.Model):
+    estudio = models.ForeignKey('Estudio',related_name = "estudio", to_field='id_estudio', on_delete=models.CASCADE)
+    archivo = models.FileField(upload_to=ruta_documentos)
+    fecha_subida = models.DateTimeField(auto_now_add=True)
+    categoria = models.CharField(blank=True, null=True, max_length=50)
+    usuario_subida = models.ForeignKey(User, on_delete=models.PROTECT)
+    descripcion = models.TextField(blank=True, null=True)
+    eliminado = models.BooleanField(default = False)
+    fecha_eliminacion = models.DateField(blank = True, null=True)
 class Envio(models.Model):
     # Campos del modelo Envio, que referencia a una muestra
     muestra = models.ForeignKey('Muestra',related_name="envio",on_delete=models.CASCADE)
