@@ -1,13 +1,12 @@
 from django.http import HttpResponse, FileResponse
-from .models import Muestra, Localizacion, Estudio, Envio
+from .models import Muestra, Localizacion, Estudio, Envio, Documento
 from django.template import loader
-from .forms import MuestraForm, LocalizacionForm, UploadExcel, archivar_muestra_form
+from .forms import MuestraForm, LocalizacionForm, UploadExcel, archivar_muestra_form, DocumentoForm
 from django.db import transaction
 from django.contrib import messages  
 from django.shortcuts import render,redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required, permission_required
 from django.forms import formset_factory
-from .forms import MuestraForm
 import pandas as pd
 import io,base64
 from reportlab.pdfgen import canvas
@@ -15,6 +14,7 @@ from django.conf import settings
 import openpyxl,os
 from django.db.models import Q
 from django.db import IntegrityError
+from datetime import timezone
 def principal(request):
     # Vista principal de la aplicación, muestra una página de bienvenida
     template = loader.get_template('principal.html')
@@ -650,5 +650,46 @@ def estudios_todos(request):
     }
     return HttpResponse(template.render(context,request))
 
+def repositorio_estudio(request, id_estudio):
+    documentos = Documento.objects.filter(estudio = id_estudio, eliminado= False)
+    # Filtrado opcional por usuario
+    usuario = request.GET.get('usuario')
+    if usuario:
+        documentos = documentos.filter(usuario_subida__username=usuario)
+    # Filtrado opcional por categoría
+    categoria = request.GET.get('categoria')
+    if categoria:
+        documentos = documentos.filter(categoria__icontains=categoria)
+    return render(request,'templates/repositorio_estudio.html', {'documentos':documentos} )
+
+def subir_documento(request, id_estudio):
+    if request.method == 'POST':
+        form = DocumentoForm(request.POST, request.FILES)
+        if form.is_valid():
+            doc = form.save(commit=False)
+            doc.usuario_subida = request.user
+            doc.estudio = id_estudio
+            doc.save()
+            messages.success(request, f'Documento "{doc.archivo.name}" subido correctamente.')
+            return redirect('listar_documentos')
+        else:
+            messages.error(request, 'Hubo un error al subir el documento.')
+    else:
+        form = DocumentoForm()
+    
+    return render(request, 'templates/subir_documento.html', {'form': form})
+def descargar_documento(request, documento_id):
+    doc = Documento.objects.get(pk=documento_id, eliminado=False)      
+    return FileResponse(open(doc.archivo.path, 'rb'), as_attachment=True, filename=os.path.basename(doc.archivo.name))
+
+def eliminar_documento(request, documento_id):
+        doc = Documento.objects.get(pk=documento_id, eliminado=False)
+        if request.method == 'POST':
+            doc.eliminado = True
+            doc.fecha_eliminacion = timezone.now()
+            doc.save()
+            messages.success(request, f'Documento "{doc.archivo.name}" eliminado correctamente.')
+            return redirect('listar_documentos')
+        return render(request, 'documentos/confirmar_eliminacion.html', {'documento': doc})
 # Vistas relacionadas con el envio de muestras
 

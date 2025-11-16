@@ -1,5 +1,5 @@
 from django import forms
-from .models import Muestra, Localizacion, Estudio, Envio
+from .models import Muestra, Localizacion, Estudio, Envio, Documento
 from itertools import product
 
 class MuestraForm(forms.ModelForm):
@@ -100,4 +100,7 @@ class archivar_muestra_form(forms.ModelForm):
         class Meta:
             model = Localizacion
             fields = ['muestra', 'congelador', 'estante', 'posicion_rack_estante', 'rack', 'posicion_caja_rack', 'caja', 'subposicion']
-    
+
+class DocumentoForm(forms.ModelForm):
+    class Meta:
+        model = Documento 
