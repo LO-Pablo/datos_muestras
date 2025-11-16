@@ -62,7 +62,7 @@ class Estudio(models.Model):
     descripcion_estudio = models.TextField(blank=True, null=True)
     fecha_inicio_estudio = models.DateField()
     fecha_fin_estudio = models.DateField(blank=True, null=True)
-    investigador_principal = models.CharField(max_length=100)
+    investigador_principal_id = models.ForeignKey(User, on_delete=models.PROTECT, default=None)
     def __str__(self):
         return f"Estudio {self.nombre_estudio} para Muestra {self.muestra}"
 def ruta_documentos(instance,filename):
