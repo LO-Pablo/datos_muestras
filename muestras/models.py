@@ -62,17 +62,17 @@ class Estudio(models.Model):
     descripcion_estudio = models.TextField(blank=True, null=True)
     fecha_inicio_estudio = models.DateField()
     fecha_fin_estudio = models.DateField(blank=True, null=True)
-    investigador_principal_id = models.ForeignKey(User, on_delete=models.PROTECT, default=None)
+    investigador_principal = models.ForeignKey(User, on_delete=models.PROTECT)
     def __str__(self):
-        return f"Estudio {self.nombre_estudio} para Muestra {self.muestra}"
+        return f"Estudio {self.nombre_estudio}"
 def ruta_documentos(instance,filename):
-    return f"estudios/{0}/{1}".format(instance.estudio.id_estudio,filename)
+    return f"estudios/{instance.estudio.id_estudio}/{filename}"
 class Documento(models.Model):
     estudio = models.ForeignKey('Estudio',related_name = "estudio", to_field='id_estudio', on_delete=models.CASCADE)
     archivo = models.FileField(upload_to=ruta_documentos)
     fecha_subida = models.DateTimeField(auto_now_add=True)
     categoria = models.CharField(blank=True, null=True, max_length=50)
-    usuario_subida = models.ForeignKey(User, on_delete=models.PROTECT)
+    usuario_subida = models.ForeignKey(User,on_delete=models.PROTECT)
     descripcion = models.TextField(blank=True, null=True)
     eliminado = models.BooleanField(default = False)
     fecha_eliminacion = models.DateField(blank = True, null=True)

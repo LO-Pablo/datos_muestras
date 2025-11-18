@@ -1,0 +1,15 @@
+{% extends "master.html" %}
+
+{% block title %}
+Subir documento
+{% endblock %}
+{% block content %}
+<h2>Subir documento</h2>
+
+<form method="POST" enctype="multipart/form-data">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <button type="submit">Subir</button>
+</form>
+<p><a href="/estudios/{{estudio.id_estudio}}"> Volver al repositorio del estudio</a></p>
+{%endblock%}

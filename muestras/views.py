@@ -14,7 +14,8 @@ from django.conf import settings
 import openpyxl,os
 from django.db.models import Q
 from django.db import IntegrityError
-from datetime import timezone
+from django.utils import timezone
+from django.contrib.auth.models import User
 def principal(request):
     # Vista principal de la aplicación, muestra una página de bienvenida
     template = loader.get_template('principal.html')
@@ -643,7 +644,7 @@ def archivar_muestra(request):
 
 # Vistas relacionadas con el modelo estudio
 def estudios_todos(request):
-    estudios = Estudio.objects.all().values()
+    estudios = Estudio.objects.all()
     template = loader.get_template('estudios_todos.html')
     context = {
         'estudios':estudios
@@ -651,7 +652,8 @@ def estudios_todos(request):
     return HttpResponse(template.render(context,request))
 
 def repositorio_estudio(request, id_estudio):
-    documentos = Documento.objects.filter(estudio = id_estudio, eliminado= False)
+    estudio = Estudio.objects.get(id_estudio=id_estudio)
+    documentos = Documento.objects.filter(estudio = estudio, eliminado= False)
     # Filtrado opcional por usuario
     usuario = request.GET.get('usuario')
     if usuario:
@@ -660,36 +662,37 @@ def repositorio_estudio(request, id_estudio):
     categoria = request.GET.get('categoria')
     if categoria:
         documentos = documentos.filter(categoria__icontains=categoria)
-    return render(request,'templates/repositorio_estudio.html', {'documentos':documentos} )
+    for doc in documentos:    
+        if request.GET.get(f'{doc.id}'):
+            eliminar_documento(request, doc.id)
+    template = loader.get_template('repositorio_estudio.html')
+    return HttpResponse(template.render({'documentos':documentos, 'id_estudio':estudio.id_estudio},request))
 
 def subir_documento(request, id_estudio):
+    estudio = Estudio.objects.get(id_estudio = id_estudio)
     if request.method == 'POST':
         form = DocumentoForm(request.POST, request.FILES)
         if form.is_valid():
             doc = form.save(commit=False)
             doc.usuario_subida = request.user
-            doc.estudio = id_estudio
             doc.save()
             messages.success(request, f'Documento "{doc.archivo.name}" subido correctamente.')
-            return redirect('listar_documentos')
         else:
             messages.error(request, 'Hubo un error al subir el documento.')
     else:
         form = DocumentoForm()
-    
-    return render(request, 'templates/subir_documento.html', {'form': form})
-def descargar_documento(request, documento_id):
+    template = loader.get_template('subir_documento.html')
+    return HttpResponse(template.render({'form':form, 'estudio':estudio},request))
+
+def descargar_documento(request, documento_id,id_estudio):
     doc = Documento.objects.get(pk=documento_id, eliminado=False)      
     return FileResponse(open(doc.archivo.path, 'rb'), as_attachment=True, filename=os.path.basename(doc.archivo.name))
 
-def eliminar_documento(request, documento_id):
-        doc = Documento.objects.get(pk=documento_id, eliminado=False)
-        if request.method == 'POST':
-            doc.eliminado = True
-            doc.fecha_eliminacion = timezone.now()
-            doc.save()
-            messages.success(request, f'Documento "{doc.archivo.name}" eliminado correctamente.')
-            return redirect('listar_documentos')
-        return render(request, 'documentos/confirmar_eliminacion.html', {'documento': doc})
+def eliminar_documento(request, id_documento):
+    doc = Documento.objects.get(pk=id_documento, eliminado=False)
+    doc.eliminado = True
+    doc.fecha_eliminacion = timezone.now()
+    doc.save()
+    
 # Vistas relacionadas con el envio de muestras
 
