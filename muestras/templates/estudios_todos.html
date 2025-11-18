@@ -16,9 +16,10 @@ Lista de estudios del investigador
         <th>Fecha de inicio del estudio</th>
         <th>Fecha de fin del estudio</th>
         <th>Investigador principal</th>
+        <th>Documentación del estudio</th>
     </tr>
+    {% for estudio in estudios %}
     <tr>
-        {% for estudio in estudios %}
         <td>{{estudio.id_estudio}}</td>
         <td>{{estudio.referencia_estudio}}</td>
         <td>{{estudio.nombre_estudio}}</td>
@@ -26,7 +27,8 @@ Lista de estudios del investigador
         <td>{{estudio.fecha_inicio_estudio}}</td>
         <td>{{estudio.fecha_fin_estudio}}</td>
         <td>{{estudio.investigador_principal}}</td>
-        {% endfor %} 
+        <td><a href="/estudios/{{estudio.id_estudio}}">Documentación</a></td>
     </tr> 
+    {% endfor %} 
 </table>
 {%endblock%}

@@ -1,0 +1,37 @@
+{% extends "master.html" %}
+
+{% block title %}
+Repositorio de documentación del estudio {{estudio.id_estudio}}
+{% endblock %}
+
+{% block content %}
+<p><a href="/"> Volver al inicio </a></p>
+<p><a href="/estudios"> Volver a la lista de estudios</a></p>
+<p><a href="/estudios/{{id_estudio}}/subir"> Subir un documento nuevo</a></p>
+
+<table>
+    <tr>
+        <th>Archivo</th>
+        <th>Fecha de subida</th>
+        <th>Categoria</th>
+        <th>Subido por</th>
+        <th>Descripción</th>
+        <th>Eliminado</th>
+        <th>Fecha de eliminación</th>
+    </tr>
+    <form action ="">
+    {%for doc in documentos%}
+    <tr>
+        <td><a href="/estudios/{{id_estudio}}/{{doc.id}}">Descargar</a></td>
+        <td>{{doc.fecha_subida}}</td>
+        <td>{{doc.categoria}}</td>
+        <td>{{doc.usuario_subida.username}}</td>
+        <td>{{doc.descripcion}}</td>
+        <td>{{doc.eliminado}}</td>
+        <td>{{doc.fecha_eliminacion}}</td>
+        <td><input type="checkbox" class="form-control" name="{{doc.id}}"></td>
+    </tr>
+    {%endfor%}
+    <button type="submit" class="btn btn-primary" id='eliminar' onclick="return confirm('¿Quieres eliminar los documentos seleccionados?')">Eliminar documentos seleccionados</button>
+</form>
+{% endblock %}

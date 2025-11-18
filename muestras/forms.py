@@ -104,4 +104,4 @@ class archivar_muestra_form(forms.ModelForm):
 class DocumentoForm(forms.ModelForm):
     class Meta:
         model = Documento 
-        fields = '__all__'
+        fields = ['estudio','archivo','categoria','descripcion']
