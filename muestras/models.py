@@ -56,19 +56,19 @@ class Localizacion(models.Model):
 class Estudio(models.Model):
     # Campos del modelo Estudio, que referencia a una muestra
     muestra = models.ForeignKey('Muestra', to_field ="nom_lab", null=True, blank=True,related_name="estudio",on_delete=models.SET_NULL)
-    id_estudio = models.CharField(max_length=20, unique=True)
-    referencia_estudio = models.CharField(max_length=100)
+    id_estudio = models.CharField(max_length=20)
+    referencia_estudio = models.CharField(max_length=100, blank=True, null=True)
     nombre_estudio = models.CharField(max_length=100)
     descripcion_estudio = models.TextField(blank=True, null=True)
-    fecha_inicio_estudio = models.DateField()
+    fecha_inicio_estudio = models.DateField(blank=True, null=True)
     fecha_fin_estudio = models.DateField(blank=True, null=True)
-    investigador_principal = models.ForeignKey(User, on_delete=models.PROTECT)
+    investigador_principal = models.ForeignKey(User, on_delete=models.PROTECT, blank=True, null=True)
     def __str__(self):
         return f"Estudio {self.nombre_estudio}"
 def ruta_documentos(instance,filename):
     return f"estudios/{instance.estudio.id_estudio}/{filename}"
 class Documento(models.Model):
-    estudio = models.ForeignKey('Estudio',related_name = "estudio", to_field='id_estudio', on_delete=models.CASCADE)
+    estudio = models.ForeignKey('Estudio',related_name = "estudio", on_delete=models.CASCADE)
     archivo = models.FileField(upload_to=ruta_documentos)
     fecha_subida = models.DateTimeField(auto_now_add=True)
     categoria = models.CharField(blank=True, null=True, max_length=50)

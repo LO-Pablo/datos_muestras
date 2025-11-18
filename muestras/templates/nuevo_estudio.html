@@ -1,0 +1,15 @@
+{%extends 'master.html'%}
+
+{% block title %} 
+Añadir estudio
+{% endblock %}
+
+{% block content %}
+<h1>Crear un nuevo estudio</h1>
+<form method="post">
+    {% csrf_token %}
+    {{ form.as_p}}
+    <button type="submit">Guardar</button>
+</form>
+<p><a href="/estudios"> Volver a la lista de estudios </a></p>
+{% endblock %}

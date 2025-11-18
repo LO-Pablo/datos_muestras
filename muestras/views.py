@@ -1,7 +1,7 @@
 from django.http import HttpResponse, FileResponse
 from .models import Muestra, Localizacion, Estudio, Envio, Documento
 from django.template import loader
-from .forms import MuestraForm, LocalizacionForm, UploadExcel, archivar_muestra_form, DocumentoForm
+from .forms import MuestraForm, LocalizacionForm, UploadExcel, archivar_muestra_form, DocumentoForm, EstudioForm
 from django.db import transaction
 from django.contrib import messages  
 from django.shortcuts import render,redirect, get_object_or_404
@@ -644,12 +644,28 @@ def archivar_muestra(request):
 
 # Vistas relacionadas con el modelo estudio
 def estudios_todos(request):
-    estudios = Estudio.objects.all()
+    estudios = Estudio.objects.values(
+        'id_estudio','referencia_estudio','nombre_estudio',
+        'descripcion_estudio','fecha_inicio_estudio','fecha_fin_estudio',
+        'investigador_principal').distinct()
     template = loader.get_template('estudios_todos.html')
     context = {
         'estudios':estudios
     }
     return HttpResponse(template.render(context,request))
+
+def nuevo_estudio(request):
+    if request.method == 'POST':
+        form = EstudioForm(request.POST)
+        if form.is_valid():
+            form.save()
+            redirect('estudios_todos')
+        else:
+            messages.error(request, 'Hubo un error al subir el documento.')
+    else:
+        form = EstudioForm()
+    template = loader.get_template('nuevo_estudio.html')
+    return HttpResponse(template.render({'form':form},request))
 
 def repositorio_estudio(request, id_estudio):
     estudio = Estudio.objects.get(id_estudio=id_estudio)

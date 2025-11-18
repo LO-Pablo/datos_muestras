@@ -100,7 +100,10 @@ class archivar_muestra_form(forms.ModelForm):
         class Meta:
             model = Localizacion
             fields = ['muestra', 'congelador', 'estante', 'posicion_rack_estante', 'rack', 'posicion_caja_rack', 'caja', 'subposicion']
-
+class EstudioForm(forms.ModelForm):
+    class Meta:
+        model=Estudio
+        fields= ['id_estudio','referencia_estudio','nombre_estudio','descripcion_estudio','fecha_inicio_estudio','fecha_fin_estudio','investigador_principal']
 class DocumentoForm(forms.ModelForm):
     class Meta:
         model = Documento 
