@@ -3,6 +3,9 @@ from . import views
 urlpatterns = [
     path('', views.principal, name='principal'),
     path('muestras/', views.muestras_todas, name='muestras_todas'),
+    path('muestras/acciones_post', views.acciones_post, name='acciones_post'),
+    path('muestras/acciones_post/seleccionar_estudio', views.seleccionar_estudio, name='seleccionar_estudio'),
+    path('muestras/acciones_post/seleccionar_estudio/añadir_muestras_estudio',views.añadir_muestras_estudio,name='añadir_muestras_estudio'),
     path('muestras/nueva', views.añadir_muestras, name='añadir_muestras'),
     path('muestras/upload_excel', views.upload_excel, name='upload_excel'),
     path('muestras/upload_excel/descargar/<int:macro>', views.descargar_plantilla, name='descargar_plantilla_muestras'),

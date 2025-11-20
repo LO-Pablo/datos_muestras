@@ -44,9 +44,7 @@ Lista de Muestras
 
 <table>
   <tr>
-    {% if perms.muestras.can_delete_muestras_web %}
-    <th>Eliminar</th>
-    {% endif %}
+    <th>Seleccionar</th>
     <th>ID Individuo</th>
     <th>Nombre asignado por el laboratorio</th>
     <th>Localización</th>
@@ -64,9 +62,10 @@ Lista de Muestras
     <th>Centro de procedencia</th>
     <th>Lugar de procedencia</th>
     <th>Estado actual</th>
+    <th>Estudio</th>
   </tr>
-  {% if perms.muestras.can_delete_muestras_web %}
-  <form action="">
+  <form action="{% url 'acciones_post' %}" method="post">
+  {%csrf_token%}
   <input type ="button" value="Seleccionar todo" onclick="seleccionar_todo(true)"/>
   <input type ="button" value="Deseleccionar todo" onclick="seleccionar_todo(false)"/>
   <script language="JavaScript">
@@ -78,12 +77,9 @@ Lista de Muestras
       }
     }
   </script>
-  {% endif %}
   {% for x in muestras %}
   <tr>
-    {% if perms.muestras.can_delete_muestras_web %}
-    <td><input type="checkbox" name="{{x.id}}" class="form-control"></td>
-    {% endif %}
+    <td><input type="checkbox" name="muestra_id" value ="{{x.id}}" class="form-control"></td>
     <td>{{ x.id_individuo }}</td>
     <td>{{ x.nom_lab }}</td>
     {% with y=x.localizacion.all %}
@@ -109,11 +105,21 @@ Lista de Muestras
     <td>{{ x.centro_procedencia }}</td>
     <td>{{ x.lugar_procedencia }}</td>
     <td>{{ x.estado_actual }}</td>
+    <td>
+    {% with x.estudio.all as estudios_relacionados %}
+        {% if estudios_relacionados %}
+            {% for estudio in estudios_relacionados %}
+                {{ estudio.nombre_estudio }}{% if not forloop.last %}, {% endif %} 
+            {% endfor %}
+        {% else %}
+            Sin estudio asignado
+        {% endif %}
+    {% endwith %}
+</td>
   </tr>
   {% endfor %}
-  {% if perms.muestras.can_delete_muestras_web %}
-  <button type="submit" class="btn btn-primary" id='eliminar' onclick="return confirm('¿Quieres eliminar las muestras seleccionadas?')">Eliminar muestras seleccionadas</button>
-  {% endif %}
+  <button type="submit" class="btn btn-primary" value = "true" id='eliminar' name ='eliminar' onclick="return confirm('¿Quieres eliminar las muestras seleccionadas?')">Eliminar muestras seleccionadas</button>
+  <button type="submit" class="btn btn-primary" value="true" id='estudio' name ='estudio'>Añadir muestras seleccionadas a un estudio</button>
 </form>
 </table>
 {% endblock %}

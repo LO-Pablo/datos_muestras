@@ -22,7 +22,7 @@ class Muestra(models.Model):
     lugar_procedencia = models.CharField(max_length=100,blank=True, null=True)
     estado_actual = models.CharField(max_length=50, default='Disponible',
                                         choices=[('DISP','Disponible'), ('ENV','Enviada'), ('ENVP','Parcialmente enviada'), ('DEST','Destruida')],blank=True, null=True)
-
+    estudio = models.ManyToManyField('Estudio', blank=True)
     class Meta:
         # Definición de permisos personalizados para el modelo Muestra
         permissions = [
@@ -55,7 +55,6 @@ class Localizacion(models.Model):
     
 class Estudio(models.Model):
     # Campos del modelo Estudio, que referencia a una muestra
-    muestra = models.ForeignKey('Muestra', to_field ="nom_lab", null=True, blank=True,related_name="estudio",on_delete=models.SET_NULL)
     id_estudio = models.CharField(max_length=20)
     referencia_estudio = models.CharField(max_length=100, blank=True, null=True)
     nombre_estudio = models.CharField(max_length=100)
