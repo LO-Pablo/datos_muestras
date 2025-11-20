@@ -84,10 +84,6 @@ def muestras_todas(request):
                 row_num += 1
         wb.save(response)
         return response
-    # Eliminación de muestras seleccionadas en la tabla 
-    for muestra in muestras:    
-        if request.GET.get(f'{muestra.id}'):
-            eliminar_muestra(request, muestra.id_individuo, muestra.nom_lab)
     template = loader.get_template('muestras_todas.html')
     context = {    
         'muestras': muestras,
@@ -96,6 +92,19 @@ def muestras_todas(request):
     return HttpResponse(template.render(context, request))
 @login_required
 @permission_required('muestras.can_view_muestras_web')
+def acciones_post(request):
+    if request.method=="POST":
+        muestras_seleccionadas = request.POST.getlist('muestra_id')
+        if 'estudio' in request.POST:
+            if muestras_seleccionadas:
+                request.session['muestras_estudio']=muestras_seleccionadas
+                return redirect('seleccionar_estudio')
+        elif 'eliminar' in request.POST:
+            if muestras_seleccionadas:
+                muestras_a_procesar = Muestra.objects.filter(id__in=muestras_seleccionadas)
+                for muestra in muestras_a_procesar:
+                    eliminar_muestra(request, muestra.id_individuo, muestra.nom_lab) 
+    return redirect('muestras_todas')    
 def detalles_muestra(request, nom_lab):
     # Vista que muestra los detalles de una muestra específica, requiere permiso para ver muestras
     muestra = Muestra.objects.get(nom_lab=nom_lab)
@@ -105,6 +114,7 @@ def detalles_muestra(request, nom_lab):
     }
     return HttpResponse(template.render(context, request))
 @permission_required('muestras.can_add_muestras_web')
+
 
 def añadir_muestras(request):
     if request.method == 'POST':
@@ -666,6 +676,25 @@ def nuevo_estudio(request):
         form = EstudioForm()
     template = loader.get_template('nuevo_estudio.html')
     return HttpResponse(template.render({'form':form},request))
+
+def seleccionar_estudio(request):
+    estudios = Estudio.objects.all()
+    template = loader.get_template('seleccionar_estudio.html')
+    return HttpResponse(template.render({'estudios':estudios},request))
+
+def añadir_muestras_estudio(request):
+    if request.method == 'POST':
+        muestras = request.session.get('muestras_estudio', [])
+        ids_estudios = request.POST.getlist('estudio_id')
+        for study in ids_estudios:
+            studio = Estudio.objects.get(nombre_estudio=study)
+            muestras=Muestra.objects.filter(id__in=muestras)
+            for muestra in muestras:
+                muestra.estudio.add(studio)
+        if 'muestras_estudio' in request.session:
+            del request.session['muestras_estudio']
+        return redirect('muestras_todas')
+    return redirect('muestras_todas')
 
 def repositorio_estudio(request, id_estudio):
     estudio = Estudio.objects.get(id_estudio=id_estudio)
