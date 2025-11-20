@@ -15,6 +15,7 @@ urlpatterns = [
     path('archivo/nuevo/<int:macro>', views.descargar_plantilla, name='descargar_plantilla_localizaciones_macros'),
     path('archivo/archivar_muestra', views.archivar_muestra, name='archivar_muestra'),
     path('estudios/',views.estudios_todos, name='estudios_todos'),
+    path('estudios/nuevo',views.nuevo_estudio, name='nuevo_estudio'),
     path('estudios/<int:id_estudio>', views.repositorio_estudio, name="repositorio_estudio"),
     path('estudios/<int:id_estudio>/subir', views.subir_documento, name="subir_documento"),
     path('estudios/<int:id_estudio>/<int:documento_id>',views.descargar_documento, name="descargar_documento")
