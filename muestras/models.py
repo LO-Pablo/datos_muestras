@@ -84,6 +84,7 @@ class Envio(models.Model):
     unidad_concentracion_enviada = models.CharField(max_length=15)
     centro_destino = models.CharField(max_length=100)
     lugar_destino = models.CharField(max_length=100)
+    fecha_envio = models.DateField(default=timezone.now)
 
     def __str__(self):
         return f"Envio de Muestra {self.id_individuo} - {self.nom_lab} el {self.fecha_envio}"
