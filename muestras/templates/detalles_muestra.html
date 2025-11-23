@@ -8,16 +8,18 @@ Detalles de la Muestra
 <h1>Detalles de la Muestra</h1>
 <p><strong>ID Individuo:</strong> {{ muestra.id_individuo }}</p>
 <p><strong>Nombre asignado por el laboratorio:</strong> {{ muestra.nom_lab }}</p> 
-<p><strong>Material:</strong> {{ muestra.id_material }}</p>
-<p><strong>Volumen actual:</strong> {{ muestra.volumen_actual }} {{muestra.unidad_volumen}}</p>  
-<p><strong>Concentración actual:</strong> {{ muestra.concentracion_actual }} {{muestra.unidad_concentracion}}</p>    
-<p><strong>Masa actual:</strong>{{muestra.masa_actual}} {{muestra.unidad_masa}}</p>
-<p><strong>Fecha de extracción:</strong> {{ muestra.fecha_extraccion }}</p>
-<p><strong>Fecha de llegada:</strong> {{ muestra.fecha_llegada }}</p>
-<p><strong>Observaciones:</strong> {{ muestra.observaciones }}</p>
-<p><strong>Estado inicial:</strong> {{ muestra.estado_inicial }}</p>
-<p><strong>Centro de procedencia:</strong> {{ muestra.centro_procedencia }}</p>
-<p><strong>Lugar de procedencia:</strong> {{ muestra.lugar_procedencia }}</p>
+<p><strong>Material:</strong>{{ muestra.id_material }}</p>
+<p><strong>Volumen actual:</strong> {%if muestra.volumen_actual != None and muestra.unidad_volumen != None%} {{ muestra.volumen_actual }} {{muestra.unidad_volumen}} {%endif%}</p>  
+<p><strong>Concentración actual:</strong> {%if muestra.concentracion_actual != None and muestra.unidad_concentracion != None%}{{ muestra.concentracion_actual }} {{muestra.unidad_concentracion}} {%endif%}</p>    
+<p><strong>Masa actual:</strong>{%if muestra.masa_actual != None and muestra.unidad_masa != None%} {{muestra.masa_actual}} {{muestra.unidad_masa}} {%endif%}</p>
+<p><strong>Fecha de extracción:</strong> {%if muestra.fecha_extraccion != None%} {{ muestra.fecha_extraccion }} {%endif%}</p>
+<p><strong>Fecha de llegada:</strong>{%if muestra.fecha_llegada != None%} {{ muestra.fecha_llegada }} {%endif%}</p>
+<p><strong>Observaciones:</strong> {%if muestra.observaciones != None%}{{ muestra.observaciones }} {%endif%}</p>
+<p><strong>Estado inicial:</strong> {%if muestra.estado_inicial != None%}{{ muestra.estado_inicial }}{%endif%}</p>
+<p><strong>Estado actual:</strong> {%if muestra.estado_actual != None%}{{ muestra.estado_actual }}{%endif%}</p>
+<p><strong>Centro de procedencia:</strong> {%if muestra.centro_procedencia != None%}{{ muestra.centro_procedencia }} {%endif%}</p>
+<p><strong>Lugar de procedencia:</strong> {%if muestra.lugar_procedencia != None%}{{ muestra.lugar_procedencia }} {%endif%}</p>
+<p><strong>Estudio:</strong> {%if muestra.estudio != None%}{{ muestra.estudio }}{%endif%}</p>
 
 <p><a href='/muestras'> Ir a la lista de muestras </a></p>
 <p><a href='/archivo'> Volver al archivo</a></p>

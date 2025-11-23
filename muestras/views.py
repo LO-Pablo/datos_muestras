@@ -28,12 +28,15 @@ def muestras_todas(request):
     # Vista que muestra todas las muestras, requiere que el usuario esté autenticado
     muestras = Muestra.objects.prefetch_related('localizacion')
     # Filtrado de muestras si se proporcionan parámetros de búsqueda
-    field_names = [f.name for f in Muestra._meta.local_fields if f.name not in ('id')]
+    field_names = [f.name for f in Muestra._meta.local_fields if f.name not in ('id','estudio')]
     fields_loc = [f.name for f in Localizacion._meta.local_fields if f.name not in ('id','muestra')]
     for field in field_names:
         if request.GET.get(field):
             filter_kwargs = {f"{field}__icontains": request.GET[field]}
             muestras = muestras.filter(**filter_kwargs)
+    if request.GET.get('estudio'):
+        filtro_estudio = request.GET['estudio']
+        muestras = muestras.filter(estudio__nombre_estudio__icontains=filtro_estudio)
     '''
     # Crear un PDF con las muestras filtradas
     if request.GET.get('crear_pdf'):    
@@ -72,14 +75,22 @@ def muestras_todas(request):
             
             for field in field_names:
                 value = muestra.__dict__[field]
+                if value is None:
+                    value = ''
                 ws.cell(row_num, col_num).value= str(value)
                 col_num += 1
+            value = muestra.estudio.nombre_estudio if muestra.estudio else ''
+            ws.cell(row_num, col_num).value= str(value)
+            col_num += 1
             try:
                 loc = Localizacion.objects.get(muestra=muestra.nom_lab)
                 for field in fields_loc:
                     value = loc.__dict__[field]
+                    if value is None:
+                        value = ''
                     ws.cell(row_num, col_num).value= str(value)
                     col_num += 1
+                row_num += 1
             except:
                 row_num += 1
         wb.save(response)
@@ -150,7 +161,8 @@ def upload_excel(request):
         form = UploadExcel(request.POST, request.FILES)
         if 'confirmar' in request.POST:
             messages.success(request, 'Las muestras se han añadido correctamente.')
-            
+            ids_to_delete = request.session.pop('ids_error_muestras', [])
+            Muestra.objects.filter(nom_lab__in=ids_to_delete).delete()
         elif 'cancelar' in request.POST:
             # Eliminación de las muestras y localizaciones añadidas del excel
             ids_to_delete = request.session.pop('nuevos_ids', [])
@@ -186,12 +198,14 @@ def upload_excel(request):
                     'Rack': 'rack',
                     'Posición de la caja en el rack': 'posicion_caja_rack',
                     'Caja': 'caja',
-                    'Subposición': 'subposicion'
+                    'Subposición': 'subposicion',
+                    'Estudio':'estudio'
                     
                 }
                 df.rename(columns=rename_columns, inplace=True)
                 errors = 0
                 errors_loc = 0
+                errores_estudio = 0
                 campos_vacios = 0
                 localizaciones_ocupadas = 0
                 nuevos_ids = []
@@ -204,6 +218,10 @@ def upload_excel(request):
                 columna_errores_formato = []
                 numero_registros = 0
                 for _, row in df.iterrows():
+                    def normalize_value(value):
+                        if pd.isna(value) or value is None:
+                             return None
+                        return value
                     numero_registros += 1
                     for campo in ['volumen_actual', 'concentracion_actual', 'masa_actual']:
                         try:
@@ -214,42 +232,60 @@ def upload_excel(request):
                         try:
                             pd.to_datetime(row[campo], errors='raise')
                         except:
-                           columna_errores_formato.append(df.columns.get_loc(campo)) 
+                            columna_errores_formato.append(df.columns.get_loc(campo)) 
 
-                    try:
-                        muestra, created = Muestra.objects.update_or_create(
-                            id_individuo=row['id_individuo'],
-                            nom_lab=row['nom_lab'],
-                            id_material=row['id_material'],
-                            volumen_actual=row['volumen_actual'],
-                            unidad_volumen=row['unidad_volumen'],
-                            concentracion_actual=row['concentracion_actual'],
-                            unidad_concentracion=row['unidad_concentracion'],
-                            masa_actual=row['masa_actual'],
-                            unidad_masa=row['unidad_masa'],
-                            fecha_extraccion=row['fecha_extraccion'],
-                            fecha_llegada = row['fecha_llegada'],
-                            observaciones= row['observaciones'],
-                            estado_inicial=row['estado_inicial'],
-                            centro_procedencia=row['centro_procedencia'],
-                            lugar_procedencia=row['lugar_procedencia'],
-                            estado_actual=row['estado_actual']
+                    nombre_estudio_excel = row['estudio']
+                    if pd.isna(nombre_estudio_excel):
+                        estudio_instance = None
+                    else:
+                        try:
+                            estudio_instance = Estudio.objects.get(nombre_estudio=nombre_estudio_excel)
+                        except  Exception:
+                            estudio_instance = None
+                            errores_estudio += 1
+                    muestra, created = Muestra.objects.update_or_create(
+                        id_individuo=row['id_individuo'],
+                        nom_lab=row['nom_lab'],
+                        id_material=normalize_value(row['id_material']),
+                        volumen_actual=normalize_value(row['volumen_actual']),
+                        unidad_volumen=normalize_value(row['unidad_volumen']),
+                        concentracion_actual=normalize_value(row['concentracion_actual']),
+                        unidad_concentracion=normalize_value(row['unidad_concentracion']),
+                        masa_actual=normalize_value(row['masa_actual']),
+                        unidad_masa=normalize_value(row['unidad_masa']),
+                        fecha_extraccion=normalize_value(row['fecha_extraccion']),
+                        fecha_llegada = normalize_value(row['fecha_llegada']),
+                        observaciones= normalize_value(row['observaciones']),
+                        estado_inicial=normalize_value(row['estado_inicial']),
+                        centro_procedencia=normalize_value(row['centro_procedencia']),
+                        lugar_procedencia=normalize_value(row['lugar_procedencia']),
+                        estado_actual=normalize_value(row['estado_actual']),
+                        estudio = estudio_instance
                         )
-                        localizacion, loc_created = Localizacion.objects.update_or_create(
-                            muestra = muestra,
-                            congelador=row['congelador'],
-                            estante=row['estante'], 
-                            posicion_rack_estante=row['posicion_rack_estante'],
-                            rack=row['rack'],
-                            posicion_caja_rack=row['posicion_caja_rack'],
-                            caja=row['caja'],
-                            subposicion=row['subposicion']    
-                        )
-                        if created:
-                            nuevos_ids.append(muestra.id)
-                        if loc_created:
-                            nuevos_ids_loc.append(localizacion.id)
-                            Localizacion.objects.filter(congelador = localizacion.congelador, 
+                    def normalize_charfield_value(value):
+                        if pd.isna(value) or value is None:
+                            return None
+                        try:
+                            if isinstance(value, (float, int)) and value == int(value):
+                                return str(int(value))
+
+                        except ValueError:
+                            return str(value).strip()
+                    localizacion, loc_created = Localizacion.objects.update_or_create(
+                        muestra = muestra,
+                        congelador=normalize_charfield_value(row['congelador']),
+                        estante=normalize_charfield_value(row['estante']), 
+                        posicion_rack_estante=normalize_charfield_value(row['posicion_rack_estante']),
+                        rack=normalize_charfield_value(row['rack']),
+                        posicion_caja_rack=normalize_charfield_value(row['posicion_caja_rack']),
+                        caja=normalize_charfield_value(row['caja']),
+                        subposicion=normalize_value(row['subposicion'])    
+                    )
+                    if created:
+                        nuevos_ids.append(muestra.id)
+                    if loc_created:
+                        nuevos_ids_loc.append(localizacion.id)
+                        Localizacion.objects.filter(congelador = localizacion.congelador, 
                                                         estante = localizacion.estante,
                                                         posicion_rack_estante = localizacion.posicion_rack_estante,
                                                         rack = localizacion.rack,
@@ -257,20 +293,15 @@ def upload_excel(request):
                                                         caja = localizacion.caja,
                                                         subposicion = localizacion.subposicion,
                                                         muestra__isnull=True).delete()
-                   
-                        elif not created:
-                            ids_error_muestras.append(muestra.nom_lab)
-                            errors+=1
-                        elif not loc_created:
-                            errors_loc+=1
-                            ids_error_localizaciones.append(muestra.nom_lab)
-                        redirect('upload_excel')
-                    except IntegrityError:
-                        ids_error_muestras.append(row['nom_lab'])
+                    
+                    elif not created:
+                        ids_error_muestras.append(muestra.nom_lab)
                         errors+=1
-                    except (ValueError, TypeError):
-                        errors+=1
-                        ids_formato_incorrecto.append(row["nom_lab"])
+                    elif not loc_created:
+                        errors_loc+=1
+                        ids_error_localizaciones.append(muestra.nom_lab)
+                    redirect('upload_excel')
+                    
                     for column in df.columns:
                         if pd.isna(row[column]):
                             if column in [f.name for f in Muestra._meta.local_fields if f.name in ('nom_lab','id_individuo')] or column in [f.name for f in Localizacion._meta.local_fields]:
@@ -280,13 +311,15 @@ def upload_excel(request):
                                 elif column =='id_individuo':
                                     ids_error_muestras.append(row["nom_lab"])
                                     errors += 1
+                                    Muestra.objects.filter(id=nuevos_ids[len(nuevos_ids)-1]).delete()
                                 else:
                                     ids_error_muestras.append(row["nom_lab"])
                                     errors_loc+=1
-                                    localizacion.delete()
-                                Muestra.objects.filter(id=nuevos_ids[len(nuevos_ids)-1]).delete()
+                                    if not pd.isna(row['nom_lab']):
+                                        Muestra.objects.filter(id=nuevos_ids[len(nuevos_ids)-1]).delete()
+                                        localizacion.delete()
                             elif column in [f.name for f in Muestra._meta.local_fields if f.name not in ('nom_lab','id_individuo')]:
-                                Muestra.objects.filter(nom_lab=row['nom_lab']).update(**{column : ''}) 
+                                Muestra.objects.filter(nom_lab=row['nom_lab']).update(**{column : None})
                                 ids_campos_vacios.append(row['nom_lab']) 
                                 campos_vacios += 1
                     if Localizacion.objects.filter(
@@ -297,7 +330,7 @@ def upload_excel(request):
                         rack=row['rack'],
                         posicion_caja_rack=row['posicion_caja_rack'],
                         caja=row['caja'],
-                        subposicion=row['subposicion']
+                        subposicion=normalize_value(row['subposicion'])
                     ):
                         ids_localizaciones_ocupadas.append(row['nom_lab'])
                         localizaciones_ocupadas += 1
@@ -317,7 +350,7 @@ def upload_excel(request):
                     elif localizaciones_ocupadas!=0:
                         messages.info(request,f"Aunque hay {localizaciones_ocupadas} muestras que se están intentando archivar en una posición ocupada por otra muestra.")
                 else:
-                    messages.warning(request, f'Y contiene {errors} errores de los campos de las muestras y {errors_loc} de los campos de localización.')
+                    messages.warning(request, f'Y contiene {errors} errores de los campos de las muestras, {errores_estudio} errores en el campo de estudios y {errors_loc} de los campos de localización.')
                 return render(request, 'confirmacion_upload.html')
         elif 'excel_errores' in request.POST:
                     ids_error_muestras = request.session.get('ids_error_muestras', [])
@@ -393,7 +426,7 @@ def descargar_plantilla(request,macro:int):
 def localizaciones(request):
     # Vista que muestra todas las localizaciones, tengan o no muestra
     localizaciones = Localizacion.objects.all().values().distinct()
-    congeladores = Localizacion.objects.exclude(congelador='').values_list('congelador', flat=True).distinct()
+    congeladores = Localizacion.objects.exclude(congelador=None).values_list('congelador', flat=True).distinct()
     
     estantes = (Localizacion.objects.exclude(estante='')
                 .values_list('congelador','estante')
@@ -654,10 +687,7 @@ def archivar_muestra(request):
 
 # Vistas relacionadas con el modelo estudio
 def estudios_todos(request):
-    estudios = Estudio.objects.values(
-        'id_estudio','referencia_estudio','nombre_estudio',
-        'descripcion_estudio','fecha_inicio_estudio','fecha_fin_estudio',
-        'investigador_principal').distinct()
+    estudios = Estudio.objects.all()
     template = loader.get_template('estudios_todos.html')
     context = {
         'estudios':estudios
@@ -690,7 +720,8 @@ def añadir_muestras_estudio(request):
             studio = Estudio.objects.get(nombre_estudio=study)
             muestras=Muestra.objects.filter(id__in=muestras)
             for muestra in muestras:
-                muestra.estudio.add(studio)
+                muestra.estudio = studio
+                muestra.save()
         if 'muestras_estudio' in request.session:
             del request.session['muestras_estudio']
         return redirect('muestras_todas')
@@ -699,6 +730,7 @@ def añadir_muestras_estudio(request):
 def repositorio_estudio(request, id_estudio):
     estudio = Estudio.objects.get(id_estudio=id_estudio)
     documentos = Documento.objects.filter(estudio = estudio, eliminado= False)
+    request.session['id_estudio'] = id_estudio
     # Filtrado opcional por usuario
     usuario = request.GET.get('usuario')
     if usuario:
@@ -733,11 +765,17 @@ def descargar_documento(request, documento_id,id_estudio):
     doc = Documento.objects.get(pk=documento_id, eliminado=False)      
     return FileResponse(open(doc.archivo.path, 'rb'), as_attachment=True, filename=os.path.basename(doc.archivo.name))
 
-def eliminar_documento(request, id_documento):
-    doc = Documento.objects.get(pk=id_documento, eliminado=False)
-    doc.eliminado = True
-    doc.fecha_eliminacion = timezone.now()
-    doc.save()
-    
+def eliminar_documento(request):
+    ids_documento = request.POST.getlist('doc_id')
+    for element in ids_documento:
+        try:
+            doc = Documento.objects.get(pk=element, eliminado=False)
+            doc.eliminado = True
+            doc.fecha_eliminacion = timezone.now()
+            doc.save()
+            return redirect('repositorio_estudio', id_estudio=doc.estudio)
+        except:
+            return redirect('repositorio_estudio', id_estudio=doc.estudio.id_estudio)
+    return redirect('repositorio_estudio', id_estudio=request.session.get('id_estudio'))
 # Vistas relacionadas con el envio de muestras
 

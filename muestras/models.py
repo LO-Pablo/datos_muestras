@@ -22,7 +22,7 @@ class Muestra(models.Model):
     lugar_procedencia = models.CharField(max_length=100,blank=True, null=True)
     estado_actual = models.CharField(max_length=50, default='Disponible',
                                         choices=[('DISP','Disponible'), ('ENV','Enviada'), ('ENVP','Parcialmente enviada'), ('DEST','Destruida')],blank=True, null=True)
-    estudio = models.ManyToManyField('Estudio', blank=True)
+    estudio = models.ForeignKey('Estudio', blank=True, to_field='nombre_estudio', on_delete=models.SET_NULL, null=True)
     class Meta:
         # Definición de permisos personalizados para el modelo Muestra
         permissions = [
@@ -38,13 +38,13 @@ class Muestra(models.Model):
 class Localizacion(models.Model):
     # Campos del modelo Localizacion, que referencia a una muestra
     muestra = models.ForeignKey('Muestra',to_field = "nom_lab",related_name="localizacion", blank=True, null=True, on_delete=models.SET_NULL)
-    congelador = models.CharField(max_length=50)
-    estante = models.CharField(max_length=50,blank=True)
-    posicion_rack_estante = models.CharField(max_length=50,blank=True)
-    rack = models.CharField(max_length=50,blank=True)
-    posicion_caja_rack = models.CharField(max_length=50,blank=True)
-    caja = models.CharField(max_length=50,blank=True)
-    subposicion = models.IntegerField(blank=True)
+    congelador = models.CharField(max_length=50, blank=True, null=True)
+    estante = models.CharField(max_length=50,blank=True, null=True)
+    posicion_rack_estante = models.CharField(max_length=50,blank=True, null=True)
+    rack = models.CharField(max_length=50,blank=True, null=True)
+    posicion_caja_rack = models.CharField(max_length=50,blank=True, null=True)
+    caja = models.CharField(max_length=50,blank=True, null=True)
+    subposicion = models.IntegerField(blank=True, null=True)
 
     class Meta:
         # Campos unicos de localización en conjunción
@@ -54,10 +54,10 @@ class Localizacion(models.Model):
         return f"{self.congelador} - {self.estante} - {self.posicion_rack_estante} - {self.rack} - {self.posicion_caja_rack} - {self.caja} - {self.subposicion}"
     
 class Estudio(models.Model):
-    # Campos del modelo Estudio, que referencia a una muestra
-    id_estudio = models.CharField(max_length=20)
+    # Campos del modelo Estudio
+    id_estudio = models.CharField(max_length=20, unique=True)
     referencia_estudio = models.CharField(max_length=100, blank=True, null=True)
-    nombre_estudio = models.CharField(max_length=100)
+    nombre_estudio = models.CharField(max_length=100,unique=True)
     descripcion_estudio = models.TextField(blank=True, null=True)
     fecha_inicio_estudio = models.DateField(blank=True, null=True)
     fecha_fin_estudio = models.DateField(blank=True, null=True)
