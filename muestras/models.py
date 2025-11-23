@@ -22,7 +22,7 @@ class Muestra(models.Model):
     lugar_procedencia = models.CharField(max_length=100,blank=True, null=True)
     estado_actual = models.CharField(max_length=50, default='Disponible',
                                         choices=[('DISP','Disponible'), ('ENV','Enviada'), ('ENVP','Parcialmente enviada'), ('DEST','Destruida')],blank=True, null=True)
-    estudio = models.ManyToManyField('Estudio', blank=True)
+    estudio = models.ForeignKey('Estudio', blank=True, to_field='nombre_estudio', on_delete=models.SET_NULL, null=True)
     class Meta:
         # Definición de permisos personalizados para el modelo Muestra
         permissions = [
@@ -54,10 +54,10 @@ class Localizacion(models.Model):
         return f"{self.congelador} - {self.estante} - {self.posicion_rack_estante} - {self.rack} - {self.posicion_caja_rack} - {self.caja} - {self.subposicion}"
     
 class Estudio(models.Model):
-    # Campos del modelo Estudio, que referencia a una muestra
-    id_estudio = models.CharField(max_length=20)
+    # Campos del modelo Estudio
+    id_estudio = models.CharField(max_length=20, unique=True)
     referencia_estudio = models.CharField(max_length=100, blank=True, null=True)
-    nombre_estudio = models.CharField(max_length=100)
+    nombre_estudio = models.CharField(max_length=100,unique=True)
     descripcion_estudio = models.TextField(blank=True, null=True)
     fecha_inicio_estudio = models.DateField(blank=True, null=True)
     fecha_fin_estudio = models.DateField(blank=True, null=True)
