@@ -13,6 +13,7 @@ Lista de Muestras
   {% for field in field_names %} 
   <input name={{field}} class="form-control"> {{field}}<br>
   {% endfor %}
+  <input name="estudio" class="form-control"> Estudio<br>
   <button type="submit" class="btn btn-primary">Filtrar</button>
 </form> 
 {% if perms.muestras.can_add_muestras_web %}

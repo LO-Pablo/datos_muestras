@@ -38,13 +38,13 @@ class Muestra(models.Model):
 class Localizacion(models.Model):
     # Campos del modelo Localizacion, que referencia a una muestra
     muestra = models.ForeignKey('Muestra',to_field = "nom_lab",related_name="localizacion", blank=True, null=True, on_delete=models.SET_NULL)
-    congelador = models.CharField(max_length=50)
-    estante = models.CharField(max_length=50,blank=True)
-    posicion_rack_estante = models.CharField(max_length=50,blank=True)
-    rack = models.CharField(max_length=50,blank=True)
-    posicion_caja_rack = models.CharField(max_length=50,blank=True)
-    caja = models.CharField(max_length=50,blank=True)
-    subposicion = models.IntegerField(blank=True)
+    congelador = models.CharField(max_length=50, blank=True, null=True)
+    estante = models.CharField(max_length=50,blank=True, null=True)
+    posicion_rack_estante = models.CharField(max_length=50,blank=True, null=True)
+    rack = models.CharField(max_length=50,blank=True, null=True)
+    posicion_caja_rack = models.CharField(max_length=50,blank=True, null=True)
+    caja = models.CharField(max_length=50,blank=True, null=True)
+    subposicion = models.IntegerField(blank=True, null=True)
 
     class Meta:
         # Campos unicos de localización en conjunción

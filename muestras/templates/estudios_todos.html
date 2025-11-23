@@ -22,12 +22,32 @@ Lista de estudios del investigador
     {% for estudio in estudios %}
     <tr>
         <td>{{estudio.id_estudio}}</td>
-        <td>{{estudio.referencia_estudio}}</td>
+        <td>
+        {% if estudio.referencia_estudio != None  %}
+            {{estudio.referencia_estudio}}
+        {%endif%}
+        </td>
         <td>{{estudio.nombre_estudio}}</td>
-        <td>{{estudio.descripcion_estudio}}</td>
-        <td>{{estudio.fecha_inicio_estudio}}</td>
-        <td>{{estudio.fecha_fin_estudio}}</td>
-        <td>{{estudio.investigador_principal}}</td>
+        <td>
+        {% if estudio.descripcion_estudio != None  %}  
+            {{estudio.descripcion_estudio}}
+        {%endif%}
+        </td>
+        <td>
+         {% if estudio.fecha_inicio_estudio != None  %}   
+            {{estudio.fecha_inicio_estudio}}
+        {%endif%}
+        </td>
+        <td>
+        {% if estudio.fecha_fin_estudio != None  %}  
+            {{estudio.fecha_fin_estudio}}
+        {%endif%}
+        </td>
+        <td>
+        {% if estudio.investigador_principal != None  %}
+            {{estudio.investigador_principal}}
+        {%endif%}
+        </td>
         <td><a href="/estudios/{{estudio.id_estudio}}">Documentación</a></td>
     </tr> 
     {% endfor %} 

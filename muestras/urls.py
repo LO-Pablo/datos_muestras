@@ -21,5 +21,6 @@ urlpatterns = [
     path('estudios/nuevo',views.nuevo_estudio, name='nuevo_estudio'),
     path('estudios/<int:id_estudio>', views.repositorio_estudio, name="repositorio_estudio"),
     path('estudios/<int:id_estudio>/subir', views.subir_documento, name="subir_documento"),
-    path('estudios/<int:id_estudio>/<int:documento_id>',views.descargar_documento, name="descargar_documento")
+    path('estudios/<int:id_estudio>/<int:documento_id>',views.descargar_documento, name="descargar_documento"),
+    path('estudios/eliminar_documento',views.eliminar_documento, name="eliminar_documento")
 ]
