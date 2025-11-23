@@ -171,8 +171,12 @@ Lista de Muestras
   </td>
   </tr>
   {% endfor %}
+  {% if perms.muestras.can_delete_muestras_web %}
   <button type="submit" class="btn btn-primary" value = "true" id='eliminar' name ='eliminar' onclick="return confirm('¿Quieres eliminar las muestras seleccionadas?')">Eliminar muestras seleccionadas</button>
+  {%endif%}
+  {% if perms.estudio.can_change_estudio %}
   <button type="submit" class="btn btn-primary" value="true" id='estudio' name ='estudio'>Añadir muestras seleccionadas a un estudio</button>
+  {%endif%}
 </form>
 </table>
 {% endblock %}

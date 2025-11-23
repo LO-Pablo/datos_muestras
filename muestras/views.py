@@ -30,6 +30,8 @@ def muestras_todas(request):
     # Filtrado de muestras si se proporcionan parámetros de búsqueda
     field_names = [f.name for f in Muestra._meta.local_fields if f.name not in ('id','estudio')]
     fields_loc = [f.name for f in Localizacion._meta.local_fields if f.name not in ('id','muestra')]
+    if request.user.groups.filter(name='Investigadores'):
+        muestras = Muestra.objects.filter(Q(estudio__investigador_principal__username=request.user.username) | Q(estudio = None))
     for field in field_names:
         if request.GET.get(field):
             filter_kwargs = {f"{field}__icontains": request.GET[field]}
@@ -37,6 +39,7 @@ def muestras_todas(request):
     if request.GET.get('estudio'):
         filtro_estudio = request.GET['estudio']
         muestras = muestras.filter(estudio__nombre_estudio__icontains=filtro_estudio)
+
     '''
     # Crear un PDF con las muestras filtradas
     if request.GET.get('crear_pdf'):    
@@ -687,7 +690,10 @@ def archivar_muestra(request):
 
 # Vistas relacionadas con el modelo estudio
 def estudios_todos(request):
-    estudios = Estudio.objects.all()
+    if request.user.groups.filter(name='Investigadores'):
+        estudios = Estudio.objects.filter(investigador_principal__username=request.user.username)
+    else:
+        estudios = Estudio.objects.all()
     template = loader.get_template('estudios_todos.html')
     context = {
         'estudios':estudios
@@ -708,7 +714,8 @@ def nuevo_estudio(request):
     return HttpResponse(template.render({'form':form},request))
 
 def seleccionar_estudio(request):
-    estudios = Estudio.objects.all()
+    if request.user.groups.filter(name='Investigadores'):
+        estudios = Estudio.objects.filter(investigador_principal__username=request.user.username)
     template = loader.get_template('seleccionar_estudio.html')
     return HttpResponse(template.render({'estudios':estudios},request))
 
