@@ -795,7 +795,7 @@ def eliminar_documento(request):
 
 def formulario_envios(request):
     muestras_envio = request.session.get('muestras_envio', [])
-    muestras = Muestra.objects.filter(id__in=muestras_envio)
+    muestras = Muestra.objects.filter(id__in=muestras_envio, volumen_actual__gt=0)
     template = loader.get_template('formulario_envios.html')
     return HttpResponse(template.render({'muestras':muestras},request))
 
@@ -840,5 +840,13 @@ def registrar_envio(request):
 def historial_envios(request,muestra_id):
     muestra = Muestra.objects.get(id=muestra_id)
     envios = Envio.objects.filter(muestra=muestra).order_by('-fecha_envio')
+    volumen_original = muestra.volumen_actual + sum(envio.volumen_enviado for envio in envios)
+    volumen_restante = muestra.volumen_actual
     template = loader.get_template('historial_envios.html')
-    return HttpResponse(template.render({'envios':envios, 'muestra':muestra},request))
+    context = {
+        'muestra':muestra,
+        'envios':envios,
+        'volumen_original':volumen_original,
+        'volumen_restante':volumen_restante
+    }
+    return HttpResponse(template.render(context,request))

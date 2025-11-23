@@ -7,6 +7,14 @@ Historial de envios
 {% block content %}
 <a href="/muestras"> Volver a la lista de muestras </a><br>
 <h1>Historial de envios de la muestra {{ muestra.nom_lab }}</h1>
+<p>Llegada al laboratorio: {{muestra.fecha_llegada}}</p>
+<p>Centro de procedencia: {{muestra.centro_procedencia}}</p>
+<p>Volumen original: {{volumen_original}} {{muestra.unidad_volumen}}</p>
+{% if muestra.estado_actual == "Parcialmente enviada" %}
+<p>Volumen restante: {{volumen_restante}} {{muestra.unidad_volumen}}</p>
+{% endif %}
+<p>Estado actual: {{muestra.estado_actual}}</p>
+
 <table>
     <tr>
         <th>Fecha de envio</th>
@@ -20,7 +28,7 @@ Historial de envios
         <td>{{ envio.fecha_envio }}</td>
         <td>{{ envio.centro_destino }}</td>
         <td>{{ envio.lugar_destino }}</td>
-        <td>{{ envio.volumen_enviado }} {{ envio.unidad_volumen_enviada }}</td>
+        <td>{{ envio.volumen_enviado }} {{ envio.unidad_volumen_enviado }}</td>
         <td>{{ envio.concentracion_enviada }} {{ envio.unidad_concentracion_enviada }}</td>
     </tr>
     {% endfor %}
