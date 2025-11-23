@@ -1,5 +1,6 @@
 Funcionalidades actuales de la aplicación web: 
-+ Gestión básica de usuarios: admin, investigador y técnico de laboratorio.
++ Gestión básica de grupos de usuarios: admin, investigador y técnico de laboratorio.
+  1) Admin: todas las funcionalidades de la aplicación web incluidas, acceso a 
 + CRUD(Create, Read, Update and Delete) básico de muestras, asociado a los permisos de cada grupo de usuarios.
 + Opciones básicas de filtrado de muestras.
 + Opción para seleccionar y eliminar varias muestras a la vez.
