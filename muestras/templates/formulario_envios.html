@@ -1,0 +1,34 @@
+{% extends "master.html" %}
+
+{% block title %}
+Envio de Muestras
+{% endblock %}
+
+{% block content %}
+<a href="/muestras"> Volver a la lista de muestras </a><br>
+<h1>Registrar un nuevo envio</h1>
+<form method="post" action="{% url 'registrar_envio' %}">
+    {% csrf_token %}
+    Centro de destino: <input type="text" name="centro_destino">
+    Lugar de destino: <input type="text" name="lugar_destino">
+    <table>
+        <tr>
+            <th>Número de muestra</th>
+            <th>Volumen actual</th>
+            <th>Concentración actual</th>
+            <th>Volumen a enviar</th>
+            <th>Concentración a enviar</th>
+        </tr>
+        {% for muestra in muestras %}
+        <tr>
+            <td>{{ muestra.nom_lab }}</td>
+            <td>{{ muestra.volumen_actual }} {{muestra.unidad_volumen}}</td>
+            <td>{{ muestra.concentracion_actual }} {{muestra.unidad_concentracion}}</td>
+            <td><input type="number" step="0.01" name="volumen_enviado"><input type="text" name="unidad_volumen"></td>
+            <td><input type="number" step="0.01" name="concentracion_enviada"><input type="text" name="unidad_concentracion"></td>
+        </tr>
+        {% endfor %}
+    </table>
+    <input type="submit" value="Registrar envio">
+</form>
+{% endblock %}

@@ -64,6 +64,7 @@ Lista de Muestras
     <th>Lugar de procedencia</th>
     <th>Estado actual</th>
     <th>Estudio</th>
+    <th>Historial de envios<th>
   </tr>
   <form action="{% url 'acciones_post' %}" method="post">
   {%csrf_token%}
@@ -169,10 +170,21 @@ Lista de Muestras
       Sin estudio asignado
     {% endif %}
   </td>
+  <td>{%if x.envio.all%}
+    <a href="{% url 'historial_envios' x.id %}">Ver envios</a>
+    {%else%}
+    Sin envios registrados
+    {% endif %}
+  </td>
   </tr>
   {% endfor %}
+  {% if perms.muestras.can_delete_muestras_web %}
   <button type="submit" class="btn btn-primary" value = "true" id='eliminar' name ='eliminar' onclick="return confirm('¿Quieres eliminar las muestras seleccionadas?')">Eliminar muestras seleccionadas</button>
+  {%endif%}
+  {% if perms.estudio.can_change_estudio %}
   <button type="submit" class="btn btn-primary" value="true" id='estudio' name ='estudio'>Añadir muestras seleccionadas a un estudio</button>
+  {%endif%}
+  <button type="submit" class="btn btn-primary" value="true" id='envio' name ='envio'>Registrar un envio</button>
 </form>
 </table>
 {% endblock %}

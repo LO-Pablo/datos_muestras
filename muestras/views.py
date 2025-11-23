@@ -30,6 +30,8 @@ def muestras_todas(request):
     # Filtrado de muestras si se proporcionan parámetros de búsqueda
     field_names = [f.name for f in Muestra._meta.local_fields if f.name not in ('id','estudio')]
     fields_loc = [f.name for f in Localizacion._meta.local_fields if f.name not in ('id','muestra')]
+    if request.user.groups.filter(name='Investigadores'):
+        muestras = Muestra.objects.filter(Q(estudio__investigador_principal__username=request.user.username) | Q(estudio = None))
     for field in field_names:
         if request.GET.get(field):
             filter_kwargs = {f"{field}__icontains": request.GET[field]}
@@ -37,6 +39,7 @@ def muestras_todas(request):
     if request.GET.get('estudio'):
         filtro_estudio = request.GET['estudio']
         muestras = muestras.filter(estudio__nombre_estudio__icontains=filtro_estudio)
+
     '''
     # Crear un PDF con las muestras filtradas
     if request.GET.get('crear_pdf'):    
@@ -115,6 +118,10 @@ def acciones_post(request):
                 muestras_a_procesar = Muestra.objects.filter(id__in=muestras_seleccionadas)
                 for muestra in muestras_a_procesar:
                     eliminar_muestra(request, muestra.id_individuo, muestra.nom_lab) 
+        elif 'envio' in request.POST:
+            if muestras_seleccionadas:
+                request.session['muestras_envio']=muestras_seleccionadas
+                return redirect('formulario_envios')
     return redirect('muestras_todas')    
 def detalles_muestra(request, nom_lab):
     # Vista que muestra los detalles de una muestra específica, requiere permiso para ver muestras
@@ -687,7 +694,10 @@ def archivar_muestra(request):
 
 # Vistas relacionadas con el modelo estudio
 def estudios_todos(request):
-    estudios = Estudio.objects.all()
+    if request.user.groups.filter(name='Investigadores'):
+        estudios = Estudio.objects.filter(investigador_principal__username=request.user.username)
+    else:
+        estudios = Estudio.objects.all()
     template = loader.get_template('estudios_todos.html')
     context = {
         'estudios':estudios
@@ -708,7 +718,10 @@ def nuevo_estudio(request):
     return HttpResponse(template.render({'form':form},request))
 
 def seleccionar_estudio(request):
-    estudios = Estudio.objects.all()
+    if request.user.groups.filter(name='Investigadores'):
+        estudios = Estudio.objects.filter(investigador_principal__username=request.user.username)
+    else:
+        estudios = Estudio.objects.all()
     template = loader.get_template('seleccionar_estudio.html')
     return HttpResponse(template.render({'estudios':estudios},request))
 
@@ -777,5 +790,55 @@ def eliminar_documento(request):
         except:
             return redirect('repositorio_estudio', id_estudio=doc.estudio.id_estudio)
     return redirect('repositorio_estudio', id_estudio=request.session.get('id_estudio'))
+
 # Vistas relacionadas con el envio de muestras
 
+def formulario_envios(request):
+    muestras_envio = request.session.get('muestras_envio', [])
+    muestras = Muestra.objects.filter(id__in=muestras_envio)
+    template = loader.get_template('formulario_envios.html')
+    return HttpResponse(template.render({'muestras':muestras},request))
+
+def registrar_envio(request):
+    if request.method=='POST':
+        muestras = request.session.get('muestras_envio', [])
+        volumen_enviado_form = request.POST.getlist('volumen_enviado')
+        unidad_volumen_enviado_form = request.POST.getlist('unidad_volumen')
+        concentracion_enviada_form = request.POST.getlist('concentracion_enviada')
+        unidad_concentracion_enviada_form = request.POST.getlist('unidad_concentracion')
+        centro_destino_form = request.POST.get('centro_destino')
+        lugar_destino_form = request.POST.get('lugar_destino')
+        iterar = 0
+        for muestra in muestras:
+            instancia_muestra = Muestra.objects.get(id=muestra)
+            envio = Envio.objects.create(
+                muestra=instancia_muestra,
+                fecha_envio=timezone.now(),
+                volumen_enviado = volumen_enviado_form[iterar],
+                unidad_volumen_enviado = unidad_volumen_enviado_form[iterar],
+                concentracion_enviada = concentracion_enviada_form[iterar],
+                unidad_concentracion_enviada = unidad_concentracion_enviada_form[iterar],
+                centro_destino = centro_destino_form,
+                lugar_destino=lugar_destino_form
+            )
+            envio.save()
+            if float(volumen_enviado_form[iterar]) >= instancia_muestra.volumen_actual:
+                instancia_muestra.volumen_actual = 0
+                instancia_muestra.concentracion_actual = 0
+                instancia_muestra.estado_actual = 'Enviada'
+                instancia_muestra.save()
+            else:
+                instancia_muestra.volumen_actual -= float(volumen_enviado_form[iterar])
+                instancia_muestra.estado_actual = 'Parcialmente enviada'
+                instancia_muestra.save()
+            iterar += 1
+        if 'muestras_envio' in request.session:
+            del request.session['muestras_envio']
+        return redirect('muestras_todas')
+    return redirect('formulario_envios')
+
+def historial_envios(request,muestra_id):
+    muestra = Muestra.objects.get(id=muestra_id)
+    envios = Envio.objects.filter(muestra=muestra).order_by('-fecha_envio')
+    template = loader.get_template('historial_envios.html')
+    return HttpResponse(template.render({'envios':envios, 'muestra':muestra},request))
