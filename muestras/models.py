@@ -52,7 +52,11 @@ class Localizacion(models.Model):
 
     def __str__(self):
         return f"{self.congelador} - {self.estante} - {self.posicion_rack_estante} - {self.rack} - {self.posicion_caja_rack} - {self.caja} - {self.subposicion}"
-    
+class historial_localizaciones(models.Model):
+    muestra = models.ForeignKey('Muestra',related_name="historial_localizaciones",on_delete=models.CASCADE)
+    localizacion = models.ForeignKey('Localizacion',related_name="historial_localizaciones",on_delete=models.CASCADE)
+    fecha_asignacion = models.DateField(default=timezone.now) 
+    usuario_asignacion = models.ForeignKey(User,on_delete=models.PROTECT, blank=True, null=True)   
 class Estudio(models.Model):
     # Campos del modelo Estudio
     id_estudio = models.CharField(max_length=20, unique=True)
@@ -64,6 +68,12 @@ class Estudio(models.Model):
     investigador_principal = models.ForeignKey(User, on_delete=models.PROTECT, blank=True, null=True)
     def __str__(self):
         return f"Estudio {self.nombre_estudio}"
+class historial_estudios(models.Model):
+    muestra = models.ForeignKey('Muestra',related_name="historial_estudios",on_delete=models.CASCADE)
+    estudio = models.ForeignKey('Estudio',related_name="historial_estudios",on_delete=models.CASCADE)
+    fecha_asignacion = models.DateField(default=timezone.now)
+    usuario_asignacion = models.ForeignKey(User,on_delete=models.PROTECT, blank=True, null=True) 
+
 def ruta_documentos(instance,filename):
     return f"estudios/{instance.estudio.id_estudio}/{filename}"
 class Documento(models.Model):

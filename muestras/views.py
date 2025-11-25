@@ -1,5 +1,5 @@
 from django.http import HttpResponse, FileResponse
-from .models import Muestra, Localizacion, Estudio, Envio, Documento
+from .models import Muestra, Localizacion, Estudio, Envio, Documento, historial_estudios, historial_localizaciones
 from django.template import loader
 from .forms import MuestraForm, LocalizacionForm, UploadExcel, archivar_muestra_form, DocumentoForm, EstudioForm
 from django.db import transaction
@@ -735,10 +735,26 @@ def añadir_muestras_estudio(request):
             for muestra in muestras:
                 muestra.estudio = studio
                 muestra.save()
+                if historial_estudios.objects.filter(muestra=muestra,estudio=studio).exists():
+                    pass
+                else:   
+                    historial = historial_estudios.objects.create(
+                        muestra = muestra,
+                        estudio = studio,
+                        fecha_asignacion = timezone.now(),
+                        usuario_asignacion = request.user
+                    )
+                    historial.save()
         if 'muestras_estudio' in request.session:
             del request.session['muestras_estudio']
         return redirect('muestras_todas')
     return redirect('muestras_todas')
+
+def historial_estudios_muestra(request,muestra_id):
+    muestra = Muestra.objects.get(id=muestra_id)
+    historiales = historial_estudios.objects.filter(muestra=muestra).order_by('-fecha_asignacion')
+    template = loader.get_template('historial_estudios.html')
+    return HttpResponse(template.render({'historiales':historiales, 'muestra':muestra},request))
 
 def repositorio_estudio(request, id_estudio):
     estudio = Estudio.objects.get(id_estudio=id_estudio)
