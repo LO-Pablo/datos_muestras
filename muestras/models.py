@@ -85,6 +85,7 @@ class Envio(models.Model):
     centro_destino = models.CharField(max_length=100)
     lugar_destino = models.CharField(max_length=100)
     fecha_envio = models.DateField(default=timezone.now)
+    usuario_envio = models.ForeignKey(User, on_delete=models.PROTECT, blank=True, null=True)
 
     def __str__(self):
         return f"Envio de Muestra {self.id_individuo} - {self.nom_lab} el {self.fecha_envio}"
