@@ -22,6 +22,7 @@ Historial de envios
         <th>Lugar de destino</th>
         <th>Volumen enviado</th>
         <th>Concentración enviada</th>
+        <th>Usuario</th>
     </tr>
     {% for envio in envios %}
     <tr>
@@ -30,6 +31,7 @@ Historial de envios
         <td>{{ envio.lugar_destino }}</td>
         <td>{{ envio.volumen_enviado }} {{ envio.unidad_volumen_enviado }}</td>
         <td>{{ envio.concentracion_enviada }} {{ envio.unidad_concentracion_enviada }}</td>
+        <td>{{ envio.usuario_envio.username }}</td>
     </tr>
     {% endfor %}
 </table>

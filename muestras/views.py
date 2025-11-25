@@ -819,7 +819,8 @@ def registrar_envio(request):
                 concentracion_enviada = concentracion_enviada_form[iterar],
                 unidad_concentracion_enviada = unidad_concentracion_enviada_form[iterar],
                 centro_destino = centro_destino_form,
-                lugar_destino=lugar_destino_form
+                lugar_destino=lugar_destino_form,
+                usuario_envio = request.user
             )
             envio.save()
             if float(volumen_enviado_form[iterar]) >= instancia_muestra.volumen_actual:
@@ -827,6 +828,10 @@ def registrar_envio(request):
                 instancia_muestra.concentracion_actual = 0
                 instancia_muestra.estado_actual = 'Enviada'
                 instancia_muestra.save()
+                if Localizacion.objects.filter(muestra=instancia_muestra).exists():
+                    loc = Localizacion.objects.get(muestra=instancia_muestra)
+                    loc.muestra = None
+                    loc.save()
             else:
                 instancia_muestra.volumen_actual -= float(volumen_enviado_form[iterar])
                 instancia_muestra.estado_actual = 'Parcialmente enviada'
