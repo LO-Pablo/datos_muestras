@@ -1,0 +1,28 @@
+{% extends "master.html" %}
+
+{% block title %}
+Historial de estudios
+{% endblock %}
+
+{% block content %}
+<a href="/muestras"> Volver a la lista de muestras </a><br>
+<h1>Historial de estudios de la muestra {{ muestra.nom_lab }}</h1>
+<p>Llegada al laboratorio: {{muestra.fecha_llegada}}</p>
+<p>Centro de procedencia: {{muestra.centro_procedencia}}</p>
+<p>Estado actual: {{muestra.estado_actual}}</p>
+
+<table>
+    <tr>
+        <th>Estudio</th>
+        <th>Fecha de asignación</th>
+        <th>Usuario</th>
+    </tr>
+    {% for estudio in historiales %}
+    <tr>
+        <td>{{ estudio.estudio }}</td>
+        <td>{{ estudio.fecha_asignacion }}</td>
+        <td>{{ estudio.usuario_asignacion.username }}</td>
+    </tr>
+    {% endfor %}
+</table>
+{% endblock %}

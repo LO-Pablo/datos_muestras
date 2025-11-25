@@ -10,6 +10,7 @@ urlpatterns = [
     path('muestras/envio', views.formulario_envios, name='formulario_envios'),
     path('muestras/envio/registrar_envio', views.registrar_envio, name='registrar_envio'),
     path('muestras/historial_envios/<int:muestra_id>', views.historial_envios, name='historial_envios'),
+    path('muestras/historial_estudios/<int:muestra_id>', views.historial_estudios_muestra, name='historial_estudios'),
     path('muestras/upload_excel', views.upload_excel, name='upload_excel'),
     path('muestras/upload_excel/descargar/<int:macro>', views.descargar_plantilla, name='descargar_plantilla_muestras'),
     path('archivo/detalles_muestra/<str:nom_lab>', views.detalles_muestra, name='detalles_muestra'),
