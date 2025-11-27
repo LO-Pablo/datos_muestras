@@ -7,10 +7,10 @@ Envio de Muestras
 {% block content %}
 <a href="/muestras"> Volver a la lista de muestras </a><br>
 <h1>Registrar un nuevo envio</h1>
-<form method="post" action="{% url 'registrar_envio' %}">
+<form method="post" action="{% url 'registrar_envio' centro.id %}">
     {% csrf_token %}
-    Centro de destino: <input type="text" name="centro_destino">
-    Lugar de destino: <input type="text" name="lugar_destino">
+    Centro de destino: {{centro.centro}}
+    Lugar de destino: {{centro.lugar}}
     <table>
         <tr>
             <th>Número de muestra</th>

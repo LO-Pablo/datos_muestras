@@ -54,7 +54,7 @@ class Localizacion(models.Model):
         return f"{self.congelador} - {self.estante} - {self.posicion_rack_estante} - {self.rack} - {self.posicion_caja_rack} - {self.caja} - {self.subposicion}"
 class historial_localizaciones(models.Model):
     muestra = models.ForeignKey('Muestra',related_name="historial_localizaciones",on_delete=models.CASCADE)
-    localizacion = models.ForeignKey('Localizacion',related_name="historial_localizaciones",on_delete=models.CASCADE)
+    localizacion = models.ForeignKey('Localizacion',related_name="historial_localizaciones",on_delete=models.DO_NOTHING)
     fecha_asignacion = models.DateField(default=timezone.now) 
     usuario_asignacion = models.ForeignKey(User,on_delete=models.PROTECT, blank=True, null=True)   
 class Estudio(models.Model):
@@ -99,3 +99,10 @@ class Envio(models.Model):
 
     def __str__(self):
         return f"Envio de Muestra {self.id_individuo} - {self.nom_lab} el {self.fecha_envio}"
+    
+class agenda_envio(models.Model):
+    centro = models.CharField(max_length=200,unique=True,default=None)
+    lugar=models.CharField(max_length=200)
+    direccion=models.TextField()
+    persona_contacto = models.CharField(max_length=200,blank=True, null=True)
+    telefono_contacto=models.IntegerField(blank=True, null=True)
