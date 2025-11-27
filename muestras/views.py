@@ -300,6 +300,10 @@ def upload_excel(request):
                                                         caja = localizacion.caja,
                                                         subposicion = localizacion.subposicion,
                                                         muestra__isnull=True).delete()
+                        historial = historial_localizaciones.objects.create(muestra=muestra, localizacion=localizacion,
+                                                                    fecha_asignacion=timezone.now(), usuario_asignacion=request.user)
+                
+                        historial.save()
                     
                     elif not created:
                         ids_error_muestras.append(muestra.nom_lab)
@@ -576,7 +580,7 @@ def upload_excel_localizaciones(request):
                     messages.success(request, 'El archivo excel es correcto.')
                 else:
                     messages.warning(request, f'El archivo excel contiene {errors} errores.') 
-                return render(request, 'confirmacion_upload.html') 
+                return redirect('localizaciones_todas') 
     else:
         form = UploadExcel(request)     
     return render(request, 'localizacion_nueva.html', {'form': form}) 
@@ -660,6 +664,10 @@ def archivar_muestra(request):
             
             try:
                 muestra_obj = data['muestra']
+                if Localizacion.objects.filter(muestra=muestra_obj):
+                    new = Localizacion.objects.select_for_update().get(muestra=muestra_obj)
+                    new.muestra = None
+                    new.save()
                 slot = Localizacion.objects.select_for_update().get(
                     congelador=data['congelador'],
                     estante=data['estante'],
@@ -670,12 +678,16 @@ def archivar_muestra(request):
                     subposicion=data['subposicion'],
                     muestra__isnull=True 
                 )
+
                 
             
                 slot.muestra = muestra_obj
                 slot.save()
+
+                historial = historial_localizaciones.objects.create(muestra=muestra_obj, localizacion=slot,
+                                                                    fecha_asignacion=timezone.now(), usuario_asignacion=request.user)
                 
-        
+                historial.save()
                 return redirect('localizaciones_todas') 
                 
             except Muestra.DoesNotExist:
@@ -691,6 +703,11 @@ def archivar_muestra(request):
         
     context = {'form': form}
     return render(request, 'archivar_muestra.html', context)
+def historial_localizaciones_muestra(request,muestra_id):
+    muestra = Muestra.objects.get(id=muestra_id)
+    historiales = historial_localizaciones.objects.filter(muestra=muestra).order_by('-fecha_asignacion')
+    template = loader.get_template('historial_localizaciones.html')
+    return HttpResponse(template.render({'historiales':historiales, 'muestra':muestra},request))
 
 # Vistas relacionadas con el modelo estudio
 def estudios_todos(request):

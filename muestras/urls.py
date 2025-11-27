@@ -8,6 +8,7 @@ urlpatterns = [
     path('muestras/acciones_post/seleccionar_estudio/añadir_muestras_estudio',views.añadir_muestras_estudio,name='añadir_muestras_estudio'),
     path('muestras/nueva', views.añadir_muestras, name='añadir_muestras'),
     path('muestras/envio', views.formulario_envios, name='formulario_envios'),
+    path('muestras/historial_localizaciones/<int:muestra_id>', views.historial_localizaciones_muestra, name='historial_localizaciones'),
     path('muestras/envio/registrar_envio', views.registrar_envio, name='registrar_envio'),
     path('muestras/historial_envios/<int:muestra_id>', views.historial_envios, name='historial_envios'),
     path('muestras/historial_estudios/<int:muestra_id>', views.historial_estudios_muestra, name='historial_estudios'),

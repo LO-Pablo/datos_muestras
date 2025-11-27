@@ -49,6 +49,7 @@ Lista de Muestras
     <th>ID Individuo</th>
     <th>Nombre asignado por el laboratorio</th>
     <th>Localización</th>
+    <th>Historial de localizaciones</th>
     <th>Material</th>
     <th>Volumen actual</th>
     <th>Unidad de volumen</th>
@@ -94,6 +95,7 @@ Lista de Muestras
     <td>Sin localización asignada</td>
     {% endif %}
     {% endwith %}
+    <td><a href="{%url 'historial_localizaciones' x.id%}">Ver historial de localizaciones</a></td>
     <td>
     {% if x.id_material != None %}
       {{ x.id_material }}
