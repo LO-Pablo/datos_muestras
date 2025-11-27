@@ -1,0 +1,15 @@
+{%extends 'master.html'%}
+
+{% block title %} 
+Añadir centro
+{% endblock %}
+
+{% block content %}
+<h1>Crear un nuevo centro</h1>
+<form method="post">
+    {% csrf_token %}
+    {{ form.as_p}}
+    <button type="submit">Guardar</button>
+</form>
+<p><a href="/muestras/envio/agenda"> Volver a la lista de centros </a></p>
+{% endblock %}

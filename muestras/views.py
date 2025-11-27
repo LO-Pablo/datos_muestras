@@ -1,7 +1,7 @@
 from django.http import HttpResponse, FileResponse
-from .models import Muestra, Localizacion, Estudio, Envio, Documento, historial_estudios, historial_localizaciones
+from .models import Muestra, Localizacion, Estudio, Envio, Documento, historial_estudios, historial_localizaciones,agenda_envio
 from django.template import loader
-from .forms import MuestraForm, LocalizacionForm, UploadExcel, archivar_muestra_form, DocumentoForm, EstudioForm
+from .forms import MuestraForm, LocalizacionForm, UploadExcel, archivar_muestra_form, DocumentoForm, EstudioForm, Centroform
 from django.db import transaction
 from django.contrib import messages  
 from django.shortcuts import render,redirect, get_object_or_404
@@ -121,7 +121,7 @@ def acciones_post(request):
         elif 'envio' in request.POST:
             if muestras_seleccionadas:
                 request.session['muestras_envio']=muestras_seleccionadas
-                return redirect('formulario_envios')
+                return redirect('agenda')
     return redirect('muestras_todas')    
 def detalles_muestra(request, nom_lab):
     # Vista que muestra los detalles de una muestra específica, requiere permiso para ver muestras
@@ -826,21 +826,23 @@ def eliminar_documento(request):
 
 # Vistas relacionadas con el envio de muestras
 
-def formulario_envios(request):
+def formulario_envios(request,centro):
     muestras_envio = request.session.get('muestras_envio', [])
+    centro_envio = agenda_envio.objects.get(id=centro)
     muestras = Muestra.objects.filter(id__in=muestras_envio, volumen_actual__gt=0)
     template = loader.get_template('formulario_envios.html')
-    return HttpResponse(template.render({'muestras':muestras},request))
+    return HttpResponse(template.render({'muestras':muestras,'centro':centro_envio},request))
 
-def registrar_envio(request):
+def registrar_envio(request,centro):
     if request.method=='POST':
+        centro_envio = agenda_envio.objects.get(id=centro)
         muestras = request.session.get('muestras_envio', [])
         volumen_enviado_form = request.POST.getlist('volumen_enviado')
         unidad_volumen_enviado_form = request.POST.getlist('unidad_volumen')
         concentracion_enviada_form = request.POST.getlist('concentracion_enviada')
         unidad_concentracion_enviada_form = request.POST.getlist('unidad_concentracion')
-        centro_destino_form = request.POST.get('centro_destino')
-        lugar_destino_form = request.POST.get('lugar_destino')
+        centro_destino_form = centro_envio.centro
+        lugar_destino_form = centro_envio.lugar
         iterar = 0
         for muestra in muestras:
             instancia_muestra = Muestra.objects.get(id=muestra)
@@ -888,3 +890,21 @@ def historial_envios(request,muestra_id):
         'volumen_restante':volumen_restante
     }
     return HttpResponse(template.render(context,request))
+
+def agenda(request):
+    agenda_envios = agenda_envio.objects.all()
+    template = loader.get_template('agenda.html')
+    return HttpResponse(template.render({'agenda':agenda_envios},request))
+
+def nuevo_centro(request):
+    if request.method == 'POST':
+        form = Centroform(request.POST)
+        if form.is_valid():
+            form.save()
+            redirect('agenda')
+        else:
+            messages.error(request, 'Hubo un error al añadir el centro.')
+    else:
+        form = Centroform()
+    template = loader.get_template('nuevo_centro.html')
+    return HttpResponse(template.render({'form':form},request))

@@ -99,3 +99,10 @@ class Envio(models.Model):
 
     def __str__(self):
         return f"Envio de Muestra {self.id_individuo} - {self.nom_lab} el {self.fecha_envio}"
+    
+class agenda_envio(models.Model):
+    centro = models.CharField(max_length=200,unique=True,default=None)
+    lugar=models.CharField(max_length=200)
+    direccion=models.TextField()
+    persona_contacto = models.CharField(max_length=200,blank=True, null=True)
+    telefono_contacto=models.IntegerField(blank=True, null=True)
