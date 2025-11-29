@@ -269,6 +269,11 @@ def upload_excel(request):
                         estado_actual=normalize_value(row['estado_actual']),
                         estudio = estudio_instance
                         )
+                    if estudio_instance != None:
+                        historial_estudio = historial_estudios.objects.create(muestra=muestra, estudio=estudio_instance,
+                                                                        fecha_asignacion=timezone.now(), usuario_asignacion=request.user)
+                    
+                        historial_estudio.save()
                     def normalize_charfield_value(value):
                         if pd.isna(value) or value is None:
                             return None
@@ -300,10 +305,10 @@ def upload_excel(request):
                                                         caja = localizacion.caja,
                                                         subposicion = localizacion.subposicion,
                                                         muestra__isnull=True).delete()
-                        historial = historial_localizaciones.objects.create(muestra=muestra, localizacion=localizacion,
+                        historial_loc = historial_localizaciones.objects.create(muestra=muestra, localizacion=localizacion,
                                                                     fecha_asignacion=timezone.now(), usuario_asignacion=request.user)
                 
-                        historial.save()
+                        historial_loc.save()
                     
                     elif not created:
                         ids_error_muestras.append(muestra.nom_lab)
@@ -328,7 +333,8 @@ def upload_excel(request):
                                     errors_loc+=1
                                     if not pd.isna(row['nom_lab']):
                                         Muestra.objects.filter(id=nuevos_ids[len(nuevos_ids)-1]).delete()
-                                        localizacion.delete()
+                                        if not localizacion.id == None:
+                                            localizacion.delete()
                             elif column in [f.name for f in Muestra._meta.local_fields if f.name not in ('nom_lab','id_individuo')]:
                                 Muestra.objects.filter(nom_lab=row['nom_lab']).update(**{column : None})
                                 ids_campos_vacios.append(row['nom_lab']) 
@@ -901,10 +907,29 @@ def nuevo_centro(request):
         form = Centroform(request.POST)
         if form.is_valid():
             form.save()
-            redirect('agenda')
+            return redirect('agenda')
         else:
             messages.error(request, 'Hubo un error al añadir el centro.')
     else:
         form = Centroform()
     template = loader.get_template('nuevo_centro.html')
     return HttpResponse(template.render({'form':form},request))
+
+def editar_centro(request, id_centro):
+    centro = agenda_envio.objects.get(id=id_centro)
+    if request.method == 'POST':
+        form = Centroform(request.POST, instance=centro)
+        if form.is_valid():
+            form.save()
+            return redirect('agenda')
+    else:
+        form = Centroform(instance=centro)
+    return render(request, 'editar_centro.html', {'form': form, 'centro': centro})
+
+def eliminar_centro(request):
+    if request.method=="POST":
+        ids = request.POST.getlist('ids_centro')
+        for centro_id in ids:
+            centro = agenda_envio.objects.get(id=centro_id)
+            centro.delete()
+    return redirect('agenda')
