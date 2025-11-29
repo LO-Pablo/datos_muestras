@@ -13,8 +13,8 @@ from reportlab.pdfgen import canvas
 from django.conf import settings
 import openpyxl,os
 from django.db.models import Q
-from django.db import IntegrityError
-from django.utils import timezone
+from django.db import IntegrityError, ProgrammingError
+from django.utils import timezone 
 from django.contrib.auth.models import User
 def principal(request):
     # Vista principal de la aplicación, muestra una página de bienvenida
@@ -120,6 +120,8 @@ def acciones_post(request):
                     eliminar_muestra(request, muestra.id_individuo, muestra.nom_lab) 
         elif 'envio' in request.POST:
             if muestras_seleccionadas:
+                if 'muestras_envio' in request.session:
+                    del request.session['muestras_envio']
                 request.session['muestras_envio']=muestras_seleccionadas
                 return redirect('agenda')
     return redirect('muestras_todas')    
@@ -838,6 +840,134 @@ def formulario_envios(request,centro):
     muestras = Muestra.objects.filter(id__in=muestras_envio, volumen_actual__gt=0)
     template = loader.get_template('formulario_envios.html')
     return HttpResponse(template.render({'muestras':muestras,'centro':centro_envio},request))
+
+def upload_excel_envios(request,centro):
+    if request.method=='POST':
+        form = UploadExcel(request.POST, request.FILES)
+        if 'descargar_excel_envio' in request.POST:
+            centro_envio = agenda_envio.objects.get(id=centro)
+            muestras = request.session.get('muestras_envio',[])
+            response = HttpResponse(content_type='application/ms-excel')
+            response['Content-Disposition'] = 'attachment; filename="listado_envio.xlsx"'
+            wb = openpyxl.load_workbook(os.path.join(settings.BASE_DIR, 'datos_prueba', 'globalstaticfiles', 'plantilla_envios.xlsx'))
+            ws = wb.active
+            row_num = 2
+            for muestra in muestras:
+                sample = Muestra.objects.get(id=muestra)
+                ws.cell(row_num,1).value=str(sample.nom_lab)
+                ws.cell(row_num,2).value=str(sample.volumen_actual) + ' ' + str(sample.unidad_volumen)
+                ws.cell(row_num,3).value=str(sample.concentracion_actual) + ' ' + str(sample.unidad_concentracion)
+                ws.cell(row_num,5).value=str(sample.unidad_volumen)
+                ws.cell(row_num,7).value=str(sample.unidad_concentracion)
+                ws.cell(row_num,8).value=str(centro_envio.centro)
+                ws.cell(row_num,9).value=str(centro_envio.lugar)
+                row_num +=1 
+            wb.save(response)
+            return response
+        elif 'excel_file' in request.FILES:
+            if form.is_valid():
+                ids_errores_envio = []
+                errores_envio= 0
+                errores_campos_vacios=0
+                errores_formato = 0
+                ids_errores_formato = []
+                ids_errores_campos_vacios = []
+                numero_registros = 0
+                excel_file = request.FILES['excel_file']
+                excel_bytes = excel_file.read()
+                request.session['excel_file_name'] = excel_file.name
+                request.session['excel_file_base64']= base64.b64encode(excel_bytes).decode()
+                excel_stream = io.BytesIO(excel_bytes)
+                df = pd.read_excel(excel_stream)
+                rename_columns = {
+                    'Muestra':'muestra',
+                    'Volumen enviado':'volumen_enviado', 
+                    'Concentración enviada':'concentracion_enviada',
+                    'Centro de destino':'centro_destino',
+                    'Lugar de destino':'lugar_destino'
+                }
+                df.rename(columns=rename_columns, inplace=True)
+                for _, row in df.iterrows():
+                    try:
+                        instancia_muestra = Muestra.objects.get(nom_lab=row['muestra'])
+                        envio = Envio.objects.create(muestra=instancia_muestra,
+                                                    volumen_enviado=row['volumen_enviado'],
+                                                    unidad_volumen_enviado=instancia_muestra.unidad_volumen,
+                                                    concentracion_enviada=row['concentracion_enviada'],
+                                                    centro_destino=row['centro_destino'],
+                                                    unidad_concentracion_enviada=instancia_muestra.unidad_concentracion,
+                                                    lugar_destino=row['lugar_destino'],
+                                                    fecha_envio=timezone.now(),
+                                                    usuario_envio=request.user
+                                                    )
+                        envio.save()
+                        numero_registros += 1
+                        if float(row['volumen_enviado']) == instancia_muestra.volumen_actual:
+                            instancia_muestra.volumen_actual = 0
+                            instancia_muestra.concentracion_actual = 0
+                            instancia_muestra.estado_actual = 'Enviada'
+                            instancia_muestra.save()
+                            if Localizacion.objects.filter(muestra=instancia_muestra).exists():
+                                loc = Localizacion.objects.get(muestra=instancia_muestra)
+                                loc.muestra = None
+                                loc.save()
+                        elif float(row['volumen_enviado']) > instancia_muestra.volumen_actual:
+                            ids_errores_envio.append(instancia_muestra.nom_lab)
+                            errores_envio += 1
+                            envio.delete()
+                        else:
+                            instancia_muestra.volumen_actual -= float(row['volumen_enviado'])
+                            instancia_muestra.estado_actual = 'Parcialmente enviada'
+                            instancia_muestra.save()
+                    except ValueError:
+                        errores_formato += 1
+                        ids_errores_formato.append(instancia_muestra.nom_lab)
+                        numero_registros+=1
+                    except ProgrammingError:
+                        errores_campos_vacios += 1
+                        ids_errores_campos_vacios.append(instancia_muestra.nom_lab)
+                        numero_registros+=1
+                if 'muestras_envio' in request.session:
+                    del request.session['muestras_envio']
+                request.session['ids_errores_formato'] = ids_errores_formato
+                request.session['ids_errores_envio'] = ids_errores_envio
+                request.session['ids_errores_campos_vacios']= ids_errores_campos_vacios
+                messages.info(request, f'El excel subido tiene {numero_registros} registros.')
+                if errores_envio==0 and errores_campos_vacios==0 and errores_formato==0:
+                    messages.success(request, 'Y no tiene errores en ningún campo.')
+                else:
+                    messages.warning(request, f'Y contiene {errores_envio} errores en el volumen de envio de algunas muestras, {errores_formato} errores de formato y {errores_campos_vacios} campos vacios.')
+                return render(request,'confirmacion_upload_envio.html') 
+        elif 'excel_errores' in request.POST:
+                ids_errores_envio = request.session.get('ids_errores_envio', [])
+                ids_errores_campos_vacios= request.session.get('ids_errores_campos_vacios',[])
+                ids_errores_formato=request.session.get('ids_errores_formato',[])
+                excel_bytes = base64.b64decode(request.session.get('excel_file_base64'))
+                excel_file = io.BytesIO(excel_bytes)
+                wb = openpyxl.load_workbook(excel_file)
+                ws = wb.active
+                for row in ws.iter_rows(min_row=2, max_row=ws.max_row):
+
+                    if row[0].value in ids_errores_campos_vacios:
+                        for cell in row:
+                            cell.fill = openpyxl.styles.PatternFill(start_color="FF8000", end_color="FF8000", fill_type = "solid")
+                    elif row[0].value in ids_errores_formato:
+                        for cell in row:
+                            cell.fill = openpyxl.styles.PatternFill(start_color="FFFF00", end_color="FFFF00", fill_type = "solid")
+                    elif row[0].value in ids_errores_envio:
+                        for cell in row:
+                            cell.fill = openpyxl.styles.PatternFill(start_color="FF0000", end_color="FF0000", fill_type = "solid")
+                    
+                output = io.BytesIO()    
+                wb.save(output)
+                wb.close()
+                response = HttpResponse(output.getvalue(),content_type='application/ms-excel')
+                response['Content-Disposition'] = 'attachment; filename="listado_errores_envio.xlsx"'
+                return response         
+    else:
+        form = UploadExcel(request)
+    template = loader.get_template('upload_excel_envios.html')     
+    return HttpResponse(template.render({'form': form},request))
 
 def registrar_envio(request,centro):
     if request.method=='POST':

@@ -7,6 +7,7 @@ Envio de Muestras
 {% block content %}
 <a href="/muestras"> Volver a la lista de muestras </a><br>
 <h1>Registrar un nuevo envio</h1>
+<p>Si prefiere registrar el envio a través de un excel, puede hacerlo desde el siguiente <a href="{% url 'upload_excel_envios' centro.id %}">enlace</a></p>
 <form method="post" action="{% url 'registrar_envio' centro.id %}">
     {% csrf_token %}
     Centro de destino: {{centro.centro}}

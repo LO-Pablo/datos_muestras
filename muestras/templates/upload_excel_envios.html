@@ -1,0 +1,16 @@
+{% extends "master.html" %}
+
+{% block title %}
+Subir archivo Excel
+{% endblock %}
+{% block content %}
+<h2>Subir archivo Excel del envio</h2>
+<form method="post" enctype="multipart/form-data">
+  {% csrf_token %}
+  <p>Se ha generado un excel con las muestras y el centro de envio seleccionado para usar como plantilla:</p>
+  <input name="descargar_excel_envio" type="submit" class="btn btn-success" value="Descargar excel del envio">
+  {{ form.as_p }}
+  <input name="upload_excel" type="submit" class="btn btn-success" value="Upload excel">
+</form>
+<p><a href="/muestras"> Volver a todas las muestras</a></p>
+{% endblock %}
