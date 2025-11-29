@@ -13,6 +13,7 @@ urlpatterns = [
     path('muestras/envio/agenda/editar/<int:id_centro>',views.editar_centro,name='editar_centro'),
     path('muestras/envio/agenda/<int:centro>/envio', views.formulario_envios, name='formulario_envio'),
     path('muestras/envio/agenda/<int:centro>/envio/registrar_envio', views.registrar_envio, name='registrar_envio'),
+    path('muestras/envio/agenda/<int:centro>/envio/upload_excel_envio', views.upload_excel_envios, name='upload_excel_envios'),
     path('muestras/envio/agenda/eliminar_centro', views.eliminar_centro, name="eliminar_centro"),
     path('muestras/historial_envios/<int:muestra_id>', views.historial_envios, name='historial_envios'),
     path('muestras/historial_estudios/<int:muestra_id>', views.historial_estudios_muestra, name='historial_estudios'),
