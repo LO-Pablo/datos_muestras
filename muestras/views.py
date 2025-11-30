@@ -1,5 +1,5 @@
 from django.http import HttpResponse, FileResponse
-from .models import Muestra, Localizacion, Estudio, Envio, Documento, historial_estudios, historial_localizaciones,agenda_envio
+from .models import Muestra, Localizacion, Estudio, Envio, Documento, historial_estudios, historial_localizaciones,agenda_envio, registro_destruido
 from django.template import loader
 from .forms import MuestraForm, LocalizacionForm, UploadExcel, archivar_muestra_form, DocumentoForm, EstudioForm, Centroform
 from django.db import transaction
@@ -122,8 +122,28 @@ def acciones_post(request):
             if muestras_seleccionadas:
                 if 'muestras_envio' in request.session:
                     del request.session['muestras_envio']
+                for muestra in muestras_seleccionadas:
+                    if Muestra.objects.get(id=muestra).estado_actual == 'Destruida':
+                        muestras_seleccionadas.remove(muestra)
                 request.session['muestras_envio']=muestras_seleccionadas
                 return redirect('agenda')
+        elif 'destruir' in request.POST:
+            if muestras_seleccionadas:
+                muestras_a_destruir = Muestra.objects.filter(id__in=muestras_seleccionadas)
+                for sample in muestras_a_destruir:
+                    sample.estado_actual = 'Destruida'
+                    sample.volumen_actual = 0
+                    sample.concentracion_actual = 0
+                    sample.save()
+                    if Localizacion.objects.filter(muestra=sample).exists():
+                        loc = Localizacion.objects.get(muestra=sample)
+                        loc.muestra = None
+                        loc.save()
+                    registro_destruccion = registro_destruido.objects.create(muestra = sample,
+                                                                             fecha = timezone.now(),
+                                                                             usuario = request.user)
+                    registro_destruccion.save()
+                    
     return redirect('muestras_todas')    
 def detalles_muestra(request, nom_lab):
     # Vista que muestra los detalles de una muestra específica, requiere permiso para ver muestras
@@ -714,8 +734,10 @@ def archivar_muestra(request):
 def historial_localizaciones_muestra(request,muestra_id):
     muestra = Muestra.objects.get(id=muestra_id)
     historiales = historial_localizaciones.objects.filter(muestra=muestra).order_by('-fecha_asignacion')
+    if muestra.estado_actual=='Destruida':
+        estado_destruccion = registro_destruido.objects.get(muestra=muestra)
     template = loader.get_template('historial_localizaciones.html')
-    return HttpResponse(template.render({'historiales':historiales, 'muestra':muestra},request))
+    return HttpResponse(template.render({'historiales':historiales, 'muestra':muestra, 'estado_destruccion':estado_destruccion},request))
 
 # Vistas relacionadas con el modelo estudio
 def estudios_todos(request):
@@ -758,18 +780,19 @@ def añadir_muestras_estudio(request):
             studio = Estudio.objects.get(nombre_estudio=study)
             muestras=Muestra.objects.filter(id__in=muestras)
             for muestra in muestras:
-                muestra.estudio = studio
-                muestra.save()
-                if historial_estudios.objects.filter(muestra=muestra,estudio=studio).exists():
-                    pass
-                else:   
-                    historial = historial_estudios.objects.create(
-                        muestra = muestra,
-                        estudio = studio,
-                        fecha_asignacion = timezone.now(),
-                        usuario_asignacion = request.user
-                    )
-                    historial.save()
+                if muestra.estado_actual != 'Destruida':
+                    muestra.estudio = studio
+                    muestra.save()
+                    if historial_estudios.objects.filter(muestra=muestra,estudio=studio).exists():
+                        pass
+                    else:   
+                        historial = historial_estudios.objects.create(
+                            muestra = muestra,
+                            estudio = studio,
+                            fecha_asignacion = timezone.now(),
+                            usuario_asignacion = request.user
+                        )
+                        historial.save()
         if 'muestras_estudio' in request.session:
             del request.session['muestras_estudio']
         return redirect('muestras_todas')
@@ -854,14 +877,15 @@ def upload_excel_envios(request,centro):
             row_num = 2
             for muestra in muestras:
                 sample = Muestra.objects.get(id=muestra)
-                ws.cell(row_num,1).value=str(sample.nom_lab)
-                ws.cell(row_num,2).value=str(sample.volumen_actual) + ' ' + str(sample.unidad_volumen)
-                ws.cell(row_num,3).value=str(sample.concentracion_actual) + ' ' + str(sample.unidad_concentracion)
-                ws.cell(row_num,5).value=str(sample.unidad_volumen)
-                ws.cell(row_num,7).value=str(sample.unidad_concentracion)
-                ws.cell(row_num,8).value=str(centro_envio.centro)
-                ws.cell(row_num,9).value=str(centro_envio.lugar)
-                row_num +=1 
+                if sample.estado_actual != 'Destruida':
+                    ws.cell(row_num,1).value=str(sample.nom_lab)
+                    ws.cell(row_num,2).value=str(sample.volumen_actual) + ' ' + str(sample.unidad_volumen)
+                    ws.cell(row_num,3).value=str(sample.concentracion_actual) + ' ' + str(sample.unidad_concentracion)
+                    ws.cell(row_num,5).value=str(sample.unidad_volumen)
+                    ws.cell(row_num,7).value=str(sample.unidad_concentracion)
+                    ws.cell(row_num,8).value=str(centro_envio.centro)
+                    ws.cell(row_num,9).value=str(centro_envio.lugar)
+                    row_num +=1 
             wb.save(response)
             return response
         elif 'excel_file' in request.FILES:
@@ -974,9 +998,7 @@ def registrar_envio(request,centro):
         centro_envio = agenda_envio.objects.get(id=centro)
         muestras = request.session.get('muestras_envio', [])
         volumen_enviado_form = request.POST.getlist('volumen_enviado')
-        unidad_volumen_enviado_form = request.POST.getlist('unidad_volumen')
         concentracion_enviada_form = request.POST.getlist('concentracion_enviada')
-        unidad_concentracion_enviada_form = request.POST.getlist('unidad_concentracion')
         centro_destino_form = centro_envio.centro
         lugar_destino_form = centro_envio.lugar
         iterar = 0
@@ -986,9 +1008,9 @@ def registrar_envio(request,centro):
                 muestra=instancia_muestra,
                 fecha_envio=timezone.now(),
                 volumen_enviado = volumen_enviado_form[iterar],
-                unidad_volumen_enviado = unidad_volumen_enviado_form[iterar],
+                unidad_volumen_enviado = instancia_muestra.unidad_volumen,
                 concentracion_enviada = concentracion_enviada_form[iterar],
-                unidad_concentracion_enviada = unidad_concentracion_enviada_form[iterar],
+                unidad_concentracion_enviada = instancia_muestra.unidad_concentracion,
                 centro_destino = centro_destino_form,
                 lugar_destino=lugar_destino_form,
                 usuario_envio = request.user
@@ -1014,13 +1036,13 @@ def registrar_envio(request,centro):
     return redirect('formulario_envios')
 
 def historial_envios(request,muestra_id):
-    muestra = Muestra.objects.get(id=muestra_id)
-    envios = Envio.objects.filter(muestra=muestra).order_by('-fecha_envio')
-    volumen_original = muestra.volumen_actual + sum(envio.volumen_enviado for envio in envios)
-    volumen_restante = muestra.volumen_actual
+    sample = Muestra.objects.get(id=muestra_id)
+    envios = Envio.objects.filter(muestra=sample).order_by('-fecha_envio')
+    volumen_original = sample.volumen_actual + sum(envio.volumen_enviado for envio in envios)
+    volumen_restante = sample.volumen_actual
     template = loader.get_template('historial_envios.html')
     context = {
-        'muestra':muestra,
+        'muestra':sample,
         'envios':envios,
         'volumen_original':volumen_original,
         'volumen_restante':volumen_restante

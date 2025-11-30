@@ -13,7 +13,7 @@ Historial de localizaciones
 
 <table>
     <tr>
-        <th>Estudio</th>
+        <th>Localizacion</th>
         <th>Fecha de asignación</th>
         <th>Usuario</th>
     </tr>
@@ -24,5 +24,10 @@ Historial de localizaciones
         <td>{{ localizacion.usuario_asignacion.username }}</td>
     </tr>
     {% endfor %}
+    {% if muestra.estado_actual == 'Destruida'%}
+        <td>Destruida</td>
+        <td>{{ estado_destruccion.fecha }}</td>
+        <td>{{ estado_destruccion.usuario.username }}</td>
+    {% endif %}
 </table>
 {% endblock %}
