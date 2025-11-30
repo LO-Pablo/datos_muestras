@@ -57,6 +57,11 @@ class historial_localizaciones(models.Model):
     localizacion = models.ForeignKey('Localizacion',related_name="historial_localizaciones",on_delete=models.DO_NOTHING)
     fecha_asignacion = models.DateField(default=timezone.now) 
     usuario_asignacion = models.ForeignKey(User,on_delete=models.PROTECT, blank=True, null=True)   
+
+class registro_destruido(models.Model):
+    muestra = models.ForeignKey('Muestra',related_name="estado_destruido",on_delete=models.CASCADE)
+    fecha = models.DateField(default = timezone.now)
+    usuario = models.ForeignKey(User,on_delete=models.PROTECT, blank=True, null=True)
 class Estudio(models.Model):
     # Campos del modelo Estudio
     id_estudio = models.CharField(max_length=20, unique=True)

@@ -34,6 +34,7 @@ Lista de Muestras
     <input name="crear_pdf" type="submit" class="btn btn-success" value="Crear PDF de la Búsqueda">
 </form>
 -->
+
 <form action="" method="GET" style="display:inline;">
     {% for key, value in request.GET.items %}
         {% if key != 'exportar_excel' %}
@@ -189,6 +190,7 @@ Lista de Muestras
   {%endif%}
   {% if perms.estudio.can_change_estudio %}
   <button type="submit" class="btn btn-primary" value="true" id='estudio' name ='estudio'>Añadir muestras seleccionadas a un estudio</button>
+  <button type="submit" class="btn btn-primary" value="true" id='destruir' name ='destruir' onclick="return confirm('¿Quieres actualizar el estado de las muestras seleccionadas a Destruida?')">Destruir una muestra</button>
   {%endif%}
   <button type="submit" class="btn btn-primary" value="true" id='envio' name ='envio'>Registrar un envio</button>
 </form>
