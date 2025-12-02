@@ -1,0 +1,15 @@
+{%extends 'master.html'%}
+
+{% block title %} 
+Editar congelador
+{% endblock %}
+
+{% block content %}
+<h1>Editar congelador {{congelador.congelador}}</h1>
+<form method="post" enctype="multipart/form-data">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <button type="submit">Guardar</button>
+</form>
+<p><a href="/archivo/detalles_congelador/{{congelador.congelador}}"> Volver a los detalles del congelador </a></p>
+{% endblock %}

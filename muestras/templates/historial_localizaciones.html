@@ -19,7 +19,11 @@ Historial de localizaciones
     </tr>
     {% for localizacion in historiales %}
     <tr>
+        {% if localizacion.localizacion == None %}
+        <td>Localización eliminada</td>
+        {% else %}
         <td>{{ localizacion.localizacion }}</td>
+        {% endif %}
         <td>{{ localizacion.fecha_asignacion }}</td>
         <td>{{ localizacion.usuario_asignacion.username }}</td>
     </tr>
