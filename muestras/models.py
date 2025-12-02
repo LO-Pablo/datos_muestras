@@ -1,5 +1,4 @@
 from django.db import models
-from django.conf import settings
 from django.utils import timezone
 from django.contrib.auth.models import User
 class Muestra(models.Model):
@@ -52,9 +51,18 @@ class Localizacion(models.Model):
 
     def __str__(self):
         return f"{self.congelador} - {self.estante} - {self.posicion_rack_estante} - {self.rack} - {self.posicion_caja_rack} - {self.caja} - {self.subposicion}"
+
+
+class Congelador(models.Model):
+    congelador = models.CharField(max_length=50)
+    modelo = models.CharField(max_length=50,blank=True, null=True)
+    temperatura_minima = models.CharField(max_length=50,blank=True, null=True)
+    temperatura_maxima = models.CharField(max_length=50,blank=True, null=True)
+    localizacion_edificio = models.CharField(max_length=50,blank=True, null=True)
+    fotografia = models.ImageField(upload_to='congeladores/', blank=True, null=True)
 class historial_localizaciones(models.Model):
     muestra = models.ForeignKey('Muestra',related_name="historial_localizaciones",on_delete=models.CASCADE)
-    localizacion = models.ForeignKey('Localizacion',related_name="historial_localizaciones",on_delete=models.DO_NOTHING)
+    localizacion = models.ForeignKey('Localizacion',related_name="historial_localizaciones",on_delete=models.SET_NULL, null=True, blank=True)
     fecha_asignacion = models.DateField(default=timezone.now) 
     usuario_asignacion = models.ForeignKey(User,on_delete=models.PROTECT, blank=True, null=True)   
 

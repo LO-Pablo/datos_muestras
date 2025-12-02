@@ -18,7 +18,7 @@ Archivo de muestras
 <nav id="archivo">
   <ul class="congeladores">
     {% for a in congeladores %}
-    <li> <input type="checkbox" name="congelador{{a}}" class="form-control"><button type ="button" onclick = "desplegar(this,'estantes')" class="dropbtn">Congelador {{a}}</button>
+    <li> <a href = "{% url 'detalles_congelador' a %}">Detalles</a> <input type="checkbox" name="congelador{{a}}" class="form-control"><button type ="button" onclick = "desplegar(this,'estantes')" class="dropbtn">Congelador {{a}}</button>  
         <ul class="estantes">
         {% for b in estantes %}
             {% if b.0 == a %}

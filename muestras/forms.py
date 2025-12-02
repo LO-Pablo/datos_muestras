@@ -1,5 +1,5 @@
 from django import forms
-from .models import Muestra, Localizacion, Estudio, Documento,agenda_envio
+from .models import Muestra, Localizacion, Estudio, Documento,agenda_envio, Congelador
 from itertools import product
 
 class MuestraForm(forms.ModelForm):
@@ -112,4 +112,9 @@ class DocumentoForm(forms.ModelForm):
 class Centroform(forms.ModelForm):
     class Meta:
         model=agenda_envio
+        fields = '__all__'
+
+class Congeladorform(forms.ModelForm):
+    class Meta:
+        model=Congelador
         fields = '__all__'

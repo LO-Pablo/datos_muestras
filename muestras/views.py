@@ -1,7 +1,7 @@
 from django.http import HttpResponse, FileResponse
-from .models import Muestra, Localizacion, Estudio, Envio, Documento, historial_estudios, historial_localizaciones,agenda_envio, registro_destruido
+from .models import Muestra, Localizacion, Estudio, Envio, Documento, historial_estudios, historial_localizaciones,agenda_envio, registro_destruido, Congelador
 from django.template import loader
-from .forms import MuestraForm, LocalizacionForm, UploadExcel, archivar_muestra_form, DocumentoForm, EstudioForm, Centroform
+from .forms import MuestraForm, LocalizacionForm, UploadExcel, archivar_muestra_form, DocumentoForm, EstudioForm, Centroform, Congeladorform
 from django.db import transaction
 from django.contrib import messages  
 from django.shortcuts import render,redirect, get_object_or_404
@@ -593,6 +593,8 @@ def upload_excel_localizaciones(request):
                             caja=row['caja'],
                             subposicion=row['subposicion']    
                         )
+                        congelador = Congelador.objects.create(congelador = row['congelador'])
+                        congelador.save()
                         if created:
                             nuevos_ids.append(localizacion.id)
                         else:
@@ -612,6 +614,24 @@ def upload_excel_localizaciones(request):
     else:
         form = UploadExcel(request)     
     return render(request, 'localizacion_nueva.html', {'form': form}) 
+
+def detalles_congelador(request, nombre_congelador):
+    freezer= Congelador.objects.filter(congelador=nombre_congelador)
+    template=loader.get_template('detalles_congelador.html')
+    return HttpResponse(template.render({'congelador':freezer[0]},request))
+
+def editar_congelador(request,nombre_congelador):
+    congelador = Congelador.objects.filter(congelador=nombre_congelador)
+    congelador=congelador[0]
+    if request.method == 'POST':
+        form = Congeladorform(request.POST, request.FILES, instance=congelador)
+        if form.is_valid():
+            form.save()
+            return redirect('detalles_congelador', nombre_congelador = form.instance.congelador)
+    else:
+        form = Congeladorform(instance=congelador)
+    return render(request, 'editar_congelador.html', {'form': form, 'congelador': congelador})
+
 
 def eliminar_localizacion(request, loc, param):
     # Vista para eliminar una localización específica
@@ -736,6 +756,8 @@ def historial_localizaciones_muestra(request,muestra_id):
     historiales = historial_localizaciones.objects.filter(muestra=muestra).order_by('-fecha_asignacion')
     if muestra.estado_actual=='Destruida':
         estado_destruccion = registro_destruido.objects.get(muestra=muestra)
+    else:
+        estado_destruccion = None
     template = loader.get_template('historial_localizaciones.html')
     return HttpResponse(template.render({'historiales':historiales, 'muestra':muestra, 'estado_destruccion':estado_destruccion},request))
 
@@ -830,7 +852,7 @@ def subir_documento(request, id_estudio):
             doc = form.save(commit=False)
             doc.usuario_subida = request.user
             doc.save()
-            messages.success(request, f'Documento "{doc.archivo.name}" subido correctamente.')
+            return redirect('repositorio_estudio', id_estudio=doc.estudio)
         else:
             messages.error(request, 'Hubo un error al subir el documento.')
     else:

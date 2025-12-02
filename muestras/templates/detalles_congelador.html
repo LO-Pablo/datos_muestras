@@ -1,0 +1,17 @@
+{% extends "master.html" %}
+{% block title %}
+Detalles del congelador
+{% endblock %}
+{%block content %}
+<a href="/archivo">Volver al archivo</a>
+<a href="{{congelador.congelador}}/editar">Editar detalles del congelador</a>
+<h1>Datos del congelador {{congelador.congelador}}</h1>
+<p><strong>Nombre:</strong> {{ congelador.congelador }}</p>
+<p><strong>Modelo:</strong> {{ congelador.modelo }}</p> 
+<p><strong>Temperatura mínima:</strong>{{ congelador.temperatura_minima }}</p>
+<p><strong>Temperatura máxima:</strong> {{ congelador.temperatura_maxima }}</p>
+<p><strong>Localización dentro del edificio:</strong> {{ congelador.localizacion_edificio }}</p>
+{% if congelador.fotografia  %}
+<img src="{{ congelador.fotografia.url }}" class="img-responsive" style="width: 30%;">
+{% endif %}
+{%endblock%}

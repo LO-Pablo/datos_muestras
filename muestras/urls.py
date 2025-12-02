@@ -1,4 +1,6 @@
 from django.urls import path, include
+from django.conf.urls.static import static
+from django.conf import settings
 from . import views
 urlpatterns = [
     path('', views.principal, name='principal'),
@@ -23,6 +25,8 @@ urlpatterns = [
     path('muestras/detalles_muestra/<str:id_individuo>/<str:nom_lab>/editar', views.editar_muestra, name='editar_muestra'),
     path('muestras/detalles_muestra/<str:id_individuo>/<str:nom_lab>/eliminar', views.eliminar_muestra, name='eliminar_muestra'),
     path('archivo/', views.localizaciones, name='localizaciones_todas'),
+    path('archivo/detalles_congelador/<str:nombre_congelador>', views.detalles_congelador, name ='detalles_congelador'),
+    path('archivo/detalles_congelador/<str:nombre_congelador>/editar', views.editar_congelador, name ='editar_congelador'),
     path('archivo/nuevo', views.upload_excel_localizaciones, name='upload_excel_localizaciones'),
     path('archivo/nuevo/<int:macro>', views.descargar_plantilla, name='descargar_plantilla_localizaciones'),
     path('archivo/nuevo/<int:macro>', views.descargar_plantilla, name='descargar_plantilla_localizaciones_macros'),
@@ -34,3 +38,6 @@ urlpatterns = [
     path('estudios/<int:id_estudio>/<int:documento_id>',views.descargar_documento, name="descargar_documento"),
     path('estudios/eliminar_documento',views.eliminar_documento, name="eliminar_documento")
 ]
+
+if settings.DEBUG:
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
