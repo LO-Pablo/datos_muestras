@@ -8,14 +8,16 @@ Lista de Muestras
 <p><a href="/"> Volver al inicio </a></p>
 
 <caption>Muestras</caption>
-
+{% load muestras_filters %}
 <form action="" id="filter-form"> 
   {% for field in field_names %} 
-  <input name={{field}} class="form-control"> {{field}}<br>
+  <input name={{field}} class="form-control"> {{field_names_readable_dict|get_item:field}}<br>
   {% endfor %}
   <input name="estudio" class="form-control"> Estudio<br>
   <button type="submit" class="btn btn-primary">Filtrar</button>
 </form> 
+<button><a href="/muestras">Eliminar filtros</a></button>
+
 {% if perms.muestras.can_add_muestras_web %}
 <a href="/muestras/nueva"> Añadir nuevas muestras </a> <br>
 <a href="/muestras/upload_excel"> Subir archivo excel de muestras</a>
@@ -188,11 +190,11 @@ Lista de Muestras
   {% if perms.muestras.can_delete_muestras_web %}
   <button type="submit" class="btn btn-primary" value = "true" id='eliminar' name ='eliminar' onclick="return confirm('¿Quieres eliminar las muestras seleccionadas?')">Eliminar muestras seleccionadas</button>
   {%endif%}
-  {% if perms.estudio.can_change_estudio %}
+  {% if perms.estudio.can_change_estudios_web %}
   <button type="submit" class="btn btn-primary" value="true" id='estudio' name ='estudio'>Añadir muestras seleccionadas a un estudio</button>
   <button type="submit" class="btn btn-primary" value="true" id='destruir' name ='destruir' onclick="return confirm('¿Quieres actualizar el estado de las muestras seleccionadas a Destruida?')">Destruir una muestra</button>
   {%endif%}
-  {% if perms.muestras.can_edit_muestras_web %}
+  {% if perms.muestras.can_change_muestras_web %}
   <button type="submit" class="btn btn-primary" value="true" id='envio' name ='envio'>Registrar un envio</button>
   {%endif%}
 </form>

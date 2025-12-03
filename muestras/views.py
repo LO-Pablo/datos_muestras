@@ -30,6 +30,8 @@ def muestras_todas(request):
     # Filtrado de muestras si se proporcionan parámetros de búsqueda
     field_names = [f.name for f in Muestra._meta.local_fields if f.name not in ('id','estudio')]
     fields_loc = [f.name for f in Localizacion._meta.local_fields if f.name not in ('id','muestra')]
+    field_names_readable = ['Id del individuo','Nombre dado por el laboratorio','Material','Volumen actual','Unidad de volumen','Concentración actual','Unidad de concentración','Masa actual','Unidad de masa','Fecha de extracción','Fecha de llegada','Observaciones','Estado inicial','Centro de procedencia','Lugar de procedencia','Estado actual']
+    field_names_readable_dict = {k:v for (k,v) in zip(field_names,field_names_readable)}
     if request.user.groups.filter(name='Investigadores'):
         muestras = Muestra.objects.filter(Q(estudio__investigador_principal__username=request.user.username) | Q(estudio = None))
     for field in field_names:
@@ -101,7 +103,8 @@ def muestras_todas(request):
     template = loader.get_template('muestras_todas.html')
     context = {    
         'muestras': muestras,
-        'field_names': field_names
+        'field_names': field_names,
+        'field_names_readable_dict': field_names_readable_dict
     }
     return HttpResponse(template.render(context, request))
 @login_required
@@ -800,10 +803,24 @@ def seleccionar_estudio(request):
 def añadir_muestras_estudio(request):
     if request.method == 'POST':
         muestras = request.session.get('muestras_estudio', [])
+        muestras=Muestra.objects.filter(id__in=muestras)
+        if len(request.POST.getlist('desasociar')) ==1:
+            for muestra in muestras:
+                if muestra.estado_actual != 'Destruida':
+                    muestra.estudio = None
+                    muestra.save()
+                    historial = historial_estudios.objects.create(
+                            muestra = muestra,
+                            estudio = None,
+                            fecha_asignacion = timezone.now(),
+                            usuario_asignacion = request.user
+                        )
+                    historial.save()
+
+            return redirect('muestras_todas')
         ids_estudios = request.POST.getlist('estudio_id')
         for study in ids_estudios:
             studio = Estudio.objects.get(nombre_estudio=study)
-            muestras=Muestra.objects.filter(id__in=muestras)
             for muestra in muestras:
                 if muestra.estado_actual != 'Destruida':
                     muestra.estudio = studio
@@ -960,7 +977,7 @@ def upload_excel_envios(request,centro):
                                 loc = Localizacion.objects.get(muestra=instancia_muestra)
                                 loc.muestra = None
                                 loc.save()
-                        elif float(row['volumen_enviado']) > instancia_muestra.volumen_actual:
+                        elif float(row['volumen_enviado']) > instancia_muestra.volumen_actual or float(row['volumen_enviado']) <= 0:
                             ids_errores_envio.append(instancia_muestra.nom_lab)
                             errores_envio += 1
                             envio.delete()

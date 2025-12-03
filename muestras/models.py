@@ -95,7 +95,7 @@ class Estudio(models.Model):
         return f"Estudio {self.nombre_estudio}"
 class historial_estudios(models.Model):
     muestra = models.ForeignKey('Muestra',related_name="historial_estudios",on_delete=models.CASCADE)
-    estudio = models.ForeignKey('Estudio',related_name="historial_estudios",on_delete=models.CASCADE)
+    estudio = models.ForeignKey('Estudio',related_name="historial_estudios",on_delete=models.CASCADE, blank=True, null=True)
     fecha_asignacion = models.DateField(default=timezone.now)
     usuario_asignacion = models.ForeignKey(User,on_delete=models.PROTECT, blank=True, null=True) 
 

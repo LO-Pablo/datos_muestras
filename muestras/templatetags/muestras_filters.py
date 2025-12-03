@@ -8,3 +8,10 @@ def startswith(text, starts):
         return text.startswith(starts)
     return False
 
+@register.filter
+def get_item(dictionary, key):
+    try:
+        return dictionary.get(key)
+    except:
+        return ''
+
