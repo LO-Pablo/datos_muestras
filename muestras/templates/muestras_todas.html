@@ -192,7 +192,9 @@ Lista de Muestras
   <button type="submit" class="btn btn-primary" value="true" id='estudio' name ='estudio'>Añadir muestras seleccionadas a un estudio</button>
   <button type="submit" class="btn btn-primary" value="true" id='destruir' name ='destruir' onclick="return confirm('¿Quieres actualizar el estado de las muestras seleccionadas a Destruida?')">Destruir una muestra</button>
   {%endif%}
+  {% if perms.muestras.can_edit_muestras_web %}
   <button type="submit" class="btn btn-primary" value="true" id='envio' name ='envio'>Registrar un envio</button>
+  {%endif%}
 </form>
 </table>
 {% endblock %}

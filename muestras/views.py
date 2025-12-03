@@ -23,7 +23,7 @@ def principal(request):
 @login_required
 
 # Vistas para Muestras
-
+@permission_required('muestras.can_view_muestras_web')
 def muestras_todas(request):
     # Vista que muestra todas las muestras, requiere que el usuario esté autenticado
     muestras = Muestra.objects.prefetch_related('localizacion')
@@ -461,7 +461,8 @@ def descargar_plantilla(request,macro:int):
         return HttpResponse("La plantilla no se encuentra disponible.", status=404)
     
 # Vistas para Localizacion
-
+@login_required
+@permission_required('muestras.can_view_localizaciones_web')
 def localizaciones(request):
     # Vista que muestra todas las localizaciones, tengan o no muestra
     localizaciones = Localizacion.objects.all().values().distinct()
@@ -555,7 +556,7 @@ def localizaciones(request):
         'muestras': muestras  
     }
     return HttpResponse(template.render(context, request))
-
+@permission_required('muestras.can_add_localizaciones_web')
 def upload_excel_localizaciones(request):
     if request.method=="POST":
         form = UploadExcel(request.POST, request.FILES)
@@ -619,7 +620,7 @@ def detalles_congelador(request, nombre_congelador):
     freezer= Congelador.objects.filter(congelador=nombre_congelador)
     template=loader.get_template('detalles_congelador.html')
     return HttpResponse(template.render({'congelador':freezer[0]},request))
-
+@permission_required('muestras.can_add_localizaciones_web')
 def editar_congelador(request,nombre_congelador):
     congelador = Congelador.objects.filter(congelador=nombre_congelador)
     congelador=congelador[0]
@@ -632,7 +633,7 @@ def editar_congelador(request,nombre_congelador):
         form = Congeladorform(instance=congelador)
     return render(request, 'editar_congelador.html', {'form': form, 'congelador': congelador})
 
-
+@permission_required('muestras.can_delete_localizaciones_web')
 def eliminar_localizacion(request, loc, param):
     # Vista para eliminar una localización específica
     if param == 'congelador':
@@ -762,6 +763,8 @@ def historial_localizaciones_muestra(request,muestra_id):
     return HttpResponse(template.render({'historiales':historiales, 'muestra':muestra, 'estado_destruccion':estado_destruccion},request))
 
 # Vistas relacionadas con el modelo estudio
+@login_required
+@permission_required('muestras.can_view_estudios_web')
 def estudios_todos(request):
     if request.user.groups.filter(name='Investigadores'):
         estudios = Estudio.objects.filter(investigador_principal__username=request.user.username)
@@ -772,7 +775,7 @@ def estudios_todos(request):
         'estudios':estudios
     }
     return HttpResponse(template.render(context,request))
-
+@permission_required('muestras.can_add_estudios_web')
 def nuevo_estudio(request):
     if request.method == 'POST':
         form = EstudioForm(request.POST)
@@ -793,7 +796,7 @@ def seleccionar_estudio(request):
         estudios = Estudio.objects.all()
     template = loader.get_template('seleccionar_estudio.html')
     return HttpResponse(template.render({'estudios':estudios},request))
-
+@permission_required('muestras.can_add_estudios_web')
 def añadir_muestras_estudio(request):
     if request.method == 'POST':
         muestras = request.session.get('muestras_estudio', [])
@@ -825,7 +828,7 @@ def historial_estudios_muestra(request,muestra_id):
     historiales = historial_estudios.objects.filter(muestra=muestra).order_by('-fecha_asignacion')
     template = loader.get_template('historial_estudios.html')
     return HttpResponse(template.render({'historiales':historiales, 'muestra':muestra},request))
-
+@permission_required('muestras.can_view_estudios_web')
 def repositorio_estudio(request, id_estudio):
     estudio = Estudio.objects.get(id_estudio=id_estudio)
     documentos = Documento.objects.filter(estudio = estudio, eliminado= False)
@@ -878,7 +881,7 @@ def eliminar_documento(request):
     return redirect('repositorio_estudio', id_estudio=request.session.get('id_estudio'))
 
 # Vistas relacionadas con el envio de muestras
-
+@permission_required('muestras.can_edit_muestras_web')
 def formulario_envios(request,centro):
     muestras_envio = request.session.get('muestras_envio', [])
     centro_envio = agenda_envio.objects.get(id=centro)
