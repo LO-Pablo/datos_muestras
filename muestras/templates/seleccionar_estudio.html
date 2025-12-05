@@ -11,6 +11,7 @@ Lista de Muestras
 {%for estudio in estudios%}
 <input type="checkbox" name="estudio_id" value ="{{estudio.nombre_estudio}}" class="form-control">{{estudio.nombre_estudio}}
 {%endfor%}
-<button type="submit" class="btn btn-primary" id='estudio' name ="asociar_estudio">Asociar a estudio</button>
+<input type="checkbox" name="desasociar" value ="desasociar" class="form-control">Desvincular las muestras de cualquier estudio
+<button type="submit" class="btn btn-primary" id='estudio' name ="asociar_estudio" onclick="return confirm('¿Quieres asociar las muestras seleccionadas al estudio seleccionado?')">Asociar a estudio</button>
 </form>
 {%endblock%}

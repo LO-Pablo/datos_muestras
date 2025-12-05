@@ -3,10 +3,10 @@
         {{ message }}<br>
   {% endfor %}
 {% endif %}
-<p>Se ha creado un excel en el que se marcan en rojo las filas cuyo volumen enviado es mayor que el volumen actual de la muestra.</p>
+<p>Se ha creado un excel en el que se marcan en rojo las filas cuyo volumen enviado es mayor que el volumen actual de la muestra o menor o igual a 0.</p>
 <p>También se marcan en naranja las filas que tienen el valor del volumen a enviar o el de la concentración a enviar vacios.</p>
 <p>Por último, las filas que no tengan un valor numérico en el campo de la concentración o en el del volumen se han marcado con amarillo.</p>
-<p>Si una fila tiene este error, la muestra en cuestión no se añadirá a este envio y debe añadirse en otro envio corrigiendo el error.</p>
+<p>Si una fila contiene cualquiera de estos errores, la muestra en cuestión no se añadirá a este envio y debe añadirse en otro envio corrigiendo el error.</p>
 <form method="post" action="">
   {% csrf_token %}
   <button name="excel_errores" type="submit" class="btn btn-success">Descargar excel con errores</button>

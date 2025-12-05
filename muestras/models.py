@@ -48,7 +48,12 @@ class Localizacion(models.Model):
     class Meta:
         # Campos unicos de localización en conjunción
         unique_together = ('muestra','congelador', 'estante', 'posicion_rack_estante', 'rack', 'posicion_caja_rack', 'caja', 'subposicion')
-
+        permissions = [
+            ("can_view_localizaciones_web", "Puede ver localizaciones en la web"),
+            ("can_add_localizaciones_web", "Puede añadir localizaciones en la web"),
+            ("can_change_localizaciones_web", "Puede cambiar localizaciones en la web"),
+            ("can_delete_localizaciones_web", "Puede eliminar localizaciones en la web"),
+        ]
     def __str__(self):
         return f"{self.congelador} - {self.estante} - {self.posicion_rack_estante} - {self.rack} - {self.posicion_caja_rack} - {self.caja} - {self.subposicion}"
 
@@ -79,11 +84,18 @@ class Estudio(models.Model):
     fecha_inicio_estudio = models.DateField(blank=True, null=True)
     fecha_fin_estudio = models.DateField(blank=True, null=True)
     investigador_principal = models.ForeignKey(User, on_delete=models.PROTECT, blank=True, null=True)
+    class Meta:
+        permissions = [
+            ("can_view_estudios_web", "Puede ver estudios en la web"),
+            ("can_add_estudios_web", "Puede añadir estudios en la web"),
+            ("can_change_estudios_web", "Puede cambiar estudios en la web"),
+            ("can_delete_estudios_web", "Puede eliminar estudios en la web"),
+        ]
     def __str__(self):
         return f"Estudio {self.nombre_estudio}"
 class historial_estudios(models.Model):
     muestra = models.ForeignKey('Muestra',related_name="historial_estudios",on_delete=models.CASCADE)
-    estudio = models.ForeignKey('Estudio',related_name="historial_estudios",on_delete=models.CASCADE)
+    estudio = models.ForeignKey('Estudio',related_name="historial_estudios",on_delete=models.CASCADE, blank=True, null=True)
     fecha_asignacion = models.DateField(default=timezone.now)
     usuario_asignacion = models.ForeignKey(User,on_delete=models.PROTECT, blank=True, null=True) 
 
