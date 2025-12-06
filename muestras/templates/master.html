@@ -1,8 +1,41 @@
+{% load static %}
 <!DOCTYPE html>
 <html>
 <head>
   <title>{% block title %}{% endblock %}</title>
+<link rel ="stylesheet" href="{% static 'base.css' %}">
 </head>
+<header class="topbar">
+    <div class="logo-section">
+        <img src="/static/logo.png" alt="Logo">
+        <span class="app-name">Aplicación de gestión de muestras</span>
+    </div>
+
+    <nav class="main-nav">
+
+       <div class="flex-spacer"></div>
+
+        <div class="menu-center">
+          <a href="/muestras/">Muestras</a>
+          <a href="/archivo">Archivos</a>
+          <a href="/estudios">Estudios</a>
+        </div>
+
+        <div class="flex-spacer"></div>
+
+        <div class="menu-auth">
+          {% if user.is_authenticated %}
+          <p> Usuario: {{ user.username }} </p>
+          <form action="{% url 'logout' %}" method="post">
+          {% csrf_token %} 
+          <button type="submit">Logout</button>
+          </form>
+          {%else%}
+          <a href="accounts/login/"> Iniciar sesión </a>
+          {%endif%}
+        </div>
+    </nav>
+  </header>
 <body>
 
 {% block content %}

@@ -503,23 +503,23 @@ def localizaciones(request):
     
     estantes = (Localizacion.objects.exclude(estante='')
                 .values_list('congelador','estante')
-                .distinct())
+                .distinct().order_by('estante'))
     
     posicion_estante = (Localizacion.objects.exclude(posicion_rack_estante='')
                        .values_list('congelador','estante','posicion_rack_estante')
-                       .distinct())
+                       .distinct().order_by('posicion_rack_estante'))
     
     racks = (Localizacion.objects.exclude(rack='')
              .values_list('congelador','estante','posicion_rack_estante','rack')
-             .distinct())
+             .distinct().order_by('rack'))
     
     posiciones_caja_rack = (Localizacion.objects.exclude(posicion_caja_rack='')
                            .values_list('congelador','estante','posicion_rack_estante','rack','posicion_caja_rack')
-                           .distinct())
+                           .distinct().order_by('posicion_caja_rack'))
     
     cajas = (Localizacion.objects.exclude(caja='')
              .values_list('congelador','estante','posicion_rack_estante','rack','posicion_caja_rack','caja')
-             .distinct())
+             .distinct().order_by('caja'))
     
     subposiciones = (Localizacion.objects
                     .values_list('congelador','estante','posicion_rack_estante','rack','posicion_caja_rack','caja','subposicion')
@@ -814,9 +814,10 @@ def nuevo_estudio(request):
         form = EstudioForm(request.POST)
         if form.is_valid():
             form.save()
-            redirect('estudios_todos')
+            
         else:
-            messages.error(request, 'Hubo un error al subir el documento.')
+            messages.error(request, 'Hubo un error al subir el estudio.')
+        return redirect('estudios_todos')
     else:
         form = EstudioForm()
     template = loader.get_template('nuevo_estudio.html')
@@ -928,7 +929,7 @@ def eliminar_documento(request):
     return redirect('repositorio_estudio', id_estudio=request.session.get('id_estudio'))
 
 # Vistas relacionadas con el envio de muestras
-@permission_required('muestras.can_edit_muestras_web')
+@permission_required('muestras.can_change_muestras_web')
 def formulario_envios(request,centro):
     muestras_envio = request.session.get('muestras_envio', [])
     centro_envio = agenda_envio.objects.get(id=centro)
