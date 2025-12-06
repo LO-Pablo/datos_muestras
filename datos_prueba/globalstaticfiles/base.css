@@ -1,0 +1,92 @@
+/*css de los estilos globales de la aplicación web, para customizar su aspecto visual*/
+/* ===== TOPBAR ESTILO CLÍNICO ===== */
+
+.topbar {
+    background-color: #ffffff;             /* fondo limpio tipo clínico */
+    border-bottom: 1px solid #dfe3e6;      /* línea suave de separación */
+    height: 70px;                          /* altura profesional */
+    display: flex;                         /* flexbox para ordenar los elementos */
+    align-items: center;                   /* verticalmente centrado */
+    justify-content: space-between;        /* logo a la izquierda, menú a la derecha */
+    padding: 0 30px;                       /* espacio lateral */
+    font-family: 'Inter', 'Roboto', sans-serif;
+}
+
+.logo-section {
+    display: flex;
+    align-items: center;
+    gap: 10px;   /* separación entre logo y texto */
+}
+
+.logo-section img {
+    height: 45px;    /* tamaño uniforme del logo */
+}
+
+.app-name {
+    font-size: 18px;
+    font-weight: 600;
+    color: #1a3d7c;  /* azul corporativo */
+}
+
+.main-nav {
+    display: flex;
+    align-items: center;
+    justify-content: center;   /* los centra por defecto */
+    gap: 40px;
+    flex-grow: 1;     
+}
+.flex-spacer {
+    flex-grow: 1;
+}
+.menu-center {
+    display: flex;
+    gap: 200px;
+    justify-content: center;
+}
+.menu-auth {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+.menu-auth a {
+    font-size: 15px;
+}
+.menu-center a {
+    font-size: 17px;
+}
+
+.main-nav a {
+    text-decoration: none;
+    color: #1a3d7c;
+    font-weight: 500;
+    padding: 8px 10px;  /* área clicable más cómoda */
+    border-radius: 6px; /* tacto moderno pero discreto */
+}
+
+.main-nav a:hover {
+    background-color: #e8f0fe; /* azul claro de tu paleta */
+}
+
+.main-nav button {
+    background-color: #1a3d7c;
+    color: white;
+    border: none;
+    padding: 8px 14px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 500;
+    font-size: 15px;
+}
+.main-nav p{
+    text-decoration: none;
+    font-size: 18px;
+    font-weight: 600;
+    color: #1a3d7c;
+    padding: 8px 10px;  /* área clicable más cómoda */
+    border-radius: 6px; /* tacto moderno pero discreto */
+}
+.main-nav button:hover {
+    background-color: #163366;  /* azul más oscuro */
+}
+
+
