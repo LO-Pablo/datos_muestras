@@ -76,18 +76,18 @@ Lista de Muestras
   <table class="styled-table">
     <thead>
       <tr>
-        <th>Seleccionar</th>
+        <th style="width: 50px;">Seleccionar</th>
         <th>ID Individuo</th>
         <th>Nombre asignado por el laboratorio</th>
         <th>Localización</th>
         <th>Historial de localizaciones</th>
         <th>Material</th>
-        <th>Volumen actual</th>
-        <th>Unidad de volumen</th>
-        <th>Concentración actual</th>
-        <th>Unidad de concentración</th>
-        <th>Masa actual</th>
-        <th>Unidad de masa</th>
+        <th >Volumen actual</th>
+        <th >Unidad de volumen</th>
+        <th >Concentración actual</th>
+        <th >Unidad de concentración</th>
+        <th >Masa actual</th>
+        <th >Unidad de masa</th>
         <th>Fecha de extracción</th>
         <th>Fecha de llegada</th>
         <th>Observaciones</th>
@@ -103,7 +103,7 @@ Lista de Muestras
  
   <tbody>
     {% for x in muestras %}
-    <tr>
+   <tr class="{% if x.estado_actual == 'Disponible' %}status-available{% elif x.estado_actual == 'Parcialmente enviada' %}status-processing{% elif x.estado_actual == 'Destruida' %}status-destroyed{% else %}status-enviada{% endif %}">
       <td><input type="checkbox" name="muestra_id" value ="{{x.id}}" class="form-control"></td>
       <td>{{ x.id_individuo }}</td>
       <td>{{ x.nom_lab }}</td>
