@@ -1,0 +1,106 @@
+/* PANEL DE FILTROS */
+.filter-panel {
+    background-color: #ffffff;
+    padding: 20px;
+    border-radius: 10px;
+    margin-bottom: 20px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+}
+
+.form-group-inline {
+    display: flex;
+    flex-direction: column;
+    margin-bottom: 10px;
+}
+
+.form-group-inline input {
+    padding: 8px;
+    border-radius: 6px;
+    border: 1px solid #dfe3e6;
+}
+
+.action-buttons {
+    margin-bottom: 20px;
+}
+
+.btn {
+    padding: 8px 14px;
+    border-radius: 6px;
+    text-decoration: none;
+    display: inline-block;
+    font-weight: 500;
+    cursor: pointer;
+}
+
+.btn-primary {
+    background-color: #1a3d7c;
+    color: white;
+    border: none;
+}
+
+.btn-primary:hover {
+    background-color: #163366;
+}
+
+.btn-secondary {
+    background-color: #e8f0fe;
+    color: #1a3d7c;
+    border: none;
+}
+
+.btn-secondary:hover {
+    background-color: #cdd9f0;
+}
+
+.btn-success {
+    background-color: #4caf50;
+    color: white;
+}
+/* CONTENEDOR PARA SCROLL HORIZONTAL */
+.table-container {
+    width: 100%;
+    overflow-x: auto;
+    margin-top: 20px;
+}
+
+/* TABLA ESTILIZADA */
+.styled-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-family: 'Inter', sans-serif;
+    font-size: 14px;
+    min-width: 1200px; /* asegura espacio para todas las columnas */
+}
+
+/* CABECERA */
+.styled-table thead tr {
+    background-color: #1a3d7c;
+    color: white;
+    text-align: left;
+}
+
+.styled-table th, .styled-table td {
+    padding: 10px 12px;
+    border-bottom: 1px solid #dfe3e6;
+}
+
+.styled-table tbody tr:hover {
+    background-color: #e8f0fe;
+}
+
+/* Estilo para checkboxes */
+.styled-table input[type="checkbox"] {
+    transform: scale(1.2);
+    cursor: pointer;
+}
+
+/* Botones dentro de tabla si los hay */
+.styled-table a {
+    color: #1a3d7c;
+    text-decoration: none;
+}
+
+.styled-table a:hover {
+    text-decoration: underline;
+    color: #163366;
+}

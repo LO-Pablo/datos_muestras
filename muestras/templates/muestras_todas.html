@@ -3,29 +3,63 @@
 {% block title %}
 Lista de Muestras
 {% endblock %}
-
+{% load static %}
 {% block content %}
+<link rel ="stylesheet" href="{% static 'muestras_todas.css' %}">
 <p><a href="/"> Volver al inicio </a></p>
 
 <caption>Muestras</caption>
-{% load muestras_filters %}
-<form action="" id="filter-form"> 
-  {% for field in field_names %} 
-  <input name={{field}} class="form-control"> {{field_names_readable_dict|get_item:field}}<br>
-  {% endfor %}
-  <input name="estudio" class="form-control"> Estudio<br>
-  <button type="submit" class="btn btn-primary">Filtrar</button>
-</form> 
-<button><a href="/muestras">Eliminar filtros</a></button>
+<div class="filter-panel">
+  {% load muestras_filters %}
+  <form action="" id="filter-form"> 
+    {% for field in field_names %} 
+    <input name={{field}} class="form-control"> {{field_names_readable_dict|get_item:field}}<br>
+    {% endfor %}
+    <input name="estudio" class="form-control"> Estudio<br>
+    <button type="submit" class="btn btn-primary">Filtrar</button>
+    <button><a href="/muestras">Eliminar filtros</a></button>
+  </form> 
+</div>
 
-{% if perms.muestras.can_add_muestras_web %}
-<a href="/muestras/nueva"> Añadir nuevas muestras </a> <br>
-<a href="/muestras/upload_excel"> Subir archivo excel de muestras</a>
-{% endif %}
-<form action="{% url 'logout' %}" method="post">
-{% csrf_token %} 
-<p><button type="submit">Logout</button></p>
+ <div class="action-buttons">
+  {% if perms.muestras.can_add_muestras_web %}
+  <a href="/muestras/nueva"> Añadir nuevas muestras </a> <br>
+  <a href="/muestras/upload_excel"> Subir archivo excel de muestras</a>
+  {% endif %}
+  <form action="" method="GET" style="display:inline;">
+    {% for key, value in request.GET.items %}
+        {% if key != 'exportar_excel' %}
+            <input type="hidden" name="{{ key }}" value="{{ value }}">
+        {% endif %}
+    {% endfor %}
+    <input name="exportar_excel" type="submit" class="btn btn-success" value="Exportar excel de la búsqueda">
 </form>
+  <input type ="button" value="Seleccionar todo" onclick="seleccionar_todo(true)"/>
+    <input type ="button" value="Deseleccionar todo" onclick="seleccionar_todo(false)"/>
+    <script language="JavaScript">
+      function seleccionar_todo(valor) {
+        checkboxes = document.getElementsByTagName('input');
+        for (var i=0; i<checkboxes.length; i++) {
+          if (checkboxes[i].type == 'checkbox')
+            checkboxes[i].checked = valor;
+        }
+      }
+    </script>
+   <form action="{% url 'acciones_post' %}" method="post">
+    {%csrf_token%}
+    {% if perms.muestras.can_delete_muestras_web %}
+    <button type="submit" class="btn btn-primary" value = "true" id='eliminar' name ='eliminar' onclick="return confirm('¿Quieres eliminar las muestras seleccionadas?')">Eliminar muestras seleccionadas</button>
+    {%endif%}
+    {% if perms.estudio.can_change_estudios_web %}
+    <button type="submit" class="btn btn-primary" value="true" id='estudio' name ='estudio'>Añadir muestras seleccionadas a un estudio</button>
+    <button type="submit" class="btn btn-primary" value="true" id='destruir' name ='destruir' onclick="return confirm('¿Quieres actualizar el estado de las muestras seleccionadas a Destruida?')">Destruir una muestra</button>
+    {%endif%}
+    {% if perms.muestras.can_change_muestras_web %}
+    <button type="submit" class="btn btn-primary" value="true" id='envio' name ='envio'>Registrar un envio</button>
+    {%endif%}
+ </div>
+
+
 <!--
 <form action="" method="GET" style="display:inline;">
     {% for key, value in request.GET.items %}
@@ -37,166 +71,143 @@ Lista de Muestras
 </form>
 -->
 
-<form action="" method="GET" style="display:inline;">
-    {% for key, value in request.GET.items %}
-        {% if key != 'exportar_excel' %}
-            <input type="hidden" name="{{ key }}" value="{{ value }}">
-        {% endif %}
+
+<div class="table-container">
+  <table class="styled-table">
+    <thead>
+      <tr>
+        <th>Seleccionar</th>
+        <th>ID Individuo</th>
+        <th>Nombre asignado por el laboratorio</th>
+        <th>Localización</th>
+        <th>Historial de localizaciones</th>
+        <th>Material</th>
+        <th>Volumen actual</th>
+        <th>Unidad de volumen</th>
+        <th>Concentración actual</th>
+        <th>Unidad de concentración</th>
+        <th>Masa actual</th>
+        <th>Unidad de masa</th>
+        <th>Fecha de extracción</th>
+        <th>Fecha de llegada</th>
+        <th>Observaciones</th>
+        <th>Estado inicial</th>
+        <th>Centro de procedencia</th>
+        <th>Lugar de procedencia</th>
+        <th>Estado actual</th>
+        <th>Estudio</th>
+        <th>Historial de estudios</th>
+        <th>Historial de envios<th>
+      </tr>
+    </thead>
+ 
+  <tbody>
+    {% for x in muestras %}
+    <tr>
+      <td><input type="checkbox" name="muestra_id" value ="{{x.id}}" class="form-control"></td>
+      <td>{{ x.id_individuo }}</td>
+      <td>{{ x.nom_lab }}</td>
+      {% with y=x.localizacion.all %}
+      {% if y %}
+      {% for y in x.localizacion.all %}
+      <td>{{y.congelador}}-{{y.estante}}-{{y.posicion_rack_estante}}-{{y.rack}}-{{y.posicion_caja_rack}}-{{y.caja}}-{{y.subposicion}}</td>
+      {% endfor %}
+      {% else %}
+      <td>Sin localización asignada</td>
+      {% endif %}
+      {% endwith %}
+      <td><a href="{%url 'historial_localizaciones' x.id%}">Ver historial de localizaciones</a></td>
+      <td>
+      {% if x.id_material != None %}
+        {{ x.id_material }}
+      {%endif%}
+      </td>
+      <td>
+      {%if x.volumen_actual != None %}
+        {{ x.volumen_actual}}
+      {%endif%}
+      </td>
+      <td>
+      {% if x.unidad_volumen != None %}
+        {{ x.unidad_volumen }}
+      {%endif%}
+      </td>
+      <td>
+      {% if x.concentracion_actual != None %}
+        {{ x.concentracion_actual }}
+      {%endif%}
+      </td>
+      <td>
+      {% if x.unidad_concentracion != None %}
+        {{ x.unidad_concentracion }}
+      {%endif%}
+      </td>
+      <td>
+      {% if x.masa_actual != None %}
+        {{ x.masa_actual }}
+      {%endif%}
+      </td>
+      <td>
+      {% if x.unidad_masa != None %}
+        {{ x.unidad_masa }}
+      {%endif%}
+      </td>
+      <td>
+      {%if x.fecha_extraccion != None %}
+        {{ x.fecha_extraccion }}
+      {%endif%}
+      </td>
+      <td>
+      {% if x.fecha_llegada != None %}
+        {{ x.fecha_llegada }}
+      {%endif%}
+      </td>
+      <td>
+      {% if x.observaciones != None %}
+        {{ x.observaciones }}
+      {%endif%}
+      </td>
+      <td>
+      {% if x.estado_inicial != None %}
+        {{ x.estado_inicial }}
+      {%endif%}
+      </td>
+      <td>
+      {% if x.centro_procedencia != None %}
+        {{ x.centro_procedencia }}
+      {% endif %}
+      </td>
+      <td>
+      {% if x.lugar_procedencia != None %}
+        {{ x.lugar_procedencia }}
+      {% endif %}
+      </td>
+      <td>
+      {%if x.estado_actual != None %}
+        {{ x.estado_actual }}
+      {% endif %}
+      </td>
+      <td>
+      {% if x.estudio != None %}
+        {{ x.estudio.nombre_estudio }}
+      {% else %}
+        Sin estudio asignado
+      {% endif %}
+    </td>
+    <td>
+      <a href="{%url 'historial_estudios' x.id %}">Ver estudios</a>
+    </td>
+    <td>{%if x.envio.all%}
+      <a href="{% url 'historial_envios' x.id %}">Ver envios</a>
+      {%else%}
+      Sin envios registrados
+      {% endif %}
+    </td>
+    </tr>
     {% endfor %}
-    <input name="exportar_excel" type="submit" class="btn btn-success" value="Exportar excel de la búsqueda">
+    </tbody>
+  </table>
+</div>
 </form>
 
-<table>
-  <tr>
-    <th>Seleccionar</th>
-    <th>ID Individuo</th>
-    <th>Nombre asignado por el laboratorio</th>
-    <th>Localización</th>
-    <th>Historial de localizaciones</th>
-    <th>Material</th>
-    <th>Volumen actual</th>
-    <th>Unidad de volumen</th>
-    <th>Concentración actual</th>
-    <th>Unidad de concentración</th>
-    <th>Masa actual</th>
-    <th>Unidad de masa</th>
-    <th>Fecha de extracción</th>
-    <th>Fecha de llegada</th>
-    <th>Observaciones</th>
-    <th>Estado inicial</th>
-    <th>Centro de procedencia</th>
-    <th>Lugar de procedencia</th>
-    <th>Estado actual</th>
-    <th>Estudio</th>
-    <th>Historial de estudios</th>
-    <th>Historial de envios<th>
-  </tr>
-  <form action="{% url 'acciones_post' %}" method="post">
-  {%csrf_token%}
-  <input type ="button" value="Seleccionar todo" onclick="seleccionar_todo(true)"/>
-  <input type ="button" value="Deseleccionar todo" onclick="seleccionar_todo(false)"/>
-  <script language="JavaScript">
-    function seleccionar_todo(valor) {
-      checkboxes = document.getElementsByTagName('input');
-      for (var i=0; i<checkboxes.length; i++) {
-        if (checkboxes[i].type == 'checkbox')
-          checkboxes[i].checked = valor;
-      }
-    }
-  </script>
-  {% for x in muestras %}
-  <tr>
-    <td><input type="checkbox" name="muestra_id" value ="{{x.id}}" class="form-control"></td>
-    <td>{{ x.id_individuo }}</td>
-    <td>{{ x.nom_lab }}</td>
-    {% with y=x.localizacion.all %}
-    {% if y %}
-    {% for y in x.localizacion.all %}
-    <td>{{y.congelador}}-{{y.estante}}-{{y.posicion_rack_estante}}-{{y.rack}}-{{y.posicion_caja_rack}}-{{y.caja}}-{{y.subposicion}}</td>
-    {% endfor %}
-    {% else %}
-    <td>Sin localización asignada</td>
-    {% endif %}
-    {% endwith %}
-    <td><a href="{%url 'historial_localizaciones' x.id%}">Ver historial de localizaciones</a></td>
-    <td>
-    {% if x.id_material != None %}
-      {{ x.id_material }}
-    {%endif%}
-    </td>
-    <td>
-    {%if x.volumen_actual != None %}
-      {{ x.volumen_actual}}
-    {%endif%}
-    </td>
-    <td>
-    {% if x.unidad_volumen != None %}
-      {{ x.unidad_volumen }}
-    {%endif%}
-    </td>
-    <td>
-    {% if x.concentracion_actual != None %}
-      {{ x.concentracion_actual }}
-    {%endif%}
-    </td>
-    <td>
-    {% if x.unidad_concentracion != None %}
-      {{ x.unidad_concentracion }}
-    {%endif%}
-    </td>
-    <td>
-    {% if x.masa_actual != None %}
-      {{ x.masa_actual }}
-    {%endif%}
-    </td>
-    <td>
-    {% if x.unidad_masa != None %}
-      {{ x.unidad_masa }}
-    {%endif%}
-    </td>
-    <td>
-    {%if x.fecha_extraccion != None %}
-      {{ x.fecha_extraccion }}
-    {%endif%}
-    </td>
-    <td>
-    {% if x.fecha_llegada != None %}
-      {{ x.fecha_llegada }}
-    {%endif%}
-    </td>
-    <td>
-    {% if x.observaciones != None %}
-      {{ x.observaciones }}
-    {%endif%}
-    </td>
-    <td>
-    {% if x.estado_inicial != None %}
-      {{ x.estado_inicial }}
-    {%endif%}
-    </td>
-    <td>
-    {% if x.centro_procedencia != None %}
-      {{ x.centro_procedencia }}
-    {% endif %}
-    </td>
-    <td>
-    {% if x.lugar_procedencia != None %}
-      {{ x.lugar_procedencia }}
-    {% endif %}
-    </td>
-    <td>
-    {%if x.estado_actual != None %}
-      {{ x.estado_actual }}
-    {% endif %}
-    </td>
-    <td>
-    {% if x.estudio != None %}
-      {{ x.estudio.nombre_estudio }}
-    {% else %}
-      Sin estudio asignado
-    {% endif %}
-  </td>
-  <td>
-    <a href="{%url 'historial_estudios' x.id %}">Ver estudios</a>
-  </td>
-  <td>{%if x.envio.all%}
-    <a href="{% url 'historial_envios' x.id %}">Ver envios</a>
-    {%else%}
-    Sin envios registrados
-    {% endif %}
-  </td>
-  </tr>
-  {% endfor %}
-  {% if perms.muestras.can_delete_muestras_web %}
-  <button type="submit" class="btn btn-primary" value = "true" id='eliminar' name ='eliminar' onclick="return confirm('¿Quieres eliminar las muestras seleccionadas?')">Eliminar muestras seleccionadas</button>
-  {%endif%}
-  {% if perms.estudio.can_change_estudios_web %}
-  <button type="submit" class="btn btn-primary" value="true" id='estudio' name ='estudio'>Añadir muestras seleccionadas a un estudio</button>
-  <button type="submit" class="btn btn-primary" value="true" id='destruir' name ='destruir' onclick="return confirm('¿Quieres actualizar el estado de las muestras seleccionadas a Destruida?')">Destruir una muestra</button>
-  {%endif%}
-  {% if perms.muestras.can_change_muestras_web %}
-  <button type="submit" class="btn btn-primary" value="true" id='envio' name ='envio'>Registrar un envio</button>
-  {%endif%}
-</form>
-</table>
 {% endblock %}
