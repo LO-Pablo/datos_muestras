@@ -1,67 +1,91 @@
-/* Ancho de este formato en concreto */
-.page-content{
-    max-width: 2000px;
+/* ===========================================
+   ESTILO CLÍNICO PARA LA PÁGINA DE MUESTRAS
+   =========================================== */
+
+/* --------------- CONTENIDO GENERAL --------------- */
+
+
+/* Contenedor general para centrar contenido */
+.page-content {
+    background-color: #ffffff;
+    padding: 20px 30px;
+    border-radius: 10px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+    margin-top: 20px;
+    max-width: 1650px;
+}
+.page-container{
+    padding:10px;
 }
 
-/* PANEL DE FILTROS */
+/* Panel de filtros modernizado */
 .filter-panel {
     background-color: #ffffff;
     padding: 20px;
+    margin: 15px 0;
     border-radius: 10px;
-    margin-bottom: 20px;
     box-shadow: 0 4px 12px rgba(0,0,0,0.05);
 }
 
-.form-group-inline {
+/* Contenedor flexible */
+.filter-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 15px 25px;  /* espacio horizontal y vertical */
+}
+
+/* Cada campo */
+.filter-field {
     display: flex;
     flex-direction: column;
-    margin-bottom: 10px;
+    min-width: 180px;
 }
 
-.form-group-inline input {
-    padding: 8px;
-    border-radius: 6px;
+/* Inputs */
+.filter-field input {
+    padding: 6px 10px;
     border: 1px solid #dfe3e6;
-}
-
-.action-buttons {
-    margin-bottom: 20px;
-}
-
-.btn {
-    padding: 8px 14px;
     border-radius: 6px;
-    text-decoration: none;
-    display: inline-block;
-    font-weight: 500;
-    cursor: pointer;
+    font-size: 14px;
 }
 
-.btn-primary {
+.filter-buttons {
+    margin-top: 15px;
+    display: flex;
+    gap: 10px;
+}
+
+/* ------------------------------------------
+   BOTONES DE ACCIÓN
+------------------------------------------- */
+
+.action-buttons a,
+.action-buttons button,
+.action-buttons input[type="submit"],
+.action-buttons input[type="button"] {
     background-color: #1a3d7c;
     color: white;
+    padding: 7px 12px;
+    margin-right: 10px;
+    border-radius: 6px;
     border: none;
+    cursor: pointer;
+    text-decoration: none;
+    display: inline-block;
+    font-size: 13px;
 }
 
-.btn-primary:hover {
+.action-buttons a:hover,
+.action-buttons button:hover,
+.action-buttons input:hover {
     background-color: #163366;
 }
 
-.btn-secondary {
-    background-color: #e8f0fe;
-    color: #1a3d7c;
-    border: none;
-}
 
-.btn-secondary:hover {
-    background-color: #cdd9f0;
-}
+/* ------------------------------------------
+   TABLA SIN SCROLL HORIZONTAL
+------------------------------------------- */
 
-.btn-success {
-    background-color: #4caf50;
-    color: white;
-}
-/* CONTENEDOR */
 .table-container {
     width: 100%;
     overflow-x: hidden;    /* sin scroll horizontal */
@@ -69,59 +93,67 @@
     overflow-y: auto;
 }
 
-/* TABLA */
+.table-container table{
+    width:100%;
+}
+
 .styled-table {
     width: 100%;
     border-collapse: collapse;
-    font-family: 'Inter', sans-serif;
-    font-size: 12px;       /* fuente más pequeña para que quepa todo */
-    table-layout: fixed;      
+    font-size: 11px; /* clave: hacer que quepan 22 columnas */
+    table-layout: auto;
+    white-space: nowrap; /* no romper texto */
+}
+.wrap-text {
+    white-space: normal !important;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
 }
 
-/* CABECERA */
+
+/* Cabecera */
 .styled-table thead tr {
     background-color: #1a3d7c;
     color: white;
+}
+
+.styled-table th,
+.styled-table td {
+    padding: 3px 6px;  /* padding reducido para que todo quepa */
+    border-bottom: 1px solid #dfe3e6;
     text-align: left;
 }
 
-.styled-table th, .styled-table td {
-    padding: 4px 6px;       /* padding reducido */
-    border-bottom: 1px solid #dfe3e6;
-    overflow-wrap: break-word; /* ajusta contenido largo */
-    word-break: break-word;
-}
-
-
-
-/* HOVER */
+/* Hover */
 .styled-table tbody tr:hover {
     background-color: #e8f0fe !important;
 }
 
-/* Checkboxes y links */
-.styled-table input[type="checkbox"] { transform: scale(1.1); cursor: pointer; }
-.styled-table a { color: #1a3d7c; text-decoration: none; }
-.styled-table a:hover { text-decoration: underline; color: #163366; }
+/* ------------------------------------------
+   COLORES POR ESTADO
+------------------------------------------- */
 
-/* Colores suaves por estado */
-.styled-table tbody tr.status-available {
-    background-color: #d4edda; /* verde muy suave */
+.status-available { background-color: #d4edda; }
+.status-processing { background-color: #fff3cd; }
+.status-destroyed { background-color: #f8d7da; }
+.status-enviada { background-color: #dbe9ff; }
+
+/* ------------------------------------------
+   INPUTS Y LINKS DENTRO DE LA TABLA
+------------------------------------------- */
+
+.styled-table input[type="checkbox"] {
+    transform: scale(1.2);
+    cursor: pointer;
 }
 
-.styled-table tbody tr.status-processing {
-    background-color: #fff3cd; /* naranja suave */
+.styled-table a {
+    color: #1a3d7c;
+    text-decoration: none;
+    font-weight: 500;
 }
 
-.styled-table tbody tr.status-destroyed {
-    background-color: #f8d7da; /* rojo suave */
+.styled-table a:hover {
+    text-decoration: underline;
 }
 
-.styled-table tbody tr.status-enviada {
-    background-color: #f0f0f0; /* gris claro */
-}
-
-/* Mantener hover más visible */
-.styled-table tbody tr:hover {
-    background-color: #e8f0fe !important;
-}

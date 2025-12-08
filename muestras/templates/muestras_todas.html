@@ -8,17 +8,41 @@ Lista de Muestras
 <link rel ="stylesheet" href="{% static 'muestras_todas.css' %}">
 <p><a href="/"> Volver al inicio </a></p>
 
-<caption>Muestras</caption>
+<caption>Filtrar muestras</caption>
+{% load muestras_filters %}
 <div class="filter-panel">
-  {% load muestras_filters %}
-  <form action="" id="filter-form"> 
-    {% for field in field_names %} 
-    <input name={{field}} class="form-control"> {{field_names_readable_dict|get_item:field}}<br>
-    {% endfor %}
-    <input name="estudio" class="form-control"> Estudio<br>
-    <button type="submit" class="btn btn-primary">Filtrar</button>
-    <button><a href="/muestras">Eliminar filtros</a></button>
-  </form> 
+    <form action="" id="filter-form">
+        <div class="filter-grid">
+
+            {% for field in field_names %} 
+            <div class="filter-field">
+                <label>{{ field_names_readable_dict|get_item:field }}</label>
+
+                {% if "fecha" in field %}
+                    <input type="date" name="{{field}}">
+                {% else %}
+                    <input type="text" name="{{field}}">
+                {% endif %}
+            </div>
+            {% endfor %}
+
+            <div class="filter-field">
+                <label>Estudio</label>
+                <input type="text" name="estudio">
+            </div>
+
+        </div>
+
+        <div class="filter-buttons">
+            <button type="submit" class="btn btn-primary">
+                🔎 Filtrar
+            </button>
+
+            <a href="/muestras" class="btn btn-secondary">
+                ✖ Eliminar filtros
+            </a>
+        </div>
+    </form>
 </div>
 
  <div class="action-buttons">
@@ -76,28 +100,25 @@ Lista de Muestras
   <table class="styled-table">
     <thead>
       <tr>
-        <th style="width: 50px;">Seleccionar</th>
-        <th>ID Individuo</th>
-        <th>Nombre asignado por el laboratorio</th>
+        <th>Seleccionar</th>
+        <th class="wrap-text">ID Individuo</th>
+        <th>Nombre</th>
         <th>Localización</th>
-        <th>Historial de localizaciones</th>
+        <th class="wrap-text">Historial de localizaciones</th>
         <th>Material</th>
-        <th >Volumen actual</th>
-        <th >Unidad de volumen</th>
-        <th >Concentración actual</th>
-        <th >Unidad de concentración</th>
-        <th >Masa actual</th>
-        <th >Unidad de masa</th>
+        <th >Volumen</th>
+        <th >Concentración</th>
+        <th >Masa</th>
         <th>Fecha de extracción</th>
         <th>Fecha de llegada</th>
-        <th>Observaciones</th>
+        <th class="wrap-text">Observaciones</th>
         <th>Estado inicial</th>
-        <th>Centro de procedencia</th>
-        <th>Lugar de procedencia</th>
-        <th>Estado actual</th>
+        <th class="wrap-text">Centro de procedencia</th>
+        <th class="wrap-text">Lugar de procedencia</th>
+        <th class="wrap-text">Estado actual</th>
         <th>Estudio</th>
-        <th>Historial de estudios</th>
-        <th>Historial de envios<th>
+        <th class="wrap-text">Historial de estudios</th>
+        <th>Historial de envios</th>
       </tr>
     </thead>
  
@@ -105,7 +126,7 @@ Lista de Muestras
     {% for x in muestras %}
    <tr class="{% if x.estado_actual == 'Disponible' %}status-available{% elif x.estado_actual == 'Parcialmente enviada' %}status-processing{% elif x.estado_actual == 'Destruida' %}status-destroyed{% else %}status-enviada{% endif %}">
       <td><input type="checkbox" name="muestra_id" value ="{{x.id}}" class="form-control"></td>
-      <td>{{ x.id_individuo }}</td>
+      <td class="wrap-text">{{ x.id_individuo }}</td>
       <td>{{ x.nom_lab }}</td>
       {% with y=x.localizacion.all %}
       {% if y %}
@@ -116,7 +137,7 @@ Lista de Muestras
       <td>Sin localización asignada</td>
       {% endif %}
       {% endwith %}
-      <td><a href="{%url 'historial_localizaciones' x.id%}">Ver historial de localizaciones</a></td>
+      <td class="wrap-text"><a href="{%url 'historial_localizaciones' x.id%}">Ver historial de localizaciones</a></td>
       <td>
       {% if x.id_material != None %}
         {{ x.id_material }}
@@ -124,32 +145,17 @@ Lista de Muestras
       </td>
       <td>
       {%if x.volumen_actual != None %}
-        {{ x.volumen_actual}}
-      {%endif%}
-      </td>
-      <td>
-      {% if x.unidad_volumen != None %}
-        {{ x.unidad_volumen }}
+        {{ x.volumen_actual}} {{ x.unidad_volumen }}
       {%endif%}
       </td>
       <td>
       {% if x.concentracion_actual != None %}
-        {{ x.concentracion_actual }}
-      {%endif%}
-      </td>
-      <td>
-      {% if x.unidad_concentracion != None %}
-        {{ x.unidad_concentracion }}
+        {{ x.concentracion_actual }}  {{ x.unidad_concentracion }}
       {%endif%}
       </td>
       <td>
       {% if x.masa_actual != None %}
-        {{ x.masa_actual }}
-      {%endif%}
-      </td>
-      <td>
-      {% if x.unidad_masa != None %}
-        {{ x.unidad_masa }}
+        {{ x.masa_actual }}  {{ x.unidad_masa }}
       {%endif%}
       </td>
       <td>
@@ -162,7 +168,7 @@ Lista de Muestras
         {{ x.fecha_llegada }}
       {%endif%}
       </td>
-      <td>
+      <td class="wrap-text">
       {% if x.observaciones != None %}
         {{ x.observaciones }}
       {%endif%}
@@ -172,17 +178,17 @@ Lista de Muestras
         {{ x.estado_inicial }}
       {%endif%}
       </td>
-      <td>
+      <td class="wrap-text">
       {% if x.centro_procedencia != None %}
         {{ x.centro_procedencia }}
       {% endif %}
       </td>
-      <td>
+      <td class="wrap-text">
       {% if x.lugar_procedencia != None %}
         {{ x.lugar_procedencia }}
       {% endif %}
       </td>
-      <td>
+      <td class="wrap-text">
       {%if x.estado_actual != None %}
         {{ x.estado_actual }}
       {% endif %}
@@ -194,7 +200,7 @@ Lista de Muestras
         Sin estudio asignado
       {% endif %}
     </td>
-    <td>
+    <td class="wrap-text">
       <a href="{%url 'historial_estudios' x.id %}">Ver estudios</a>
     </td>
     <td>{%if x.envio.all%}
