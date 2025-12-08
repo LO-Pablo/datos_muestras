@@ -90,3 +90,25 @@
 }
 
 
+/* ===== CONTENEDOR PRINCIPAL ===== */
+
+body {
+    background-color: #e8f0fe;  /* azul muy claro clínico */
+    margin: 0;
+    font-family: 'Inter', sans-serif;
+}
+
+.page-container {
+    display: flex;
+    justify-content: center;   /* centra horizontalmente la página */
+    padding: 20px;
+}
+
+.page-content {
+    background-color: #ffffff;  /* tarjeta principal blanca */
+    width: 100%;
+    max-width: 1250px;          /* ancho máximo cómodo */
+    padding: 30px 40px;         /* espacio interior */
+    border-radius: 10px;        /* suaviza bordes */
+    box-shadow: 0 4px 15px rgba(0,0,0,0.05);  /* sombra ligera */
+}
