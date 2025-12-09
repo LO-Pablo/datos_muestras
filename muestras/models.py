@@ -15,8 +15,7 @@ class Muestra(models.Model):
     fecha_extraccion = models.DateField(blank=True, null=True)
     fecha_llegada = models.DateField(blank=True, null=True)
     observaciones = models.TextField(blank=True, null=True)
-    estado_inicial = models.CharField(max_length=50, 
-                                      choices=[('CONG','Congelado'), ('REF','Refrigerado'), ('AMB','Ambiente')],blank=True, null=True)
+    estado_inicial = models.CharField(max_length=50,blank=True, null=True)
     centro_procedencia = models.CharField(max_length=100,blank=True, null=True)
     lugar_procedencia = models.CharField(max_length=100,blank=True, null=True)
     estado_actual = models.CharField(max_length=50, default='Disponible',

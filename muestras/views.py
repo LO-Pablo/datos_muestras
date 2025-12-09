@@ -28,9 +28,9 @@ def muestras_todas(request):
     # Vista que muestra todas las muestras, requiere que el usuario esté autenticado
     muestras = Muestra.objects.prefetch_related('localizacion')
     # Filtrado de muestras si se proporcionan parámetros de búsqueda
-    field_names = [f.name for f in Muestra._meta.local_fields if f.name not in ('id','estudio')]
+    field_names = [f.name for f in Muestra._meta.local_fields if f.name not in ('id','estudio','estado_actual')]
     fields_loc = [f.name for f in Localizacion._meta.local_fields if f.name not in ('id','muestra')]
-    field_names_readable = ['Id del individuo','Nombre dado por el laboratorio','Material','Volumen actual','Unidad de volumen','Concentración actual','Unidad de concentración','Masa actual','Unidad de masa','Fecha de extracción','Fecha de llegada','Observaciones','Estado inicial','Centro de procedencia','Lugar de procedencia','Estado actual']
+    field_names_readable = ['Id del individuo','Nombre dado por el laboratorio','Material','Volumen actual','Unidad de volumen','Concentración actual','Unidad de concentración','Masa actual','Unidad de masa','Fecha de extracción','Fecha de llegada','Observaciones','Estado inicial','Centro de procedencia','Lugar de procedencia']
     field_names_readable_dict = {k:v for (k,v) in zip(field_names,field_names_readable)}
     if request.user.groups.filter(name='Investigadores'):
         muestras = Muestra.objects.filter(Q(estudio__investigador_principal__username=request.user.username) | Q(estudio = None))
