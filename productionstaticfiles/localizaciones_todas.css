@@ -1,0 +1,199 @@
+/* ===== CONTENEDOR GENERAL ===== */
+#archivo {
+    margin-top: 20px;
+    background: #ffffff;
+    padding: 20px;
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+}
+
+/* ===== LISTA JERÁRQUICA ===== */
+#archivo ul {
+    list-style: none;
+    padding-left: 18px;
+    margin: 0;
+}
+
+/* ===== LÍNEA VERTICAL (ESTILO EXPLORADOR) ===== */
+#archivo ul ul {
+    border-left: 2px solid #e2e7f0;
+    margin-left: 12px;
+    padding-left: 18px;
+}
+
+/* ===== ELEMENTO DE NIVEL ===== */
+#archivo li {
+    margin: 6px 0;
+    padding: 6px 6px;
+    border-radius: 8px;
+    transition: background .2s;
+}
+
+#archivo li:hover {
+    background-color: #f3f7ff;
+}
+
+/* ===== BOTONES COLAPSABLES ===== */
+.dropbtn {
+    background-color: rgba(26, 61, 124, 0.06);
+    border: 1px solid #dfe3e6;
+    padding: 6px 10px;
+    border-radius: 6px;
+
+    font-size: 14px;
+    font-weight: 600;
+    color: #1a3d7c;
+    
+    cursor: pointer;
+
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+
+    transition: all .2s ease;
+}
+
+.dropbtn:hover {
+    background-color: #e8f0fe;
+    border-color: #b9c6d3;
+}
+
+/* ===== CHECKBOXES ===== */
+#archivo input[type="checkbox"] {
+    transform: scale(1.15);
+    margin-right: 8px;
+    cursor: pointer;
+}
+
+/* ===== ICONOS DE CADA NIVEL ===== */
+.congeladores > li > .dropbtn::before { content: "🧊"; }
+.estantes > li > .dropbtn::before { content: "🪜"; }
+.posicion_estante > li > .dropbtn::before { content: "📌"; }
+.racks > li > .dropbtn::before { content: "🗂"; }
+.posicion_caja_rack > li > .dropbtn::before { content: "📍"; }
+.cajas > li > .dropbtn::before { content: "📦"; }
+
+/* ===== LINKS A DETALLES DE MUESTRA ===== */
+#archivo a {
+    color: #1a3d7c;
+    text-decoration: none;
+    font-weight: 500;
+}
+
+#archivo a:hover {
+    text-decoration: underline;
+    color: #163366;
+}
+
+/* ===== CHIP DE CANTIDAD ===== */
+.chip {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+
+    background-color: #e8f0fe;
+    color: #1a3d7c;
+
+    padding: 2px 8px;
+    font-size: 12px;
+    font-weight: 600;
+
+    border-radius: 12px;
+    margin-left: 6px;
+}
+
+.badge {
+    padding: 2px 6px;
+    font-size: 11px;
+    border-radius: 6px;
+    margin-left: 6px;
+    font-weight: 600;
+    color: white;
+}
+
+/* Color base: gris azulado */
+.estado-icono {
+    font-size: 16px;
+    margin-right: 4px;
+}
+
+/* Disponible → verde clínico */
+.icono-disponible {
+    color: #4caf50;
+}
+
+
+/* Parcialmente enviada → naranja suave */
+.icono-parcial {
+    color: #ffa000;
+}
+
+
+/* ==== BARRA DE ACCIONES === */
+.acciones-archivo {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-bottom: 20px;
+    padding: 15px;
+    background: #ffffff;
+    border-radius: 10px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.06);
+}
+
+/* Botón base */
+.accion-btn {
+    padding: 8px 14px;
+    border-radius: 6px;
+    text-decoration: none;
+    font-size: 14px;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    border: none;
+}
+
+/* Tipos de botones */
+.accion-primaria {
+    background-color: #1a3d7c;
+    color: white;
+}
+.accion-primaria:hover {
+    background-color: #163366;
+}
+
+.accion-secundaria {
+    background-color: #e8f0fe;
+    color: #1a3d7c;
+    border: 1px solid #dfe3e6;
+}
+.accion-secundaria:hover {
+    background-color: #d7e4ff;
+}
+
+.accion-peligro {
+    background-color: #d32f2f;
+    color: white;
+}
+.accion-peligro:hover {
+    background-color: #b71c1c;
+}
+/* ==== CHIP DETALLES ==== */
+.chip-detalle {
+    padding: 4px 10px;
+    font-size: 12px;
+    background: #e8f0fe;
+    color: #1a3d7c;
+    border-radius: 6px;
+    text-decoration: none;
+    font-weight: 600;
+    border: 1px solid #dfe3e6;
+    transition: 0.2s;
+}
+
+.chip-detalle:hover {
+    background: #d7e4ff;
+}
+

@@ -520,6 +520,17 @@ def localizaciones(request):
     cajas = (Localizacion.objects.exclude(caja='')
              .values_list('congelador','estante','posicion_rack_estante','rack','posicion_caja_rack','caja')
              .distinct().order_by('caja'))
+    cajas_procesadas = []
+
+    for caja in cajas:
+        cantidad_muestras = Muestra.objects.filter(localizacion__caja=caja[5]).count()
+        nueva_caja = list(caja)
+        nueva_caja.append(str(cantidad_muestras))
+        cajas_procesadas.append(tuple(nueva_caja))
+
+    cajas = cajas_procesadas
+
+
     
     subposiciones = (Localizacion.objects
                     .values_list('congelador','estante','posicion_rack_estante','rack','posicion_caja_rack','caja','subposicion')
@@ -528,6 +539,14 @@ def localizaciones(request):
     muestras = (Localizacion.objects
                 .values_list('congelador','estante','posicion_rack_estante','rack','posicion_caja_rack','caja','subposicion','muestra')
                 .distinct().order_by('subposicion'))
+    muestras_procesadas = []
+    for muestra in muestras:
+        nueva_muestra = list(muestra)
+        if muestra[7] != None:
+            estado_muestra = Muestra.objects.get(nom_lab=muestra[7]).estado_actual
+            nueva_muestra.append(estado_muestra)
+        muestras_procesadas.append(tuple(nueva_muestra))
+    muestras = muestras_procesadas
     template = loader.get_template('localizaciones_todas.html')
     
     param = ['congelador', 'estante', 'posicion_rack_estante', 'rack', 'posicion_caja_rack', 'caja', 'subposicion']
