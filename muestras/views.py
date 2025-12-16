@@ -16,6 +16,7 @@ from django.db.models import Q
 from django.db import IntegrityError, ProgrammingError
 from django.utils import timezone 
 from django.contrib.auth.models import User
+@login_required
 def principal(request):
     # Vista principal de la aplicación, muestra una página de bienvenida
     template = loader.get_template('principal.html')
@@ -921,8 +922,9 @@ def subir_documento(request, id_estudio):
         if form.is_valid():
             doc = form.save(commit=False)
             doc.usuario_subida = request.user
+            doc.estudio = estudio
             doc.save()
-            return redirect('repositorio_estudio', id_estudio=doc.estudio)
+            return redirect('repositorio_estudio', id_estudio=estudio.id_estudio)
         else:
             messages.error(request, 'Hubo un error al subir el documento.')
     else:
