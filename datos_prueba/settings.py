@@ -24,7 +24,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = 'django-insecure-c7@r#)7#85)+w1^+j6894bxpwsx_!k7b2^@+_!sg*cg&p@+0v2'
 # os.environ.get('KEY', 'default_value') --> Si falla la variable KEY, retorna 'default_value', permitiendo que la aplicación continúe
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = False
 
 ALLOWED_HOSTS = ['*']
 
