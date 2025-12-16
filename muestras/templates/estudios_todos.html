@@ -3,53 +3,62 @@
 {% block title %}
 Lista de estudios del investigador
 {% endblock %}
-
+{% load static %}
 {% block content %}
-<p><a href="/"> Volver al inicio </a></p>
-<p><a href="/estudios/nuevo"> Nuevo estudio</a></p>
+<link rel ="stylesheet" href="{% static 'estudios_todos.css' %}">
+<div class="acciones-estudios">
+    <a href="/" class="accion-btn accion-secundaria">
+        ⬅ Volver al inicio
+    </a>
 
-<table>
-    <tr>
-        <th>Id del estudio</th>
-        <th>Referencia del estudio</th>
-        <th>Nombre del estudio</th>
-        <th>Descripción del estudio</th>
-        <th>Fecha de inicio del estudio</th>
-        <th>Fecha de fin del estudio</th>
-        <th>Investigador principal</th>
-        <th>Documentación del estudio</th>
-    </tr>
-    {% for estudio in estudios %}
-    <tr>
-        <td>{{estudio.id_estudio}}</td>
-        <td>
-        {% if estudio.referencia_estudio != None  %}
-            {{estudio.referencia_estudio}}
-        {%endif%}
-        </td>
-        <td>{{estudio.nombre_estudio}}</td>
-        <td>
-        {% if estudio.descripcion_estudio != None  %}  
-            {{estudio.descripcion_estudio}}
-        {%endif%}
-        </td>
-        <td>
-         {% if estudio.fecha_inicio_estudio != None  %}   
-            {{estudio.fecha_inicio_estudio}}
-        {%endif%}
-        </td>
-        <td>
-        {% if estudio.fecha_fin_estudio != None  %}  
-            {{estudio.fecha_fin_estudio}}
-        {%endif%}
-        </td>
-        <td>
-        {% if estudio.investigador_principal != None  %}
-            {{estudio.investigador_principal}}
-        {%endif%}
-        </td>
-        <td><a href="/estudios/{{estudio.id_estudio}}">Documentación</a></td>
-    </tr> 
-    {% endfor %} 
-</table>
+    <a href="/estudios/nuevo" class="accion-btn accion-primaria">
+        ➕ Nuevo estudio
+    </a>
+</div>
+
+<div class="table-container">
+    <table class="styled-table">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Referencia</th>
+                <th>Nombre</th>
+                <th class="wrap-text">Descripción</th>
+                <th>Inicio</th>
+                <th>Fin</th>
+                <th>Investigador principal</th>
+                <th>Acciones</th>
+            </tr>
+        </thead>
+
+        <tbody>
+        {% for estudio in estudios %}
+            <tr>
+                <td>{{ estudio.id_estudio }}</td>
+
+                <td>{{ estudio.referencia_estudio|default:"—" }}</td>
+
+                <td>{{ estudio.nombre_estudio }}</td>
+
+                <td class="wrap-text">
+                    {{ estudio.descripcion_estudio|default:"—" }}
+                </td>
+
+                <td>{{ estudio.fecha_inicio_estudio|default:"—" }}</td>
+
+                <td>{{ estudio.fecha_fin_estudio|default:"—" }}</td>
+
+                <td>{{ estudio.investigador_principal|default:"—" }}</td>
+
+                <td>
+                    <a href="/estudios/{{estudio.id_estudio}}" class="chip-detalle">
+                        📄 Documentación
+                    </a>
+                </td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+
 {%endblock%}
