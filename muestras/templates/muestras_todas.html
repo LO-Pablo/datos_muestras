@@ -6,10 +6,12 @@ Lista de Muestras
 {% load static %}
 {% block content %}
 <link rel ="stylesheet" href="{% static 'muestras_todas.css' %}">
-<p><a href="/"> Volver al inicio </a></p>
 
-<caption>Filtrar muestras</caption>
+<caption><strong>Filtrar muestras</strong></caption>
 {% load muestras_filters %}
+<div class="collapsible">
+    <button class="collapsible-header">🔍 Filtros</button>
+    <div class="collapsible-content">
 <div class="filter-panel">
     <form action="" id="filter-form">
         <div class="filter-grid">
@@ -30,36 +32,57 @@ Lista de Muestras
                 <label>Estudio</label>
                 <input type="text" name="estudio">
             </div>
-
+            <div class="filter-field">
+            <label>Estado actual</label>
+                <select name="estado_actual">
+                  <option value=""></option>
+                  <option value="Disponible">Disponible</option>
+                  <option value="Parcialmente enviada">Parcialmente enviada</option>
+                  <option value="Enviada">Enviada</option>
+                  <option value="Destruida">Destruida</option>
+                </select>
+            </div>
         </div>
 
         <div class="filter-buttons">
             <button type="submit" class="btn btn-primary">
                 🔎 Filtrar
             </button>
-
-            <a href="/muestras" class="btn btn-secondary">
+              <a href="/muestras" class="btn btn-secondary">
                 ✖ Eliminar filtros
             </a>
         </div>
     </form>
 </div>
+</div>
+</div>
 
+<div class="collapsible">
+    <button class="collapsible-header">⚙️ Acciones</button>
+    <div class="collapsible-content">
  <div class="action-buttons">
-  {% if perms.muestras.can_add_muestras_web %}
-  <a href="/muestras/nueva"> Añadir nuevas muestras </a> <br>
-  <a href="/muestras/upload_excel"> Subir archivo excel de muestras</a>
-  {% endif %}
-  <form action="" method="GET" style="display:inline;">
-    {% for key, value in request.GET.items %}
-        {% if key != 'exportar_excel' %}
-            <input type="hidden" name="{{ key }}" value="{{ value }}">
-        {% endif %}
-    {% endfor %}
-    <input name="exportar_excel" type="submit" class="btn btn-success" value="Exportar excel de la búsqueda">
-</form>
-  <input type ="button" value="Seleccionar todo" onclick="seleccionar_todo(true)"/>
-    <input type ="button" value="Deseleccionar todo" onclick="seleccionar_todo(false)"/>
+   {% if perms.muestras.can_add_muestras_web %}
+    <a href="/muestras/nueva" class="btn">
+      ➕🧪 Nueva muestra
+    </a>
+    <a href="/muestras/upload_excel" class="btn">
+      📤📄 Subir Excel
+    </a>
+    {% endif %}
+
+    <input type="button" value="☑️ Seleccionar todo" onclick="seleccionar_todo(true)" class="btn btn-secondary">
+    <input type="button" value="☐ Deseleccionar" onclick="seleccionar_todo(false)" class="btn btn-secondary">
+
+    <form action="" method="GET" style="display:inline;">
+        {% for key, value in request.GET.items %}
+            {% if key != 'exportar_excel' %}
+                <input type="hidden" name="{{ key }}" value="{{ value }}">
+            {% endif %}
+        {% endfor %}
+        <button name="exportar_excel" value="exportar_excel" type="submit" class="btn btn-success">
+          📊⬇ Exportar Excel
+        </button>
+    </form>
     <script language="JavaScript">
       function seleccionar_todo(valor) {
         checkboxes = document.getElementsByTagName('input');
@@ -72,16 +95,18 @@ Lista de Muestras
    <form action="{% url 'acciones_post' %}" method="post">
     {%csrf_token%}
     {% if perms.muestras.can_delete_muestras_web %}
-    <button type="submit" class="btn btn-primary" value = "true" id='eliminar' name ='eliminar' onclick="return confirm('¿Quieres eliminar las muestras seleccionadas?')">Eliminar muestras seleccionadas</button>
+    <button type="submit"  value = "true" id='eliminar' name ='eliminar' onclick="return confirm('¿Quieres eliminar las muestras seleccionadas?')"class="btn btn-danger">🗑️ Eliminar seleccionadas</button>
     {%endif%}
     {% if perms.estudio.can_change_estudios_web %}
-    <button type="submit" class="btn btn-primary" value="true" id='estudio' name ='estudio'>Añadir muestras seleccionadas a un estudio</button>
-    <button type="submit" class="btn btn-primary" value="true" id='destruir' name ='destruir' onclick="return confirm('¿Quieres actualizar el estado de las muestras seleccionadas a Destruida?')">Destruir una muestra</button>
+    <button type="submit" value="true" id='estudio' name ='estudio'class="btn">🧬 Añadir al estudio</button>
+    <button type="submit" value="true" id='destruir' name ='destruir' onclick="return confirm('¿Quieres actualizar el estado de las muestras seleccionadas a Destruida?')" class="btn btn-danger">🔥 Destruir muestra</button>
     {%endif%}
     {% if perms.muestras.can_change_muestras_web %}
-    <button type="submit" class="btn btn-primary" value="true" id='envio' name ='envio'>Registrar un envio</button>
+    <button type="submit"  value="true" id='envio' name ='envio' class="btn btn-success">📦 Registrar envío</button>
     {%endif%}
  </div>
+ </div>
+</div>
 
 
 <!--
@@ -215,5 +240,26 @@ Lista de Muestras
   </table>
 </div>
 </form>
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    const headers = document.querySelectorAll(".collapsible-header");
+
+    headers.forEach(header => {
+        header.addEventListener("click", function() {
+            const content = this.nextElementSibling;
+
+            this.classList.toggle("active");
+
+            if (content.style.maxHeight) {
+                content.style.maxHeight = null;
+                content.classList.remove("open");
+            } else {
+                content.style.maxHeight = content.scrollHeight + "px";
+                content.classList.add("open");
+            }
+        });
+    });
+});
+</script>
 
 {% endblock %}

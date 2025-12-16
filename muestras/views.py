@@ -16,6 +16,7 @@ from django.db.models import Q
 from django.db import IntegrityError, ProgrammingError
 from django.utils import timezone 
 from django.contrib.auth.models import User
+@login_required
 def principal(request):
     # Vista principal de la aplicación, muestra una página de bienvenida
     template = loader.get_template('principal.html')
@@ -28,9 +29,9 @@ def muestras_todas(request):
     # Vista que muestra todas las muestras, requiere que el usuario esté autenticado
     muestras = Muestra.objects.prefetch_related('localizacion')
     # Filtrado de muestras si se proporcionan parámetros de búsqueda
-    field_names = [f.name for f in Muestra._meta.local_fields if f.name not in ('id','estudio')]
+    field_names = [f.name for f in Muestra._meta.local_fields if f.name not in ('id','estudio','estado_actual')]
     fields_loc = [f.name for f in Localizacion._meta.local_fields if f.name not in ('id','muestra')]
-    field_names_readable = ['Id del individuo','Nombre dado por el laboratorio','Material','Volumen actual','Unidad de volumen','Concentración actual','Unidad de concentración','Masa actual','Unidad de masa','Fecha de extracción','Fecha de llegada','Observaciones','Estado inicial','Centro de procedencia','Lugar de procedencia','Estado actual']
+    field_names_readable = ['Id del individuo','Nombre dado por el laboratorio','Material','Volumen actual','Unidad de volumen','Concentración actual','Unidad de concentración','Masa actual','Unidad de masa','Fecha de extracción','Fecha de llegada','Observaciones','Estado inicial','Centro de procedencia','Lugar de procedencia']
     field_names_readable_dict = {k:v for (k,v) in zip(field_names,field_names_readable)}
     if request.user.groups.filter(name='Investigadores'):
         muestras = Muestra.objects.filter(Q(estudio__investigador_principal__username=request.user.username) | Q(estudio = None))
@@ -520,6 +521,17 @@ def localizaciones(request):
     cajas = (Localizacion.objects.exclude(caja='')
              .values_list('congelador','estante','posicion_rack_estante','rack','posicion_caja_rack','caja')
              .distinct().order_by('caja'))
+    cajas_procesadas = []
+
+    for caja in cajas:
+        cantidad_muestras = Muestra.objects.filter(localizacion__caja=caja[5]).count()
+        nueva_caja = list(caja)
+        nueva_caja.append(str(cantidad_muestras))
+        cajas_procesadas.append(tuple(nueva_caja))
+
+    cajas = cajas_procesadas
+
+
     
     subposiciones = (Localizacion.objects
                     .values_list('congelador','estante','posicion_rack_estante','rack','posicion_caja_rack','caja','subposicion')
@@ -528,6 +540,14 @@ def localizaciones(request):
     muestras = (Localizacion.objects
                 .values_list('congelador','estante','posicion_rack_estante','rack','posicion_caja_rack','caja','subposicion','muestra')
                 .distinct().order_by('subposicion'))
+    muestras_procesadas = []
+    for muestra in muestras:
+        nueva_muestra = list(muestra)
+        if muestra[7] != None:
+            estado_muestra = Muestra.objects.get(nom_lab=muestra[7]).estado_actual
+            nueva_muestra.append(estado_muestra)
+        muestras_procesadas.append(tuple(nueva_muestra))
+    muestras = muestras_procesadas
     template = loader.get_template('localizaciones_todas.html')
     
     param = ['congelador', 'estante', 'posicion_rack_estante', 'rack', 'posicion_caja_rack', 'caja', 'subposicion']
@@ -902,8 +922,9 @@ def subir_documento(request, id_estudio):
         if form.is_valid():
             doc = form.save(commit=False)
             doc.usuario_subida = request.user
+            doc.estudio = estudio
             doc.save()
-            return redirect('repositorio_estudio', id_estudio=doc.estudio)
+            return redirect('repositorio_estudio', id_estudio=estudio.id_estudio)
         else:
             messages.error(request, 'Hubo un error al subir el documento.')
     else:

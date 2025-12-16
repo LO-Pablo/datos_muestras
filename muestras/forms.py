@@ -107,7 +107,7 @@ class EstudioForm(forms.ModelForm):
 class DocumentoForm(forms.ModelForm):
     class Meta:
         model = Documento 
-        fields = ['estudio','archivo','categoria','descripcion']
+        fields = ['archivo','categoria','descripcion']
 
 class Centroform(forms.ModelForm):
     class Meta:
