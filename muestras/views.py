@@ -34,7 +34,7 @@ def muestras_todas(request):
     field_names_readable = ['Id del individuo','Nombre dado por el laboratorio','Material','Volumen actual','Unidad de volumen','Concentración actual','Unidad de concentración','Masa actual','Unidad de masa','Fecha de extracción','Fecha de llegada','Observaciones','Estado inicial','Centro de procedencia','Lugar de procedencia']
     field_names_readable_dict = {k:v for (k,v) in zip(field_names,field_names_readable)}
     if request.user.groups.filter(name='Investigadores'):
-        muestras = Muestra.objects.filter(Q(estudio__investigador_principal__username=request.user.username) | Q(estudio = None))
+        muestras = Muestra.objects.filter(Q(estudio__investigadores_asociados__username=request.user))
     for field in field_names:
         if request.GET.get(field):
             filter_kwargs = {f"{field}__icontains": request.GET[field]}
@@ -193,13 +193,16 @@ def upload_excel(request):
     if request.method=="POST":
         form = UploadExcel(request.POST, request.FILES)
         if 'confirmar' in request.POST:
-            messages.success(request, 'Las muestras se han añadido correctamente.')
+            messages.success(request, 'Las muestras sin errores graves se han añadido correctamente')
             ids_to_delete = request.session.pop('ids_error_muestras', [])
             Muestra.objects.filter(nom_lab__in=ids_to_delete).delete()
+            return redirect('muestras_todas')
         elif 'cancelar' in request.POST:
             # Eliminación de las muestras y localizaciones añadidas del excel
             ids_to_delete = request.session.pop('nuevos_ids', [])
             Muestra.objects.filter(id__in=ids_to_delete).delete()
+            messages.error(request,'Las muestras no se han añadido')
+            return redirect('muestras_todas')
         elif 'excel_file' in request.FILES:
             if form.is_valid():
                 excel_file = request.FILES['excel_file']
@@ -820,7 +823,7 @@ def historial_localizaciones_muestra(request,muestra_id):
 @permission_required('muestras.can_view_estudios_web')
 def estudios_todos(request):
     if request.user.groups.filter(name='Investigadores'):
-        estudios = Estudio.objects.filter(investigador_principal__username=request.user.username)
+        estudios = Estudio.objects.filter(investigadores_asociados=request.user)
     else:
         estudios = Estudio.objects.all()
     template = loader.get_template('estudios_todos.html')
@@ -834,23 +837,18 @@ def nuevo_estudio(request):
         form = EstudioForm(request.POST)
         if form.is_valid():
             form.save()
-            
-        else:
-            messages.error(request, 'Hubo un error al subir el estudio.')
-        return redirect('estudios_todos')
+            messages.success(request,'Estudio añadido correctamente')
+            return redirect('estudios_todos')
     else:
         form = EstudioForm()
     template = loader.get_template('nuevo_estudio.html')
     return HttpResponse(template.render({'form':form},request))
-
+@permission_required('muestras.can_change_estudios_web')
 def seleccionar_estudio(request):
-    if request.user.groups.filter(name='Investigadores'):
-        estudios = Estudio.objects.filter(investigador_principal__username=request.user.username)
-    else:
-        estudios = Estudio.objects.all()
+    estudios = Estudio.objects.all()
     template = loader.get_template('seleccionar_estudio.html')
     return HttpResponse(template.render({'estudios':estudios},request))
-@permission_required('muestras.can_add_estudios_web')
+@permission_required('muestras.can_change_estudios_web')
 def añadir_muestras_estudio(request):
     if request.method == 'POST':
         muestras = request.session.get('muestras_estudio', [])

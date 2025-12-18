@@ -97,7 +97,7 @@ Lista de Muestras
     {% if perms.muestras.can_delete_muestras_web %}
     <button type="submit"  value = "true" id='eliminar' name ='eliminar' onclick="return confirm('¿Quieres eliminar las muestras seleccionadas?')"class="btn btn-danger">🗑️ Eliminar seleccionadas</button>
     {%endif%}
-    {% if perms.estudio.can_change_estudios_web %}
+    {% if perms.muestras.can_change_estudios_web %}
     <button type="submit" value="true" id='estudio' name ='estudio'class="btn">🧬 Añadir al estudio</button>
     <button type="submit" value="true" id='destruir' name ='destruir' onclick="return confirm('¿Quieres actualizar el estado de las muestras seleccionadas a Destruida?')" class="btn btn-danger">🔥 Destruir muestra</button>
     {%endif%}
@@ -261,5 +261,17 @@ document.addEventListener("DOMContentLoaded", function() {
     });
 });
 </script>
-
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+{% if messages %}
+ {% for message in messages %}
+  <script>
+      Swal.fire({
+        title: '{{ message.tags|capfirst }}',
+        text: '{{ message }}',
+        icon: '{{ message.tags }}', // 'success', 'error', 'info', 'warning'
+        confirmButtonText: 'Aceptar'
+      });
+  </script>
+{% endfor %}
+{% endif %}
 {% endblock %}

@@ -1,6 +1,7 @@
 from django.db import models
 from django.utils import timezone
 from django.contrib.auth.models import User
+from django.conf import settings
 class Muestra(models.Model):
     # Campos del modelo Muestra
     id_individuo = models.CharField(max_length=20)
@@ -76,13 +77,13 @@ class registro_destruido(models.Model):
     usuario = models.ForeignKey(User,on_delete=models.PROTECT, blank=True, null=True)
 class Estudio(models.Model):
     # Campos del modelo Estudio
-    id_estudio = models.CharField(max_length=20, unique=True)
     referencia_estudio = models.CharField(max_length=100, blank=True, null=True)
     nombre_estudio = models.CharField(max_length=100,unique=True)
     descripcion_estudio = models.TextField(blank=True, null=True)
     fecha_inicio_estudio = models.DateField(blank=True, null=True)
     fecha_fin_estudio = models.DateField(blank=True, null=True)
-    investigador_principal = models.ForeignKey(User, on_delete=models.PROTECT, blank=True, null=True)
+    investigador_principal = models.CharField(max_length=100, blank=True, null=True)
+    investigadores_asociados = models.ManyToManyField(settings.AUTH_USER_MODEL, limit_choices_to={'groups__name': 'Investigadores'},related_name="estudios_asignados",blank = True)
     class Meta:
         permissions = [
             ("can_view_estudios_web", "Puede ver estudios en la web"),
@@ -96,7 +97,7 @@ class historial_estudios(models.Model):
     muestra = models.ForeignKey('Muestra',related_name="historial_estudios",on_delete=models.CASCADE)
     estudio = models.ForeignKey('Estudio',related_name="historial_estudios",on_delete=models.CASCADE, blank=True, null=True)
     fecha_asignacion = models.DateField(default=timezone.now)
-    usuario_asignacion = models.ForeignKey(User,on_delete=models.PROTECT, blank=True, null=True) 
+    usuario_asignacion = models.ForeignKey(User,on_delete=models.PROTECT,blank=True, null=True) 
 
 def ruta_documentos(instance,filename):
     return f"estudios/{instance.estudio.id_estudio}/{filename}"
