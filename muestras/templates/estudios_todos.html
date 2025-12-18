@@ -15,7 +15,19 @@ Lista de estudios del investigador
         ➕ Nuevo estudio
     </a>
 </div>
-
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+{% if messages %}
+ {% for message in messages %}
+  <script>
+      Swal.fire({
+        title: '{{ message.tags|capfirst }}',
+        text: '{{ message }}',
+        icon: '{{ message.tags }}', // 'success', 'error', 'info', 'warning'
+        confirmButtonText: 'Aceptar'
+      });
+  </script>
+{% endfor %}
+{% endif %}
 <div class="table-container">
     <table class="styled-table">
         <thead>
@@ -34,7 +46,7 @@ Lista de estudios del investigador
         <tbody>
         {% for estudio in estudios %}
             <tr>
-                <td>{{ estudio.id_estudio }}</td>
+                <td>{{ estudio.id }}</td>
 
                 <td>{{ estudio.referencia_estudio|default:"—" }}</td>
 

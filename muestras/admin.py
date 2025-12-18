@@ -1,6 +1,7 @@
 from django.contrib import admin
 from .models import Muestra, Localizacion, Estudio, Envio, Documento,historial_estudios,historial_localizaciones,registro_destruido, Congelador
-
+from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
+from django.contrib.auth.models import User
 admin.site.register(Muestra)
 admin.site.register(Localizacion)
 admin.site.register(Estudio)
@@ -10,3 +11,24 @@ admin.site.register(historial_estudios)
 admin.site.register(historial_localizaciones)
 admin.site.register(registro_destruido)
 admin.site.register(Congelador)
+
+class EstudioInline(admin.TabularInline):
+    model = Estudio.investigadores_asociados.through  
+    extra = 1  
+    verbose_name = "Estudio asociado"
+    verbose_name_plural = "Estudios asociados"
+class CustomUserAdmin(BaseUserAdmin):
+    def get_inlines(self, request, obj=None):
+        # Si no hay objeto (estamos creando un usuario nuevo) no mostramos estudios
+        if obj is None:
+            return []
+        
+        # Verificamos si el usuario pertenece al grupo 'Investigadores'
+        if obj.groups.filter(name='Investigadores').exists():
+            return [EstudioInline]
+        
+        # Si no es investigador, no devolvemos ningún inline
+        return []
+
+admin.site.unregister(User)
+admin.site.register(User, CustomUserAdmin)

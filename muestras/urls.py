@@ -3,7 +3,7 @@ from django.conf.urls.static import static
 from django.conf import settings
 from . import views
 urlpatterns = [
-    path('', views.principal, name='principal'),
+    path('', views.muestras_todas, name='principal'),
     path('muestras/', views.muestras_todas, name='muestras_todas'),
     path('muestras/nuevo_centro', views.nuevo_centro, name='nuevo_centro'),
     path('muestras/acciones_post', views.acciones_post, name='acciones_post'),
