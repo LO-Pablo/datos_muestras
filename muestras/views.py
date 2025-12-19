@@ -6,7 +6,6 @@ from django.db import transaction
 from django.contrib import messages  
 from django.shortcuts import render,redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required, permission_required
-from django.forms import formset_factory
 import pandas as pd
 import io,base64
 from reportlab.pdfgen import canvas
@@ -16,6 +15,7 @@ from django.db.models import Q
 from django.db import IntegrityError, ProgrammingError
 from django.utils import timezone 
 from django.contrib.auth.models import User
+from numbers import Number
 @login_required
 def principal(request):
     # Vista principal de la aplicación, muestra una página de bienvenida
@@ -169,18 +169,7 @@ def añadir_muestras(request):
     else:
         form = MuestraForm()
     return render(request, 'añadir_muestras.html', {'form': form})
-"""
-    MuestraFormset = formset_factory(MuestraForm)
-    formset= MuestraFormset()
-    if request.method == 'POST':
-        formset = MuestraFormset(request.POST)
-        if formset.is_valid():
-            for form in formset:
-                form.save()
-    else:
-        formset = MuestraFormset()
-    return render(request, 'añadir_muestras.html', {'formset': formset})
-"""
+
 
 @permission_required('muestras.can_delete_muestras_web')
 def eliminar_muestra(request, id_individuo, nom_lab):
@@ -494,6 +483,10 @@ def descargar_plantilla(request,macro:int):
         plantilla_path = os.path.join(settings.BASE_DIR, 'datos_prueba', 'globalstaticfiles', 'plantilla_muestras.xlsx')
         if os.path.exists(plantilla_path):
             return FileResponse(open(plantilla_path, 'rb'), as_attachment=True, filename='plantilla_muestras.xlsx')
+    elif macro == 3:
+        plantilla_path = os.path.join(settings.BASE_DIR, 'datos_prueba', 'globalstaticfiles', 'plantilla_estudios.xlsx')
+        if os.path.exists(plantilla_path):
+            return FileResponse(open(plantilla_path, 'rb'), as_attachment=True, filename='plantilla_estudios.xlsx')
     else:
         return HttpResponse("La plantilla no se encuentra disponible.", status=404)
     
@@ -843,6 +836,129 @@ def nuevo_estudio(request):
         form = EstudioForm()
     template = loader.get_template('nuevo_estudio.html')
     return HttpResponse(template.render({'form':form},request))
+@permission_required('muestras.can_add_estudios_web')
+def excel_estudios(request):
+    if request.method=="POST":
+        form = UploadExcel(request.POST, request.FILES)
+        if 'confirmar' in request.POST:
+            messages.success(request, 'Las estudios se han añadido correctamente')
+            return redirect('estudios_todos')
+        elif 'cancelar' in request.POST:
+            ids_to_delete = request.session.pop('nuevos_ids', [])
+            Estudio.objects.filter(id__in=ids_to_delete).delete()
+            messages.error(request,'Los estudios no se han añadido')
+            return redirect('estudios_todos')
+        elif 'excel_file' in request.FILES:
+            if form.is_valid():
+                excel_file = request.FILES['excel_file']
+                excel_bytes = excel_file.read()
+                request.session['excel_file_name'] = excel_file.name
+                request.session['excel_file_base64']= base64.b64encode(excel_bytes).decode()
+                excel_stream = io.BytesIO(excel_bytes)
+                df = pd.read_excel(excel_stream)
+                rename_columns = {
+                    'Referencia del estudio': 'referencia_estudio', 
+                    'Nombre del estudio': 'nombre_estudio',
+                    'Descripción': 'descripcion_estudio',
+                    'Fecha de inicio': 'fecha_inicio_estudio',
+                    'Fecha de fin': 'fecha_fin_estudio',
+                    'Investigador principal': 'investigador_principal',
+                }
+                df.rename(columns=rename_columns, inplace=True)
+                nuevos_ids = []
+                estudios_existentes = []
+                fechas_mal = []
+                errors = 0
+                def normalize_value(value):
+                    if pd.isna(value) or value is None:
+                        return None
+                    return value
+                def convertir_fecha(value):
+                        if pd.isna(value) or value is None:
+                            return None
+                        if isinstance(value,Number):
+                            raise ValueError
+                        fecha = pd.to_datetime(value, errors='ignore')
+                        return fecha.date()
+                for _, row in df.iterrows():
+                    try:
+                        fecha_inicio_estudio = convertir_fecha(row['fecha_inicio_estudio'])
+                        fecha_fin_estudio = convertir_fecha(row['fecha_fin_estudio'])
+                        investigador_principal = normalize_value(row['investigador_principal'])
+                        descripcion_estudio = normalize_value(row['descripcion_estudio'])
+                        referencia_estudio = normalize_value(row['referencia_estudio'])
+                    
+                        estudio,created  = Estudio.objects.update_or_create(
+                            nombre_estudio=row['nombre_estudio'],
+                            defaults={
+                                'referencia_estudio': referencia_estudio,
+                                'descripcion_estudio': descripcion_estudio,
+                                'fecha_inicio_estudio': fecha_inicio_estudio,
+                                'fecha_fin_estudio': fecha_fin_estudio,
+                                'investigador_principal': investigador_principal
+                            }
+                        )
+
+                        if created:
+                                nuevos_ids.append(estudio.id)
+                        else:
+                            messages.info(request, f'El estudio {estudio} ya existe, el excel no se ha procesado correctamente')
+                            errors+=1
+                            estudios_existentes.append(estudio.nombre_estudio)
+                    except (ValueError, TypeError):
+                        errors += 1
+                        fechas_mal.append(row['nombre_estudio'])
+                        continue
+                   
+                request.session['nuevos_ids'] = nuevos_ids
+                request.session['estudios_existentes'] = estudios_existentes
+                request.session['fechas_mal'] = fechas_mal
+                if errors==0:
+                    messages.success(request, 'El archivo excel es correcto.')
+                else:
+                    messages.warning(request, f'El archivo excel contiene {errors} errores.') 
+                return render(request, 'confirmacion_upload_estudios.html')
+        elif 'excel_errores' in request.POST:
+                    estudios_existentes = request.session.get('estudios_existentes', [])
+                    fechas_mal = request.session.get('fechas_mal', [])
+                    excel_bytes = base64.b64decode(request.session.get('excel_file_base64'))
+                    excel_file = io.BytesIO(excel_bytes)
+                    wb = openpyxl.load_workbook(excel_file)
+                    ws = wb.active
+                    for row in ws.iter_rows(min_row=2, max_row=ws.max_row):
+                        if row[1].value in estudios_existentes:
+                            for cell in row:
+                                cell.fill = openpyxl.styles.PatternFill(start_color="FF0000", end_color="FF0000", fill_type = "solid")
+                        elif row[1].value in fechas_mal:
+                            for cell in row:
+                                cell.fill = openpyxl.styles.PatternFill(start_color="FF8000", end_color="FF8000", fill_type = "solid")
+                    output = io.BytesIO()    
+                    wb.save(output)
+                    wb.close()
+                    response = HttpResponse(output.getvalue(),content_type='application/ms-excel')
+                    response['Content-Disposition'] = 'attachment; filename="listado_errores.xlsx"'
+                    return response      
+    else: 
+        form= UploadExcel()
+    return render(request, 'upload_excel_estudios.html', {'form': form}) 
+@permission_required('muestras.can_change_estudios_web')
+def editar_estudio(request, id_estudio):
+    estudio = Estudio.objects.get(id=id_estudio)
+    if request.method == 'POST':
+        form = EstudioForm(request.POST, instance=estudio)
+        if form.is_valid():
+            form.save()
+            messages.info(request,'El estudio se ha modificado correctamente')
+            return redirect('estudios_todos')
+    else:
+        form = EstudioForm(instance=estudio)
+    return render(request, 'editar_estudio.html', {'form': form, 'estudio': estudio})
+@permission_required('muestras.can_delete_estudios_web')
+def eliminar_estudio(request, id_estudio):
+    estudio = get_object_or_404(Estudio,id=id_estudio)
+    estudio.delete()
+    messages.success(request,'Estudio eliminado correctamente')
+    return redirect('estudios_todos')
 @permission_required('muestras.can_change_estudios_web')
 def seleccionar_estudio(request):
     estudios = Estudio.objects.all()
@@ -867,7 +983,7 @@ def añadir_muestras_estudio(request):
                     historial.save()
 
             return redirect('muestras_todas')
-        ids_estudios = request.POST.getlist('estudio_id')
+        ids_estudios = request.POST.getlist('estudio_nombre')
         for study in ids_estudios:
             studio = Estudio.objects.get(nombre_estudio=study)
             for muestra in muestras:
@@ -896,9 +1012,9 @@ def historial_estudios_muestra(request,muestra_id):
     return HttpResponse(template.render({'historiales':historiales, 'muestra':muestra},request))
 @permission_required('muestras.can_view_estudios_web')
 def repositorio_estudio(request, id_estudio):
-    estudio = Estudio.objects.get(id_estudio=id_estudio)
+    estudio = Estudio.objects.get(id=id_estudio)
     documentos = Documento.objects.filter(estudio = estudio, eliminado= False)
-    request.session['id_estudio'] = id_estudio
+    request.session['id'] = id_estudio
     # Filtrado opcional por usuario
     usuario = request.GET.get('usuario')
     if usuario:
@@ -911,10 +1027,10 @@ def repositorio_estudio(request, id_estudio):
         if request.GET.get(f'{doc.id}'):
             eliminar_documento(request, doc.id)
     template = loader.get_template('repositorio_estudio.html')
-    return HttpResponse(template.render({'documentos':documentos, 'id_estudio':estudio.id_estudio},request))
+    return HttpResponse(template.render({'documentos':documentos, 'id':estudio.id},request))
 
 def subir_documento(request, id_estudio):
-    estudio = Estudio.objects.get(id_estudio = id_estudio)
+    estudio = Estudio.objects.get(id = id_estudio)
     if request.method == 'POST':
         form = DocumentoForm(request.POST, request.FILES)
         if form.is_valid():
@@ -922,7 +1038,7 @@ def subir_documento(request, id_estudio):
             doc.usuario_subida = request.user
             doc.estudio = estudio
             doc.save()
-            return redirect('repositorio_estudio', id_estudio=estudio.id_estudio)
+            return redirect('repositorio_estudio', id_estudio=estudio.id)
         else:
             messages.error(request, 'Hubo un error al subir el documento.')
     else:
@@ -930,7 +1046,7 @@ def subir_documento(request, id_estudio):
     template = loader.get_template('subir_documento.html')
     return HttpResponse(template.render({'form':form, 'estudio':estudio},request))
 
-def descargar_documento(request, documento_id,id_estudio):
+def descargar_documento(request, documento_id,id):
     doc = Documento.objects.get(pk=documento_id, eliminado=False)      
     return FileResponse(open(doc.archivo.path, 'rb'), as_attachment=True, filename=os.path.basename(doc.archivo.name))
 
@@ -942,10 +1058,10 @@ def eliminar_documento(request):
             doc.eliminado = True
             doc.fecha_eliminacion = timezone.now()
             doc.save()
-            return redirect('repositorio_estudio', id_estudio=doc.estudio)
+            return redirect('repositorio_estudio', id_estudio=doc.estudio.id)
         except:
-            return redirect('repositorio_estudio', id_estudio=doc.estudio.id_estudio)
-    return redirect('repositorio_estudio', id_estudio=request.session.get('id_estudio'))
+            return redirect('repositorio_estudio', id_estudio=doc.estudio.id)
+    return redirect('repositorio_estudio', id=request.session.get('id'))
 
 # Vistas relacionadas con el envio de muestras
 @permission_required('muestras.can_change_muestras_web')

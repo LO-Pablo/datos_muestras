@@ -1,0 +1,20 @@
+{% if messages %}
+  {% for message in messages %}
+        {{ message }}<br>
+  {% endfor %}
+{% endif %}
+<p>Se ha creado un excel en el que se marcan las filas del excel original según los errores encontrados:</p>
+<li>En rojo, si el estudio ya existe en la base de datos.</li>
+<li>En naranja, si los campos de fecha son incorrectos.</li>
+<p>Las filas con estos errores no se añadirán a la base de datos.</p>
+<form method="post" action="">
+  {% csrf_token %}
+  <button name="excel_errores" type="submit" class="btn btn-success">Descargar excel con errores</button>
+</form>
+<p>¿Desea subir el archivo excel?</p>
+<form method="post" action="">
+    {% csrf_token %}
+    <button type ="submit" name="confirmar" class="btn btn-success">Confirmar</button>
+    <button type ="submit" name="cancelar"  class="btn btn-success">Cancelar</button>
+</form>
+<p><a href="/estudios"> Volver a todos los estudios</a></p>

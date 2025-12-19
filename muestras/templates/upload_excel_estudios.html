@@ -1,0 +1,16 @@
+{% extends "master.html" %}
+
+{% block title %}
+Subir archivo Excel
+{% endblock %}
+{% block content %}
+<h2>Subir archivo excel de estudios</h2>
+Utilizando la siguiente <a href="{% url 'descargar_plantilla_muestras' macro=3 %}" download="plantilla_estudios.xlsx">plantilla</a>, en la cual están marcadas en rojo las columnas obligatorias.
+Si estas columnas obligatorias no se rellenan, el estudio no se subirá a la base de datos. 
+<form method="post" enctype="multipart/form-data">
+  {% csrf_token %}
+  {{ form.as_p }}
+  <input name="upload_excel" type="submit" class="btn btn-success" value="Upload excel">
+</form>
+<p><a href="/estudios"> Volver a todos los estudios</a></p>
+{% endblock %}

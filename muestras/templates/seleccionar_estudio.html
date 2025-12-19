@@ -9,7 +9,7 @@ Lista de Muestras
 <form action="{% url 'añadir_muestras_estudio'%}" method="post">
 {%csrf_token%}
 {%for estudio in estudios%}
-<input type="checkbox" name="estudio_id" value ="{{estudio.nombre_estudio}}" class="form-control">{{estudio.nombre_estudio}}
+<input type="checkbox" name="estudio_nombre" value ="{{estudio.nombre_estudio}}" class="form-control">{{estudio.nombre_estudio}}
 {%endfor%}
 <input type="checkbox" name="desasociar" value ="desasociar" class="form-control">Desvincular las muestras de cualquier estudio
 <button type="submit" class="btn btn-primary" id='estudio' name ="asociar_estudio" onclick="return confirm('¿Quieres asociar las muestras seleccionadas al estudio seleccionado?')">Asociar a estudio</button>

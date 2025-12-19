@@ -32,9 +32,12 @@ urlpatterns = [
     path('archivo/nuevo/<int:macro>', views.descargar_plantilla, name='descargar_plantilla_localizaciones_macros'),
     path('archivo/archivar_muestra', views.archivar_muestra, name='archivar_muestra'),
     path('estudios/',views.estudios_todos, name='estudios_todos'),
+    path('estudios/excel',views.excel_estudios, name='excel_estudios'),
     path('estudios/nuevo',views.nuevo_estudio, name='nuevo_estudio'),
     path('estudios/<int:id_estudio>', views.repositorio_estudio, name="repositorio_estudio"),
     path('estudios/<int:id_estudio>/subir', views.subir_documento, name="subir_documento"),
+    path('estudios/<int:id_estudio>/editar', views.editar_estudio, name="editar_estudio"),
+    path('estudios/<int:id_estudio>/eliminar', views.eliminar_estudio, name="eliminar_estudio"),
     path('estudios/<int:id_estudio>/<int:documento_id>',views.descargar_documento, name="descargar_documento"),
     path('estudios/eliminar_documento',views.eliminar_documento, name="eliminar_documento")
 ]

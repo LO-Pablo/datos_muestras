@@ -7,7 +7,7 @@ Lista de Muestras
 {% block content %}
 <link rel ="stylesheet" href="{% static 'muestras_todas.css' %}">
 
-<caption><strong>Filtrar muestras</strong></caption>
+
 {% load muestras_filters %}
 <div class="collapsible">
     <button class="collapsible-header">🔍 Filtros</button>
@@ -143,7 +143,7 @@ Lista de Muestras
         <th class="wrap-text">Estado actual</th>
         <th>Estudio</th>
         <th class="wrap-text">Historial de estudios</th>
-        <th>Historial de envios</th>
+        <th class="wrap-text">Historial de envios</th>
       </tr>
     </thead>
  
@@ -228,7 +228,7 @@ Lista de Muestras
     <td class="wrap-text">
       <a href="{%url 'historial_estudios' x.id %}">Ver estudios</a>
     </td>
-    <td>{%if x.envio.all%}
+    <td class="wrap-text">{%if x.envio.all%}
       <a href="{% url 'historial_envios' x.id %}">Ver envios</a>
       {%else%}
       Sin envios registrados
