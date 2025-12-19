@@ -8,7 +8,8 @@ Añadir 1 o varias muestras
 <h1>Añada 1 muestra</h1>
 <form method="post">
     {% csrf_token %}
-    {{ form.as_p}}
+    {{ form_muestra.as_p}}
+    {{ form_archivo.as_p}}
     <button type="submit">Guardar</button>
 </form>
 <p><a href="/muestras"> Volver a la lista de muestras </a></p>

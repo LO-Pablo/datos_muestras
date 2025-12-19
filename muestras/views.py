@@ -162,13 +162,21 @@ def detalles_muestra(request, nom_lab):
 
 def añadir_muestras(request):
     if request.method == 'POST':
-        form = MuestraForm(request.POST)
-        if form.is_valid():
-            form.save()
+        form_muestra = MuestraForm(request.POST)
+        form_archivo = archivar_muestra_form(request.POST)
+        if form_muestra.is_valid() and form_muestra.is_valid():
+            muestra = form_muestra.save()
+            try:
+                form_archivo.instance.muestra=muestra
+                form_archivo.save()
+                messages.success(request, 'Muestra añadida correctamente')
+            except ValueError:
+                messages.error(request,'La localización donde se quiere archivar la muestra está ocupada por otra muestra, la muestra a archivar se guardará sin localización')
             return redirect('muestras_todas')
     else:
-        form = MuestraForm()
-    return render(request, 'añadir_muestras.html', {'form': form})
+        form_muestra = MuestraForm()
+        form_archivo = archivar_muestra_form()
+    return render(request, 'añadir_muestras.html', {'form_muestra': form_muestra, 'form_archivo':form_archivo})
 
 
 @permission_required('muestras.can_delete_muestras_web')
@@ -176,6 +184,7 @@ def eliminar_muestra(request, id_individuo, nom_lab):
     # Vista para eliminar una muestra, requiere permiso para eliminar muestras
     muestra = get_object_or_404(Muestra,id_individuo=id_individuo, nom_lab=nom_lab)
     muestra.delete()
+    messages.success(request,'Muestras eliminadas correctamente')
     return redirect('muestras_todas')
 @permission_required('muestras.can_add_muestras_web')
 def upload_excel(request):
@@ -751,56 +760,6 @@ def eliminar_localizacion(request, loc, param):
     
     return redirect('archivo/')
 
-@transaction.atomic
-def archivar_muestra(request):
-    # Vista para archivar una muestra en una localización específica que esté vacía 
-    if request.method == 'POST':
-        form = archivar_muestra_form(request.POST)
-        
-        if form.is_valid():
-            data = form.cleaned_data
-            
-            try:
-                muestra_obj = data['muestra']
-                if Localizacion.objects.filter(muestra=muestra_obj):
-                    new = Localizacion.objects.select_for_update().get(muestra=muestra_obj)
-                    new.muestra = None
-                    new.save()
-                slot = Localizacion.objects.select_for_update().get(
-                    congelador=data['congelador'],
-                    estante=data['estante'],
-                    posicion_rack_estante=data['posicion_rack_estante'],
-                    rack=data['rack'],
-                    posicion_caja_rack=data['posicion_caja_rack'],
-                    caja=data['caja'],
-                    subposicion=data['subposicion'],
-                    muestra__isnull=True 
-                )
-
-                
-            
-                slot.muestra = muestra_obj
-                slot.save()
-
-                historial = historial_localizaciones.objects.create(muestra=muestra_obj, localizacion=slot,
-                                                                    fecha_asignacion=timezone.now(), usuario_asignacion=request.user)
-                
-                historial.save()
-                return redirect('localizaciones_todas') 
-                
-            except Muestra.DoesNotExist:
-                
-                messages.error(request, "Error interno: La muestra no fue encontrada.")
-            
-            except Localizacion.DoesNotExist:
-                 
-                messages.error(request, "Error interno: La ubicación ya no está disponible o no existe.")
-                
-    else:
-        form =  archivar_muestra_form()
-        
-    context = {'form': form}
-    return render(request, 'archivar_muestra.html', context)
 def historial_localizaciones_muestra(request,muestra_id):
     muestra = Muestra.objects.get(id=muestra_id)
     historiales = historial_localizaciones.objects.filter(muestra=muestra).order_by('-fecha_asignacion')

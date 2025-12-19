@@ -47,7 +47,7 @@ class Localizacion(models.Model):
 
     class Meta:
         # Campos unicos de localización en conjunción
-        unique_together = ('muestra','congelador', 'estante', 'posicion_rack_estante', 'rack', 'posicion_caja_rack', 'caja', 'subposicion')
+        unique_together = ('congelador', 'estante', 'posicion_rack_estante', 'rack', 'posicion_caja_rack', 'caja', 'subposicion')
         permissions = [
             ("can_view_localizaciones_web", "Puede ver localizaciones en la web"),
             ("can_add_localizaciones_web", "Puede añadir localizaciones en la web"),
