@@ -19,7 +19,11 @@ Historial de estudios
     </tr>
     {% for estudio in historiales %}
     <tr>
+         {% if estudio.estudio == None %}
+        <td>Estudio eliminado</td>
+        {% else%}
         <td>{{ estudio.estudio }}</td>
+        {% endif %}
         <td>{{ estudio.fecha_asignacion }}</td>
         <td>{{ estudio.usuario_asignacion.username }}</td>
     </tr>

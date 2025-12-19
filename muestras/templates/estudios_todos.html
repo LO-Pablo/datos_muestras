@@ -10,22 +10,26 @@ Lista de estudios del investigador
     <a href="/" class="accion-btn accion-secundaria">
         ⬅ Volver al inicio
     </a>
-
+{% if perms.muestras.can_add_estudios_web %}
     <a href="/estudios/nuevo" class="accion-btn accion-primaria">
         ➕ Nuevo estudio
     </a>
+    <a href="/estudios/excel" class="accion-btn accion-primaria">
+        📤📄 Subir Excel de estudios
+    </a>
+{% endif %}
 </div>
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 {% if messages %}
  {% for message in messages %}
-  <script>
+    <script>
       Swal.fire({
         title: '{{ message.tags|capfirst }}',
         text: '{{ message }}',
         icon: '{{ message.tags }}', // 'success', 'error', 'info', 'warning'
         confirmButtonText: 'Aceptar'
       });
-  </script>
+    </script>
 {% endfor %}
 {% endif %}
 <div class="table-container">
@@ -63,9 +67,19 @@ Lista de estudios del investigador
                 <td>{{ estudio.investigador_principal|default:"—" }}</td>
 
                 <td>
-                    <a href="/estudios/{{estudio.id_estudio}}" class="chip-detalle">
+                    <a href="/estudios/{{estudio.id}}" class="chip-detalle">
                         📄 Documentación
                     </a>
+                    {% if perms.muestras.can_change_estudios_web %}
+                    <a href="/estudios/{{estudio.id}}/editar" class="chip-detalle">
+                        ✍ Editar
+                    </a>
+                    {% endif %}
+                    {% if perms.muestras.can_delete_estudios_web %}
+                    <a href="/estudios/{{estudio.id}}/eliminar" class="chip-detalle" onclick="return confirm('¿Quieres eliminar este estudio?')">
+                        🗑️ Eliminar
+                    </a>
+                    {% endif %}
                 </td>
             </tr>
         {% endfor %}

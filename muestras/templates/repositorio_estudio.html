@@ -5,9 +5,9 @@ Repositorio de documentación del estudio {{estudio.id_estudio}}
 {% endblock %}
 
 {% block content %}
-<p><a href="/"> Volver al inicio </a></p>
+<p><a href="/"> Volver a las muestras </a></p>
 <p><a href="/estudios"> Volver a la lista de estudios</a></p>
-<p><a href="/estudios/{{id_estudio}}/subir"> Subir un documento nuevo</a></p>
+<p><a href="/estudios/{{id}}/subir"> Subir un documento nuevo</a></p>
 
 <table>
     <tr>
@@ -21,7 +21,7 @@ Repositorio de documentación del estudio {{estudio.id_estudio}}
     {% csrf_token %}    
     {%for doc in documentos%}
     <tr>
-        <td><a href="/estudios/{{id_estudio}}/{{doc.id}}">Descargar</a></td>
+        <td><a href="/estudios/{{id}}/{{doc.id}}">Descargar</a></td>
         <td>{{doc.fecha_subida}}</td>
         <td>{{doc.categoria}}</td>
         <td>{{doc.usuario_subida.username}}</td>

@@ -1,0 +1,15 @@
+{%extends 'master.html'%}
+
+{% block title %} 
+Editar estudio
+{% endblock %}
+
+{% block content %}
+<h1>Estudio {{estudio.nombre_estudio}}</h1>
+<form method="post">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <button type="submit">Guardar</button>
+</form>
+<p><a href="/estudios"> Volver a la lista de estudios </a></p>
+{% endblock %}
