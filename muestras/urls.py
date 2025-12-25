@@ -30,6 +30,7 @@ urlpatterns = [
     path('archivo/nuevo', views.upload_excel_localizaciones, name='upload_excel_localizaciones'),
     path('archivo/nuevo/<int:macro>', views.descargar_plantilla, name='descargar_plantilla_localizaciones'),
     path('archivo/nuevo/<int:macro>', views.descargar_plantilla, name='descargar_plantilla_localizaciones_macros'),
+    path('archivo/eliminar_localizacion', views.eliminar_localizacion, name="eliminar_localizacion"),
     path('estudios/',views.estudios_todos, name='estudios_todos'),
     path('estudios/excel',views.excel_estudios, name='excel_estudios'),
     path('estudios/nuevo',views.nuevo_estudio, name='nuevo_estudio'),

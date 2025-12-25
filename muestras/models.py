@@ -43,11 +43,10 @@ class Localizacion(models.Model):
     rack = models.CharField(max_length=50,blank=True, null=True)
     posicion_caja_rack = models.CharField(max_length=50,blank=True, null=True)
     caja = models.CharField(max_length=50,blank=True, null=True)
-    subposicion = models.IntegerField(blank=True, null=True)
+    subposicion = models.CharField(max_length=50,blank=True, null=True)
 
     class Meta:
         # Campos unicos de localización en conjunción
-        unique_together = ('congelador', 'estante', 'posicion_rack_estante', 'rack', 'posicion_caja_rack', 'caja', 'subposicion')
         permissions = [
             ("can_view_localizaciones_web", "Puede ver localizaciones en la web"),
             ("can_add_localizaciones_web", "Puede añadir localizaciones en la web"),
@@ -59,12 +58,65 @@ class Localizacion(models.Model):
 
 
 class Congelador(models.Model):
-    congelador = models.CharField(max_length=50)
+    congelador = models.CharField(max_length=50, unique=True)
     modelo = models.CharField(max_length=50,blank=True, null=True)
     temperatura_minima = models.CharField(max_length=50,blank=True, null=True)
     temperatura_maxima = models.CharField(max_length=50,blank=True, null=True)
     localizacion_edificio = models.CharField(max_length=50,blank=True, null=True)
     fotografia = models.ImageField(upload_to='congeladores/', blank=True, null=True)
+
+
+class Estante(models.Model):
+    congelador = models.ForeignKey(Congelador, on_delete=models.CASCADE, related_name='estantes', to_field='congelador')
+    numero = models.CharField(max_length=50)
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=['congelador', 'numero'],
+                name='unique_estante_por_congelador'
+            )
+        ]
+
+
+class Rack(models.Model):
+    estante = models.ForeignKey(Estante, on_delete=models.CASCADE, related_name='racks')
+    numero = models.CharField(max_length=50)
+    posicion_rack_estante = models.CharField(max_length=50)
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=['estante', 'numero'],
+                name='unique_rack_por_estante'
+            )
+        ]
+
+
+class Caja(models.Model):
+    rack = models.ForeignKey(Rack, on_delete=models.CASCADE, related_name='cajas')
+    numero = models.CharField(max_length=50)
+    posicion_caja_rack = models.CharField(max_length=50)
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=['rack', 'numero'],
+                name='unique_caja_por_rack'
+            )
+        ]
+
+
+class Subposicion(models.Model):
+    caja = models.ForeignKey(Caja, on_delete=models.CASCADE, related_name='subposiciones')
+    numero = models.CharField(max_length=50)
+    vacia = models.BooleanField(default=True)
+    muestra = models.ForeignKey(Muestra, on_delete=models.SET_NULL, null=True, blank=True)
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=['caja', 'numero'],
+                name='unique_subposicion_por_caja'
+            )
+        ]
+
 class historial_localizaciones(models.Model):
     muestra = models.ForeignKey('Muestra',related_name="historial_localizaciones",on_delete=models.CASCADE)
     localizacion = models.ForeignKey('Localizacion',related_name="historial_localizaciones",on_delete=models.SET_NULL, null=True, blank=True)

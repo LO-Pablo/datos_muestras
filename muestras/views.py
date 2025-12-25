@@ -1,5 +1,5 @@
 from django.http import HttpResponse, FileResponse
-from .models import Muestra, Localizacion, Estudio, Envio, Documento, historial_estudios, historial_localizaciones,agenda_envio, registro_destruido, Congelador
+from .models import Muestra, Localizacion, Estudio, Envio, Documento, historial_estudios, historial_localizaciones,agenda_envio, registro_destruido, Congelador, Estante, Rack,Caja, Subposicion
 from django.template import loader
 from .forms import MuestraForm, LocalizacionForm, UploadExcel, archivar_muestra_form, DocumentoForm, EstudioForm, Centroform, Congeladorform
 from django.db import transaction
@@ -16,6 +16,8 @@ from django.db import IntegrityError, ProgrammingError
 from django.utils import timezone 
 from django.contrib.auth.models import User
 from numbers import Number
+from collections import defaultdict
+from django.db.models import Count, Q, Prefetch
 @login_required
 def principal(request):
     # Vista principal de la aplicación, muestra una página de bienvenida
@@ -299,6 +301,18 @@ def upload_excel(request):
                             estudio_instance = None
                             errores_estudio += 1
                     if not Muestra.objects.filter(nom_lab=row['nom_lab']):
+                        congelador = Congelador.objects.get(congelador = row['congelador'])
+                        estante = Estante.objects.get(congelador=congelador, numero=row['estante'])
+                        rack = Rack.objects.get(estante=estante, numero=row['rack'])
+                        caja = Caja.objects.get(rack=rack, numero=row['caja'])
+                        subposicion= Subposicion.objects.get(caja = caja, numero = str(row['subposicion']))
+                        if subposicion.vacia == False:
+                            errors_loc += 1
+                            raise ValueError(
+                                f'Subposición {subposicion.numero} ya está ocupada'
+                            )
+                           
+
                         muestra, created = Muestra.objects.update_or_create(
                             id_individuo=row['id_individuo'],
                             nom_lab=row['nom_lab'],
@@ -316,8 +330,14 @@ def upload_excel(request):
                             centro_procedencia=normalize_value(row['centro_procedencia']),
                             lugar_procedencia=normalize_value(row['lugar_procedencia']),
                             estado_actual=normalize_value(row['estado_actual']),
-                            estudio = estudio_instance
+                            estudio = estudio_instance,
                             )
+                        subposicion.vacia = False
+                        subposicion.muestra = muestra
+                        subposicion.save()
+                        if not created:
+                            ids_error_muestras.append(muestra.nom_lab)
+                            errors+=1
                         if estudio_instance != None:
                             historial_estudio = historial_estudios.objects.create(muestra=muestra, estudio=estudio_instance,
                                                                         fecha_asignacion=timezone.now(), usuario_asignacion=request.user)
@@ -357,14 +377,9 @@ def upload_excel(request):
                             historial_loc = historial_localizaciones.objects.create(muestra=muestra, localizacion=localizacion,
                                                                             fecha_asignacion=timezone.now(), usuario_asignacion=request.user)
                         
-                            historial_loc.save()
+                        historial_loc.save()
                             
-                        elif not created:
-                            ids_error_muestras.append(muestra.nom_lab)
-                            errors+=1
-                        elif not loc_created:
-                            errors_loc+=1
-                            ids_error_localizaciones.append(muestra.nom_lab)
+                        
                         redirect('upload_excel')
                     else:
                         ids_muestras_duplicadas.append(row['nom_lab'])
@@ -386,8 +401,8 @@ def upload_excel(request):
                                     errors_loc+=1
                                     if not pd.isna(row['nom_lab']):
                                         Muestra.objects.filter(id=nuevos_ids[len(nuevos_ids)-1]).delete()
-                                        if not localizacion.id == None:
-                                            localizacion.delete()
+                                        ## if not localizacion.id == None:
+                                            ## localizacion.delete()
                             elif column in [f.name for f in Muestra._meta.local_fields if f.name not in ('nom_lab','id_individuo')]:
                                 Muestra.objects.filter(nom_lab=row['nom_lab']).update(**{column : None})
                                 ids_campos_vacios.append(row['nom_lab']) 
@@ -504,114 +519,28 @@ def descargar_plantilla(request,macro:int):
 @permission_required('muestras.can_view_localizaciones_web')
 def localizaciones(request):
     # Vista que muestra todas las localizaciones, tengan o no muestra
-    localizaciones = Localizacion.objects.all().values().distinct()
-    congeladores = Localizacion.objects.exclude(congelador=None).values_list('congelador', flat=True).distinct()
-    
-    estantes = (Localizacion.objects.exclude(estante='')
-                .values_list('congelador','estante')
-                .distinct().order_by('estante'))
-    
-    posicion_estante = (Localizacion.objects.exclude(posicion_rack_estante='')
-                       .values_list('congelador','estante','posicion_rack_estante')
-                       .distinct().order_by('posicion_rack_estante'))
-    
-    racks = (Localizacion.objects.exclude(rack='')
-             .values_list('congelador','estante','posicion_rack_estante','rack')
-             .distinct().order_by('rack'))
-    
-    posiciones_caja_rack = (Localizacion.objects.exclude(posicion_caja_rack='')
-                           .values_list('congelador','estante','posicion_rack_estante','rack','posicion_caja_rack')
-                           .distinct().order_by('posicion_caja_rack'))
-    
-    cajas = (Localizacion.objects.exclude(caja='')
-             .values_list('congelador','estante','posicion_rack_estante','rack','posicion_caja_rack','caja')
-             .distinct().order_by('caja'))
-    cajas_procesadas = []
+    cajas_qs = Caja.objects.annotate(
+        numero_muestras=Count(
+            'subposiciones',
+            filter=Q(subposiciones__vacia=False)
+        )
+    )
 
-    for caja in cajas:
-        cantidad_muestras = Muestra.objects.filter(localizacion__caja=caja[5]).count()
-        nueva_caja = list(caja)
-        nueva_caja.append(str(cantidad_muestras))
-        cajas_procesadas.append(tuple(nueva_caja))
 
-    cajas = cajas_procesadas
+    congeladores = Congelador.objects.prefetch_related(
+        Prefetch(
+            'estantes__racks__cajas',
+            queryset=cajas_qs
+        ),
+        'estantes__racks__cajas__subposiciones')
 
 
     
-    subposiciones = (Localizacion.objects
-                    .values_list('congelador','estante','posicion_rack_estante','rack','posicion_caja_rack','caja','subposicion')
-                    .distinct())
-    
-    muestras = (Localizacion.objects
-                .values_list('congelador','estante','posicion_rack_estante','rack','posicion_caja_rack','caja','subposicion','muestra')
-                .distinct().order_by('subposicion'))
-    muestras_procesadas = []
-    for muestra in muestras:
-        nueva_muestra = list(muestra)
-        if muestra[7] != None:
-            estado_muestra = Muestra.objects.get(nom_lab=muestra[7]).estado_actual
-            nueva_muestra.append(estado_muestra)
-        muestras_procesadas.append(tuple(nueva_muestra))
-    muestras = muestras_procesadas
+
     template = loader.get_template('localizaciones_todas.html')
-    
-    param = ['congelador', 'estante', 'posicion_rack_estante', 'rack', 'posicion_caja_rack', 'caja', 'subposicion']
-    # Convertimos las claves de request.GET a un set para búsquedas rápidas
-    keys = set(request.GET.keys())
-
-    # Lista de niveles y sus nombres en orden jerárquico
-    niveles = [
-        (congeladores, "congelador"),
-        (estantes, "estante"),
-        (posicion_estante, "posicion_rack_estante"),
-        (racks, "rack"),
-        (posiciones_caja_rack, "posicion_caja_rack"),
-        (cajas, "caja"),
-        (subposiciones, "subposicion"),
-    ]
-
-    # Inicializamos flag para saber si se ejecutó alguna combinación completa
-    combinacion_ejecutada = False
-
-    # Procesamos primero combinaciones completas (subposiciones)
-    for subpos in subposiciones:
-        claves_combinacion = [f'{nombre}{subpos[i]}' for i, (nivel, nombre) in enumerate(niveles)]  # excluimos id/subposicion final
-        if all(clave in keys for clave in claves_combinacion):
-            eliminar_localizacion(request, "|".join([str(s) for s in subpos]), "subposicion")
-            combinacion_ejecutada = True
-
-    # Si no se ejecutó ninguna combinación completa, procesamos niveles parciales de arriba hacia abajo
-    
-    if not combinacion_ejecutada:
-        for nivel, nombre in reversed(niveles[:-1]):  # excluimos subposiciones para procesarlas solo en combinaciones completas
-            for elemento in nivel:
-                key= []
-                # Construimos la clave según la estructura de cada nivel
-                if isinstance(elemento, tuple):
-                    key_values = [str(e) for e in elemento]
-                    for i, (niv, nom) in enumerate(niveles):
-                        if i < len(elemento):
-                            key.append(f'{nom}{elemento[i]}')
-                else:
-                    key = [f'{nombre}{elemento}']
-                    key_values = [str(elemento)]
-
-                if all(clave in keys for clave in key):
-                    eliminar_localizacion(request, "|".join(key_values), nombre)
-                    combinacion_ejecutada = True
-                    break
-            if combinacion_ejecutada:
-                break
 
     context = {
-        'localizaciones': localizaciones,
-        'congeladores': congeladores,
-        'estantes': estantes,
-        'posicion_estante': posicion_estante,
-        'racks': racks,
-        'posiciones_caja_rack': posiciones_caja_rack,   
-        'cajas': cajas,
-        'muestras': muestras  
+        'congeladores':congeladores,
     }
     return HttpResponse(template.render(context, request))
 @permission_required('muestras.can_add_localizaciones_web')
@@ -622,9 +551,8 @@ def upload_excel_localizaciones(request):
             messages.success(request, 'Las localizaciones se han añadido correctamente.')
             
         elif 'cancelar' in request.POST:
-            # Eliminación de las muestras añadidas del excel
             ids_to_delete = request.session.pop('nuevos_ids', [])
-            Localizacion.objects.filter(id__in=ids_to_delete).delete()
+            Congelador.objects.filter(id__in=ids_to_delete).delete()
         elif 'excel_file' in request.FILES:
             if form.is_valid():
                 excel_file = request.FILES['excel_file']
@@ -642,27 +570,21 @@ def upload_excel_localizaciones(request):
                 errors = 0
                 nuevos_ids = []
                 for _, row in df.iterrows():
-                    try:
-                        localizacion, created = Localizacion.objects.update_or_create(
-                            congelador=row['congelador'],
-                            estante=row['estante'], 
-                            posicion_rack_estante=row['posicion_rack_estante'],
-                            rack=row['rack'],
-                            posicion_caja_rack=row['posicion_caja_rack'],
-                            caja=row['caja'],
-                            subposicion=row['subposicion']    
-                        )
-                        congelador = Congelador.objects.create(congelador = row['congelador'])
-                        congelador.save()
-                        if created:
-                            nuevos_ids.append(localizacion.id)
-                        else:
-                            messages.info(request, f'Localizacion {localizacion} ya existe, el excel no se ha procesado correctamente')
-                            errors+=1
-                    except ValueError:
-                        messages.error(request, f'El formato de alguno de los campos de la localizacion {localizacion} no es el correcto. Revisa el formato de los datos.')
-                        errors+=1
-                        redirect('localizacion_nueva')
+                  
+                        congelador, _ = Congelador.objects.get_or_create(congelador = str(int(row['congelador'])))
+                        nuevos_ids.append(congelador.id)
+                        estante, _ = Estante.objects.get_or_create(congelador=congelador, numero=str(int(row['estante'])))
+                        rack , _= Rack.objects.get_or_create(estante=estante, numero=str(int(row['rack'])), defaults = {'posicion_rack_estante':row['posicion_rack_estante']})
+                        caja, _ = Caja.objects.get_or_create(rack=rack, numero=str(int(row['caja'])), defaults = {'posicion_caja_rack':row['posicion_caja_rack']})
+                        subposicion, created = Subposicion.objects.get_or_create(caja = caja, numero = str(int(row['subposicion'])))
+                        if not created:
+                            messages.warning(
+                                request,
+                                f'La subposición {row["subposicion"]} ya existe en la caja {caja.numero}'
+                            )
+                            errors += 1
+                            
+                    
                 request.session['nuevos_ids'] = nuevos_ids
                 nuevos_ids = []
                 if errors==0:
@@ -692,73 +614,37 @@ def editar_congelador(request,nombre_congelador):
     return render(request, 'editar_congelador.html', {'form': form, 'congelador': congelador})
 
 @permission_required('muestras.can_delete_localizaciones_web')
-def eliminar_localizacion(request, loc, param):
-    # Vista para eliminar una localización específica
-    if param == 'congelador':
-        localizaciones = Localizacion.objects.filter(congelador=loc)
-        localizaciones.delete()
+def eliminar_localizacion(request):
+    if len(request.POST.getlist('congelador')) > 0:
+        congelador_lista = request.POST.getlist('congelador')
+        for i in range(len(congelador_lista)):
+            Congelador.objects.get(id=congelador_lista[i]).delete()
 
-    elif param == 'estante':
-        congelador,estante = loc.split('|')
-        localizaciones = Localizacion.objects.filter(congelador=congelador, estante=estante)
-        field_names = [f.name for f in Localizacion._meta.local_fields if f.name not in ('congelador','muestra','id')]
-        for unit in localizaciones:
-            for field in field_names:    
-                setattr(unit, field, '')
-            Localizacion.objects.filter(estante='').delete()
-            unit.save()
+    if len(request.POST.getlist('estante')) > 0:
+        estante_lista = request.POST.getlist('estante')
+        for i in range(len(estante_lista)):
+            Estante.objects.get(id=estante_lista[i]).delete()
+                
+    if len(request.POST.getlist('rack')) > 0:
+        rack_lista = request.POST.getlist('rack')
+        for i in range(len(rack_lista)):
+            Rack.objects.get(id=rack_lista[i]).delete()
 
-    elif param == 'posicion_rack_estante':
-        congelador, estante, posicion_rack_estante = loc.split('|')
-        localizaciones = Localizacion.objects.filter(congelador=congelador, estante=estante, posicion_rack_estante=posicion_rack_estante)
-        field_names = [f.name for f in Localizacion._meta.local_fields if f.name not in ('congelador','muestra','id','estante')]
-        for unit in localizaciones:
-            for field in field_names:    
-                setattr(unit, field, '')
-            Localizacion.objects.filter(posicion_rack_estante='').delete()
-            unit.save() 
+    if len(request.POST.getlist('caja')) > 0:
+        caja_lista = request.POST.getlist('caja')
+        for i in range(len(caja_lista)):
+            Caja.objects.get(id=caja_lista[i]).delete()
 
-    elif param == 'rack':
-        congelador, estante, posicion_rack_estante, rack = loc.split('|')
-        localizaciones = Localizacion.objects.filter(congelador=congelador, estante=estante, posicion_rack_estante=posicion_rack_estante, rack=rack)
-        field_names = [f.name for f in Localizacion._meta.local_fields if f.name not in ('congelador','muestra','id','estante','posicion_rack_estante')]
-        for unit in localizaciones:
-            for field in field_names:    
-                setattr(unit, field, '')
-            Localizacion.objects.filter(rack='').delete()
-            unit.save()
+    if len(request.POST.getlist('subposicion')) > 0:
+        subposicion_lista = request.POST.getlist('subposicion')
+        for i in range(len(subposicion_lista)):
+            Subposicion.objects.get(id=subposicion_lista[i]).delete()
 
-    elif param == 'posicion_caja_rack':
-        congelador, estante, posicion_rack_estante, rack, posicion_caja_rack = loc.split('|')
-        localizaciones = Localizacion.objects.filter(congelador=congelador, estante=estante, posicion_rack_estante=posicion_rack_estante, rack=rack, posicion_caja_rack=posicion_caja_rack)
-        field_names = [f.name for f in Localizacion._meta.local_fields if f.name not in ('congelador','muestra','id','estante','posicion_rack_estante','rack')]
-        for unit in localizaciones:
-            for field in field_names:    
-                setattr(unit, field, '')
-            Localizacion.objects.filter(posicion_caja_rack='').delete()
-            unit.save()
-
-    elif param == 'caja':
-        congelador, estante, posicion_rack_estante, rack, posicion_caja_rack, caja = loc.split('|')
-        localizaciones = Localizacion.objects.filter(congelador=congelador, estante=estante, posicion_rack_estante=posicion_rack_estante, rack=rack, posicion_caja_rack=posicion_caja_rack, caja=caja)
-        field_names = [f.name for f in Localizacion._meta.local_fields if f.name not in ('congelador','muestra','id','estante','posicion_rack_estante','rack','posicion_caja_rack')]
-        for unit in localizaciones:
-            for field in field_names:    
-                setattr(unit, field, '')
-            Localizacion.objects.filter(caja='').delete()
-            unit.save()
-
-    elif param == 'subposicion':
-        congelador, estante, posicion_rack_estante, rack, posicion_caja_rack, caja, subposicion = loc.split('|')
-        localizaciones = Localizacion.objects.filter(congelador=congelador, estante=estante, posicion_rack_estante=posicion_rack_estante, rack=rack, posicion_caja_rack=posicion_caja_rack, caja=caja, subposicion=subposicion)
-        for unit in localizaciones:
-            unit.muestra = None
-            unit.save()
-    
     else:
-        return redirect('archivo/')
+        return redirect('localizaciones_todas')
     
-    return redirect('archivo/')
+    return redirect('localizaciones_todas')
+
 
 def historial_localizaciones_muestra(request,muestra_id):
     muestra = Muestra.objects.get(id=muestra_id)
