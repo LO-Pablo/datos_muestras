@@ -1212,10 +1212,27 @@ def excel_estudios(request):
         form = UploadExcel(request.POST, request.FILES)
         if 'confirmar' in request.POST:
             messages.success(request, 'Las estudios se han añadido correctamente')
+            filas_validas = request.session.get('filas_validas',[])
+            with transaction.atomic():
+                for datos in filas_validas:
+                    if datos["fecha_inicio_estudio"]:
+                        fecha_inicio_estudio =  date.fromisoformat(datos["fecha_inicio_estudio"])
+                    else:
+                        fecha_inicio_estudio = None
+                    if datos["fecha_fin_estudio"]:
+                        fecha_fin_estudio = date.fromisoformat(datos["fecha_fin_estudio"])
+                    else:
+                        fecha_fin_estudio = None
+                    Estudio.objects.create(
+                        referencia_estudio = datos['referencia_estudio'],
+                        nombre_estudio = datos['nombre_estudio'],
+                        descripcion_estudio = datos['descripcion_estudio'],
+                        fecha_inicio_estudio = fecha_inicio_estudio,
+                        fecha_fin_estudio = fecha_fin_estudio,
+                        investigador_principal = datos['investigador_principal']
+                    )
             return redirect('estudios_todos')
         elif 'cancelar' in request.POST:
-            ids_to_delete = request.session.pop('nuevos_ids', [])
-            Estudio.objects.filter(id__in=ids_to_delete).delete()
             messages.error(request,'Los estudios no se han añadido')
             return redirect('estudios_todos')
         elif 'excel_file' in request.FILES:
@@ -1235,73 +1252,175 @@ def excel_estudios(request):
                     'Investigador principal': 'investigador_principal',
                 }
                 df.rename(columns=rename_columns, inplace=True)
-                nuevos_ids = []
-                estudios_existentes = []
-                fechas_mal = []
-                errors = 0
-                def normalize_value(value):
-                    if pd.isna(value) or value is None:
+                 # Funciones para normalizar las columnas del excel
+                def norm(value):
+                    if value is None or pd.isna(value):
                         return None
+
+                    if isinstance(value, str):
+                        value = value.strip()
+                        return value if value != "" else None
+
                     return value
+                
+                def norm_code(value):
+                    if value is None or pd.isna(value):
+                        return None
+
+                    if isinstance(value, float) and value.is_integer():
+                        return str(int(value))
+
+                    return str(value).strip()
                 def convertir_fecha(value):
                         if pd.isna(value) or value is None:
                             return None
-                        if isinstance(value,Number):
-                            raise ValueError
-                        fecha = pd.to_datetime(value, errors='ignore')
+                        fecha = pd.to_datetime(value)
                         return fecha.date()
-                for _, row in df.iterrows():
-                    try:
-                        fecha_inicio_estudio = convertir_fecha(row['fecha_inicio_estudio'])
-                        fecha_fin_estudio = convertir_fecha(row['fecha_fin_estudio'])
-                        investigador_principal = normalize_value(row['investigador_principal'])
-                        descripcion_estudio = normalize_value(row['descripcion_estudio'])
-                        referencia_estudio = normalize_value(row['referencia_estudio'])
-                    
-                        estudio,created  = Estudio.objects.update_or_create(
-                            nombre_estudio=row['nombre_estudio'],
-                            defaults={
-                                'referencia_estudio': referencia_estudio,
-                                'descripcion_estudio': descripcion_estudio,
-                                'fecha_inicio_estudio': fecha_inicio_estudio,
-                                'fecha_fin_estudio': fecha_fin_estudio,
-                                'investigador_principal': investigador_principal
-                            }
-                        )
 
-                        if created:
-                                nuevos_ids.append(estudio.id)
-                        else:
-                            messages.info(request, f'El estudio {estudio} ya existe, el excel no se ha procesado correctamente')
-                            errors+=1
-                            estudios_existentes.append(estudio.nombre_estudio)
-                    except (ValueError, TypeError):
-                        errors += 1
-                        fechas_mal.append(row['nombre_estudio'])
-                        continue
+                # Crear estructuras previas del excel
+                filas_validas = []
+                errores = {}
+                nombre_estudios_excel = set()
+                numero_registros = 0
+                cache = {
+                    'estudios_existentes': Estudio.objects.values_list('nombre_estudio',flat=True)
+                }
+                
+                for idx, row in df.iterrows():
+                    # Recorrer el df para detectar errores y normalizar
+                    numero_registros += 1
+                    fila = idx + 2 
+                    errores[fila]={"advertencias":[], "bloqueantes":[]}
+                    datos = {
+                        "nombre_estudio":norm(row['nombre_estudio']),
+                        'referencia_estudio': norm(row['referencia_estudio']),
+                        'descripcion_estudio': norm(row['descripcion_estudio']),
+                        'fecha_inicio_estudio':norm(row['fecha_inicio_estudio']),
+                        'fecha_fin_estudio': norm(row['fecha_fin_estudio']),
+                        'investigador_principal': norm(row['investigador_principal'])
+                    }
+                    # Detectar campos vacios
+                    optativos = ["referencia_estudio", "descripcion_estudio", "fecha_inicio_estudio", "fecha_fin_estudio", "investigador_principal"]
+                    for campo in optativos:
+                        if not datos.get(campo):
+                            errores[fila]["advertencias"].append(f"campo_optativo_vacio:{campo}")
+                    obligatorios = ["nombre_estudio"]
+                    for campo in obligatorios:
+                        if not datos.get(campo):
+                            errores[fila]["bloqueantes"].append(f"campo_obligatorio_vacio:{campo}")
+                    
+                    # Detectar formato de fecha erróneo
+                    for campo in ['fecha_inicio_estudio', 'fecha_fin_estudio']:
+                        if datos[campo] != None:
+                            try:
+                                fecha = pd.to_datetime(datos[campo])
+                                datos[campo] = fecha.date().isoformat()
+                            except Exception:
+                                errores[fila]["bloqueantes"].append(f"formato_incorrecto:{campo}")
+
+                    # Detectar si el estudio ya existe
+                    nombre_estudio = datos['nombre_estudio']
+                    if nombre_estudio in cache['estudios_existentes']:
+                        errores[fila]["bloqueantes"].append(f"estudio_existente")
+                    if nombre_estudio in nombre_estudios_excel:
+                        errores[fila]["bloqueantes"].append("estudio_duplicado_excel")
+                    else:
+                        nombre_estudios_excel.add(nombre_estudio)
                    
-                request.session['nuevos_ids'] = nuevos_ids
-                request.session['estudios_existentes'] = estudios_existentes
-                request.session['fechas_mal'] = fechas_mal
-                if errors==0:
-                    messages.success(request, 'El archivo excel es correcto.')
+                   # Registrar filas validas
+                    if not errores[fila]["bloqueantes"]:
+                        filas_validas.append(datos)
+                
+                request.session['filas_validas']=filas_validas
+                request.session['errores'] = errores
+
+                # Mensajes de información de la subida
+                messages.info(request, f'El excel subido tiene {numero_registros} registros.')
+                numero_errores_bloqueantes = 0
+                numero_errores_advertencia = 0
+                for fila in errores:
+                    if errores[fila]['bloqueantes']:
+                        numero_errores_bloqueantes+=1
+                    if errores[fila]["advertencias"]:
+                        numero_errores_advertencia+=1
+                if numero_errores_bloqueantes == 0:
+                    messages.success(request, 'Y no tiene errores en ningún campo.')
+                    if numero_errores_advertencia!=0:
+                        messages.info(request,f"Aunque tiene {numero_errores_advertencia} filas con errores en algunos campos no críticos.")
                 else:
-                    messages.warning(request, f'El archivo excel contiene {errors} errores.') 
+                    messages.warning(request, f'Pero contiene {numero_errores_bloqueantes} filas con errores graves.')
                 return render(request, 'confirmacion_upload_estudios.html')
         elif 'excel_errores' in request.POST:
-                    estudios_existentes = request.session.get('estudios_existentes', [])
-                    fechas_mal = request.session.get('fechas_mal', [])
+                    errores = request.session.get('errores',[])
                     excel_bytes = base64.b64decode(request.session.get('excel_file_base64'))
                     excel_file = io.BytesIO(excel_bytes)
                     wb = openpyxl.load_workbook(excel_file)
                     ws = wb.active
-                    for row in ws.iter_rows(min_row=2, max_row=ws.max_row):
-                        if row[1].value in estudios_existentes:
-                            for cell in row:
-                                cell.fill = openpyxl.styles.PatternFill(start_color="FF0000", end_color="FF0000", fill_type = "solid")
-                        elif row[1].value in fechas_mal:
-                            for cell in row:
-                                cell.fill = openpyxl.styles.PatternFill(start_color="FF8000", end_color="FF8000", fill_type = "solid")
+                    # Definir los estilos para pintar el excel
+                    FILL_ERROR_ROW = PatternFill("solid", fgColor="F8D7DA")   # rojo claro
+                    FILL_WARN_ROW  = PatternFill("solid", fgColor="FFF3CD")   # amarillo claro
+                    FILL_ERROR_CELL = PatternFill("solid", fgColor="F5C2C7")  # rojo fuerte
+                    FILL_WARN_CELL  = PatternFill("solid", fgColor="FFECB5")  # amarillo fuerte
+                    # Diccionario de mensajes
+                    MENSAJES_ERROR = {
+                        "campo_obligatorio_vacio": "Campo obligatorio vacío",
+                        "formato_incorrecto": "Formato incorrecto",
+                        "estudio_existente": "El estudio ya existe en la base de datos",
+                        "estudio_duplicado_excel": "Muestra duplicada dentro del Excel",
+                        "campo_optativo_vacio": "Campo opcional vacío"
+                    }
+                    # Diccionario de columnas del excel
+                    columnas_excel = {}
+                    rename_columns = {
+                    'Referencia del estudio': 'referencia_estudio', 
+                    'Nombre del estudio': 'nombre_estudio',
+                    'Descripción': 'descripcion_estudio',
+                    'Fecha de inicio': 'fecha_inicio_estudio',
+                    'Fecha de fin': 'fecha_fin_estudio',
+                    'Investigador principal': 'investigador_principal',
+                    }
+                    for cell in ws[1]:
+                        columnas_excel[rename_columns[cell.value]] = cell.column
+                    # Añadir la columna de errores
+                    col_errores = ws.max_column + 1
+                    ws.cell(row=1, column=col_errores, value="Errores")
+                    # Recorrer filas con errores 
+                    for fila, info in errores.items():
+                        # Pintar las filas
+                        has_error = bool(info["bloqueantes"])
+                        has_warn = bool(info["advertencias"])
+
+                        if has_error:
+                            fill_fila = FILL_ERROR_ROW
+                        elif has_warn:
+                            fill_fila = FILL_WARN_ROW
+                        else:
+                            continue
+                        for col in range(1, ws.max_column + 1):
+                            ws.cell(row=int(fila), column=col).fill = fill_fila
+
+                        # Escribir en la columna de errores, colorear las celdas con error y poner un comentario en ellas
+                        mensajes = []
+                        for err in info["bloqueantes"]:
+                            if ":" in err:
+                                tipo, campo = err.split(":")
+                                mensajes.append(f"[ERROR] {MENSAJES_ERROR[tipo]}")
+                                col = columnas_excel[campo]
+                                celda = ws.cell(row=int(fila), column=col)
+                                celda.fill = FILL_ERROR_CELL
+                                celda.comment = Comment(MENSAJES_ERROR[tipo], "Sistema")
+                            else:
+                                mensajes.append(f"[ERROR] {MENSAJES_ERROR[err]}")
+                        for warn in info["advertencias"]:
+                            tipo, campo = warn.split(":")
+                            if not f"[WARN] {MENSAJES_ERROR[tipo]}" in mensajes:
+                                mensajes.append(f"[WARN] {MENSAJES_ERROR[tipo]}")
+                            col = columnas_excel[campo]
+                            celda = ws.cell(row=int(fila), column=col)
+                            celda.fill = FILL_WARN_CELL
+                            celda.comment = Comment(MENSAJES_ERROR[tipo], "Sistema")
+                        ws.cell(row=int(fila), column=col_errores, value="\n".join(mensajes))
+
                     output = io.BytesIO()    
                     wb.save(output)
                     wb.close()
@@ -1370,6 +1489,7 @@ def añadir_muestras_estudio(request):
                             usuario_asignacion = request.user
                         )
                         historial.save()
+                        messages.success(request,'Muestras añadidas correctamente a los estudios')
         if 'muestras_estudio' in request.session:
             del request.session['muestras_estudio']
         return redirect('muestras_todas')

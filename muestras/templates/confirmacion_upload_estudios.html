@@ -4,9 +4,10 @@
   {% endfor %}
 {% endif %}
 <p>Se ha creado un excel en el que se marcan las filas del excel original según los errores encontrados:</p>
-<li>En rojo, si el estudio ya existe en la base de datos.</li>
-<li>En naranja, si los campos de fecha son incorrectos.</li>
-<p>Las filas con estos errores no se añadirán a la base de datos.</p>
+<li>En rojo, si el estudio ya existe en la base de datos o dentro del excel, y si las fechas tienen un formato incorrecto.</li>
+<li>En amarillo, si alguno de los campos no obligatorios están vacios.</li>
+<p>Las filas con errores amarillos no se añadirán a la base de datos.</p>
+<p>No utilizar este excel de errores generados para subir nuevos estudios.</p>
 <form method="post" action="">
   {% csrf_token %}
   <button name="excel_errores" type="submit" class="btn btn-success">Descargar excel con errores</button>
