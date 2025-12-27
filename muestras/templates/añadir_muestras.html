@@ -8,7 +8,12 @@ Añadir 1 o varias muestras
 <h1>Añada 1 muestra</h1>
 <form method="post">
     {% csrf_token %}
-    {{ form.as_p}}
+    {{ form_muestra.as_p}}
+    <label for="congelador">Congelador: </label><input type="text" id="congelador" name="congelador"/>
+    <label for="estante">Estante: </label><input type="text" id="estante" name="estante"/>
+    <label for="rack">Rack: </label><input type="text" id="rack" name="rack"/>
+    <label for="caja">Caja: </label><input type="text" id="caja" name="caja"/>
+    <label for="subposicion">Subposición: </label><input type="text" id="subposicion" name="subposicion"/>
     <button type="submit">Guardar</button>
 </form>
 <p><a href="/muestras"> Volver a la lista de muestras </a></p>

@@ -9,7 +9,8 @@ Archivo de muestras
 
 <link rel="stylesheet" href="{% static 'localizaciones_todas.css' %}">
 <script src="{% static 'mostrar.js' %}"></script>
-<form action = "">
+<form action = "{% url 'eliminar_localizacion'%}" method="post">
+  {%csrf_token%}
   <div class="acciones-archivo">
 
     <a href="/" class="accion-btn accion-secundaria">
@@ -19,86 +20,69 @@ Archivo de muestras
     <a href="/archivo/nuevo" class="accion-btn accion-primaria">
         ➕ Añadir posiciones
     </a>
-
-    <a href="/archivo/archivar_muestra" class="accion-btn accion-primaria">
-        🧪 Archivar una muestra
-    </a>
-<button type="submit" class="accion-btn accion-peligro" id="eliminar"
+<button type="submit" class="accion-btn accion-peligro" id="eliminar" name="eliminar"
         onclick="return confirm('¿Quieres eliminar las posiciones seleccionadas?')">
         🗑 Eliminar posiciones
     </button>
 
 </div>
-<h3> Para eliminar posiciones:</h3>
-<p>Seleccionar la jerarquía completa a eliminar (por ejemplo, si se quiere eliminar el estante x, seleccionar el congelador v y el estante x)</p>
-<p>luego, pulsar el botón de "eliminar posiciones seleccionadas" dos veces y confirmar dos veces en el pop-up que aparecerá</p>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+{% if messages %}
+ {% for message in messages %}
+  <script>
+      Swal.fire({
+        title: '{{ message.tags|capfirst }}',
+        text: '{{ message }}',
+        icon: '{{ message.tags }}', // 'success', 'error', 'info', 'warning'
+        confirmButtonText: 'Aceptar'
+      });
+</script>
+{%endfor%}
+{% endif %}
+
 <nav id="archivo">
   <ul class="congeladores">
-    {% for a in congeladores %}
-    <li> <a href = "{% url 'detalles_congelador' a %}" class="chip-detalle">Detalles</a> <input type="checkbox" name="congelador{{a}}" class="form-control"><button type ="button" onclick = "desplegar(this,'estantes')" class="dropbtn">Congelador {{a}}</button>  
-        <ul class="estantes">
-        {% for b in estantes %}
-            {% if b.0 == a %}
-              <li><input type="checkbox" name="estante{{b.1}}" class="form-control"><button type ="button" onclick = "desplegar(this,'posicion_estante')" class="dropbtn">Estante {{ b.1 }}</button>
-                <ul class="posicion_estante">
-                {% for c in posicion_estante %}
-                {% if c.1 == b.1 and c.0 == b.0 %}
-                  <li><input type="checkbox" name="posicion_rack_estante{{c.2}}" class="form-control"> <button type ="button" onclick = "desplegar(this,'racks')" class="dropbtn">Posición del rack en el estante: {{ c.2 }}</button> 
-                    {% for d in racks %}
-                    {% if d.2 == c.2 and d.1 == b.1 and d.0 == b.0 %}
-                      <ul class="racks">
-                        <li> <input type="checkbox" name="rack{{d.3}}" class="form-control"><button type ="button" onclick = "desplegar(this,'posicion_caja_rack')" class="dropbtn">Rack {{ d.3 }}</button>
-                          <ul class="posicion_caja_rack">
-                          {% for e in posiciones_caja_rack %}
-                          {% if e.3 == d.3 and e.2 == c.2 and e.1 == b.1 and e.0 == b.0 %}
-                            <li> <input type="checkbox" name="posicion_caja_rack{{e.4}}" class="form-control"><button type ="button" onclick = "desplegar(this,'cajas')" class="dropbtn">Posición de la caja en el rack: {{ e.4 }}</button>
-                              <ul class="cajas">
-                              {% for f in cajas %}
-                              {% if f.4 == e.4 and f.3 == d.3 and f.2 == c.2 and f.1 == b.1 and f.0 == b.0 %}
-                                <li> <input type="checkbox" name="caja{{f.5}}" class="form-control"><button type ="button" onclick = "desplegar(this,'muestras')" class="dropbtn">Caja {{ f.5 }} <span class="chip">{{ f.6 }} muestras</span></button>
-                                  <ul class="muestras">
-                                  {% for g in muestras %}
-                                  {% if g.5 == f.5 and g.4 == e.4 and g.3 == d.3 and g.2 == c.2 and g.1 == b.1 and g.0 == b.0 %}
-                                  {% if g.7 != None %}
+    {% for congelador in congeladores %}
+    <li> <a href = "{% url 'detalles_congelador' congelador.congelador %}" class="chip-detalle">Detalles</a> <input type="checkbox" name="congelador" value = "{{congelador.id}}" class="form-control"><button type ="button" onclick = "desplegar(this,'estantes')" class="dropbtn">Congelador {{congelador.congelador}}</button>  
+      <ul class="estantes">
+      {% for estante in congelador.estantes.all %}
+        <li><input type="checkbox" name="estante" value = "{{estante.id}}" class="form-control"><button type ="button" onclick = "desplegar(this,'racks')" class="dropbtn">Estante {{ estante.numero }}</button>
+          {% for rack in estante.racks.all %}
+            <ul class="racks">
+              <li> <input type="checkbox" name="rack" value = "{{rack.id}}" class="form-control"><button type ="button" onclick = "desplegar(this,'cajas')" class="dropbtn">Rack {{ rack.numero }} Posición dentro del estante: {{rack.posicion_rack_estante}}</button>
+                <ul class ="cajas">
+                  {% for caja in rack.cajas.all %}
+                    <li> <input type="checkbox" name="caja" value = "{{caja.id}}" class="form-control"><button type ="button" onclick = "desplegar(this,'muestras')" class="dropbtn">Caja {{ caja.numero }} Posición dentro del rack: {{caja.posicion_caja_rack}}<span class="chip">{{ caja.numero_muestras }} muestras</span></button>
+                      <ul class="muestras">
+                        {% for subposicion in caja.subposiciones.all %}
+                                  {% if subposicion.vacia == False %}
                                   <li><span class="
                                             estado-icono
-                                            {% if g.8 == 'Disponible' %}icono-disponible
-                                            {% elif g.8 == 'Parcialmente enviada' %}icono-parcial
+                                            {% if subposicion.muestras.estado_actual == 'Disponible' %}icono-disponible
+                                            {% elif subposicion.muestras.estado_actual == 'Parcialmente enviada' %}icono-parcial
                                             {% endif %}
                                         "><svg class="icono-estado {{ clase_estado }}" width="14" height="14" viewBox="0 0 24 24">
-  <path fill="currentColor" d="M7 2v2h1v3.586l-3.707 3.707A1 1 0 0 0 4 12v8a3 3 0 0 0 3 3h10a3 3 0 0 0 3-3v-8a1 1 0 0 0-.293-.707L16 7.586V4h1V2H7Zm3 2h4v3.414l2 2V12H8V9.414l2-2V4Zm-2 10h8v6a1 1 0 0 1-1 1H9a1 1 0 0 1-1-1v-6Z"/>
-</svg>
-</span><input type="checkbox" name="subposicion{{g.6}}" class="form-control"> Subposición {{ g.6 }}: <a href="detalles_muestra/{{g.7}}">{{g.7}}</a> 
-                                        </li>
+                                          <path fill="currentColor" d="M7 2v2h1v3.586l-3.707 3.707A1 1 0 0 0 4 12v8a3 3 0 0 0 3 3h10a3 3 0 0 0 3-3v-8a1 1 0 0 0-.293-.707L16 7.586V4h1V2H7Zm3 2h4v3.414l2 2V12H8V9.414l2-2V4Zm-2 10h8v6a1 1 0 0 1-1 1H9a1 1 0 0 1-1-1v-6Z"/>
+                                        </svg>
+                                        </span><input type="checkbox" name= "subposicion" value = "{{subposicion.id}}"  class="form-control"> Subposición {{ subposicion.numero }}: <a href="detalles_muestra/{{subposicion.muestra.nom_lab}}">{{subposicion.muestra.nom_lab}}</a> 
+                                    </li>
                                   {% else %}
-                                  <li> <input type="checkbox" name="subposicion{{g.6}}" class="form-control">Subposición {{ g.6 }}: Vacia</li>
-                                  {% endif %}
+                                  <li> <input type="checkbox" name= "subposicion" value = "{{subposicion.id}}"  class="form-control">Subposición {{ subposicion.numero }}: Vacia</li>
                                   {% endif %}
                                   {% endfor %}
-                                  </ul>
-                                </li>
-                              {% endif %}
-                              {% endfor %}
-                              </ul>
-                            </li>
-                          {% endif %}
-                          {% endfor %}
-                          </ul>
-                        </li>
-                      </ul>
-                    {% endif %}
-                    {% endfor %}
-                  </li>
-                {% endif %}
-                {% endfor %}
-                </ul>
-              </li> 
-            {% endif %}
-        {% endfor %} 
-        </ul>
-    </li>
-    {% endfor %}
-  </ul> 
+                                </ul>
+                              </li>
+                              {% endfor %} 
+                            </ul>
+                           </li>
+                        </ul>
+                        {% endfor %} 
+                     </li>
+                  {%endfor%}
+            </ul>
+         </li> 
+       {% endfor %} 
+      </ul>
 </nav>
 </form>
 {% endblock %}

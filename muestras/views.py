@@ -1,5 +1,5 @@
 from django.http import HttpResponse, FileResponse
-from .models import Muestra, Localizacion, Estudio, Envio, Documento, historial_estudios, historial_localizaciones,agenda_envio, registro_destruido, Congelador
+from .models import Muestra, Localizacion, Estudio, Envio, Documento, historial_estudios, historial_localizaciones,agenda_envio, registro_destruido, Congelador, Estante, Rack,Caja, Subposicion
 from django.template import loader
 from .forms import MuestraForm, LocalizacionForm, UploadExcel, archivar_muestra_form, DocumentoForm, EstudioForm, Centroform, Congeladorform
 from django.db import transaction
@@ -16,6 +16,12 @@ from django.db import IntegrityError, ProgrammingError
 from django.utils import timezone 
 from django.contrib.auth.models import User
 from numbers import Number
+from collections import defaultdict
+from django.db.models import Count, Q, Prefetch
+from django.core.exceptions import ObjectDoesNotExist
+from openpyxl.styles import PatternFill
+from openpyxl.comments import Comment
+from datetime import date
 @login_required
 def principal(request):
     # Vista principal de la aplicación, muestra una página de bienvenida
@@ -27,11 +33,12 @@ def principal(request):
 @permission_required('muestras.can_view_muestras_web')
 def muestras_todas(request):
     # Vista que muestra todas las muestras, requiere que el usuario esté autenticado
-    muestras = Muestra.objects.prefetch_related('localizacion')
+    muestras = (Muestra.objects.select_related('subposicion__caja__rack__estante__congelador'))
+
     # Filtrado de muestras si se proporcionan parámetros de búsqueda
-    field_names = [f.name for f in Muestra._meta.local_fields if f.name not in ('id','estudio','estado_actual')]
+    field_names = [f.name for f in Muestra._meta.local_fields if f.name not in ('id','estudio')]
     fields_loc = [f.name for f in Localizacion._meta.local_fields if f.name not in ('id','muestra')]
-    field_names_readable = ['Id del individuo','Nombre dado por el laboratorio','Material','Volumen actual','Unidad de volumen','Concentración actual','Unidad de concentración','Masa actual','Unidad de masa','Fecha de extracción','Fecha de llegada','Observaciones','Estado inicial','Centro de procedencia','Lugar de procedencia']
+    field_names_readable = ['Id del individuo','Nombre dado por el laboratorio','Material','Volumen actual','Unidad de volumen','Concentración actual','Unidad de concentración','Masa actual','Unidad de masa','Fecha de extracción','Fecha de llegada','Observaciones','Estado inicial','Centro de procedencia','Lugar de procedencia','Estado actual']
     field_names_readable_dict = {k:v for (k,v) in zip(field_names,field_names_readable)}
     if request.user.groups.filter(name='Investigadores'):
         muestras = Muestra.objects.filter(Q(estudio__investigadores_asociados__username=request.user))
@@ -123,14 +130,13 @@ def acciones_post(request):
                 for muestra in muestras_a_procesar:
                     eliminar_muestra(request, muestra.id_individuo, muestra.nom_lab) 
         elif 'envio' in request.POST:
-            if muestras_seleccionadas:
-                if 'muestras_envio' in request.session:
-                    del request.session['muestras_envio']
-                for muestra in muestras_seleccionadas:
-                    if Muestra.objects.get(id=muestra).estado_actual == 'Destruida':
-                        muestras_seleccionadas.remove(muestra)
-                request.session['muestras_envio']=muestras_seleccionadas
-                return redirect('agenda')
+            if 'muestras_envio' in request.session:
+                del request.session['muestras_envio']
+            for muestra in muestras_seleccionadas:
+                if Muestra.objects.get(id=muestra).estado_actual == 'Destruida':
+                    muestras_seleccionadas.remove(muestra)
+            request.session['muestras_envio']=muestras_seleccionadas
+            return redirect('agenda')
         elif 'destruir' in request.POST:
             if muestras_seleccionadas:
                 muestras_a_destruir = Muestra.objects.filter(id__in=muestras_seleccionadas)
@@ -147,7 +153,8 @@ def acciones_post(request):
                                                                              fecha = timezone.now(),
                                                                              usuario = request.user)
                     registro_destruccion.save()
-                    
+        elif 'cambio_posicion' in request.POST:
+            return redirect('cambio_posicion')             
     return redirect('muestras_todas')    
 def detalles_muestra(request, nom_lab):
     # Vista que muestra los detalles de una muestra específica, requiere permiso para ver muestras
@@ -162,38 +169,138 @@ def detalles_muestra(request, nom_lab):
 
 def añadir_muestras(request):
     if request.method == 'POST':
-        form = MuestraForm(request.POST)
-        if form.is_valid():
-            form.save()
+        form_muestra = MuestraForm(request.POST)
+        if form_muestra.is_valid():
+            muestra = form_muestra.save()
+            try:
+                numero_congelador = request.POST.getlist("congelador")
+                congelador = Congelador.objects.get(congelador = numero_congelador[0])
+                numero_estante = request.POST.getlist("estante")
+                estante = Estante.objects.get(congelador=congelador, numero=numero_estante[0])
+                numero_rack= request.POST.getlist("rack")
+                rack = Rack.objects.get(estante=estante, numero=numero_rack[0])
+                numero_caja = request.POST.getlist("caja")
+                caja = Caja.objects.get(rack=rack, numero=numero_caja[0])
+                numero_subposicion = request.POST.getlist("subposicion")
+                subposicion= Subposicion.objects.get(caja = caja, numero = numero_subposicion[0])
+                if subposicion.vacia == False:
+                    messages.error(request,'la posición está ocupada por otra muestra, la muestra a archivar se guardará sin localización')
+                else:
+                    subposicion.muestra = muestra
+                    subposicion.vacia = False
+                    subposicion.save()
+                    localizacion = Localizacion.objects.create(congelador=numero_congelador[0], 
+                                                estante=numero_estante[0], 
+                                                rack=numero_rack[0], 
+                                                caja=numero_caja[0], 
+                                                subposicion=numero_subposicion[0], 
+                                                muestra=muestra)
+                    historial_localizaciones.objects.create(muestra=muestra, 
+                                                            localizacion = localizacion, 
+                                                            fecha_asignacion = timezone.now(),
+                                                            usuario_asignacion = request.user)
+                    messages.success(request, 'Muestra añadida correctamente')
+            except ObjectDoesNotExist:
+                messages.error(request,'La localización indicada no existe, la muestra se guardará sin una localización asignada')
             return redirect('muestras_todas')
     else:
-        form = MuestraForm()
-    return render(request, 'añadir_muestras.html', {'form': form})
+        form_muestra = MuestraForm()
+    return render(request, 'añadir_muestras.html', {'form_muestra': form_muestra})
 
 
 @permission_required('muestras.can_delete_muestras_web')
 def eliminar_muestra(request, id_individuo, nom_lab):
     # Vista para eliminar una muestra, requiere permiso para eliminar muestras
     muestra = get_object_or_404(Muestra,id_individuo=id_individuo, nom_lab=nom_lab)
+    if Subposicion.objects.filter(muestra = muestra).exists():
+        subposicion = Subposicion.objects.get(muestra = muestra)
+        subposicion.muestra = None
+        subposicion.vacia = True
+        subposicion.save()
     muestra.delete()
+    messages.success(request,'Muestras eliminadas correctamente')
     return redirect('muestras_todas')
 @permission_required('muestras.can_add_muestras_web')
 def upload_excel(request):
     if request.method=="POST":
         form = UploadExcel(request.POST, request.FILES)
+        # Si el usuario confirma, se crean en la base de datos los registros validos
         if 'confirmar' in request.POST:
             messages.success(request, 'Las muestras sin errores graves se han añadido correctamente')
-            ids_to_delete = request.session.pop('ids_error_muestras', [])
-            Muestra.objects.filter(nom_lab__in=ids_to_delete).delete()
+            filas_validas = request.session.get('filas_validas',[])
+            with transaction.atomic():
+                for datos in filas_validas:
+                    subposicion = Subposicion.objects.select_for_update().get(
+                        id=datos["subposicion_id"]
+                    )
+                    if datos["fecha_extraccion"]:
+                        fecha_extraccion =  date.fromisoformat(datos["fecha_extraccion"])
+                    else:
+                        fecha_extraccion = None
+                    if datos["fecha_llegada"]:
+                        fecha_llegada = date.fromisoformat(datos["fecha_llegada"])
+                    else:
+                        fecha_llegada = None
+                    estudio = None
+                    if datos["estudio"]:
+                        estudio = Estudio.objects.get(id = datos["estudio"])
+                    muestra = Muestra.objects.create(
+                        id_individuo=datos["id_individuo"],
+                        nom_lab=datos["nom_lab"],
+                        id_material=datos.get("id_material"),
+                        volumen_actual=datos.get("volumen_actual"),
+                        unidad_volumen=datos.get("unidad_volumen"),
+                        concentracion_actual=datos.get("concentracion_actual"),
+                        unidad_concentracion=datos.get("unidad_concentracion"),
+                        masa_actual=datos.get("masa_actual"),
+                        unidad_masa=datos.get("unidad_masa"),
+                        fecha_extraccion=fecha_extraccion,
+                        fecha_llegada=fecha_llegada,
+                        observaciones=datos.get("observaciones"),
+                        estado_inicial=datos.get("estado_inicial"),
+                        centro_procedencia=datos.get("centro_procedencia"),
+                        lugar_procedencia=datos.get("lugar_procedencia"),
+                        estado_actual="DISP",
+                        estudio=estudio,
+                    )
+
+                    localizacion =Localizacion.objects.create(
+                        muestra=muestra,
+                        congelador=subposicion.caja.rack.estante.congelador.congelador,
+                        estante=subposicion.caja.rack.estante.numero,
+                        rack=subposicion.caja.rack.numero,
+                        caja=subposicion.caja.numero,
+                        subposicion=subposicion.numero,
+                    )
+
+                    subposicion.vacia = False
+                    subposicion.muestra = muestra
+                    subposicion.save()
+
+                    historial_localizaciones.objects.create(
+                    muestra=muestra,
+                    localizacion=localizacion,
+                    fecha_asignacion=timezone.now(),
+                    usuario_asignacion=request.user
+                )
+
+                    if datos["estudio"]:
+                        historial_estudios.objects.create(
+                            muestra=muestra,
+                            estudio=estudio,
+                            fecha_asignacion=timezone.now(),
+                            usuario_asignacion=request.user
+                        )
             return redirect('muestras_todas')
+        # Si el usuario cancela, no se añade nada a la base de datos
         elif 'cancelar' in request.POST:
-            # Eliminación de las muestras y localizaciones añadidas del excel
-            ids_to_delete = request.session.pop('nuevos_ids', [])
-            Muestra.objects.filter(id__in=ids_to_delete).delete()
             messages.error(request,'Las muestras no se han añadido')
             return redirect('muestras_todas')
+        
+        # Si hay un archivo excel subido, se procesa
         elif 'excel_file' in request.FILES:
             if form.is_valid():
+                # Leer excel y preparar columnas 
                 excel_file = request.FILES['excel_file']
                 excel_bytes = excel_file.read()
                 request.session['excel_file_name'] = excel_file.name
@@ -225,226 +332,277 @@ def upload_excel(request):
                     'Caja': 'caja',
                     'Subposición': 'subposicion',
                     'Estudio':'estudio'
-                    
                 }
                 df.rename(columns=rename_columns, inplace=True)
-                errors = 0
-                errors_loc = 0
-                errores_estudio = 0
-                campos_vacios = 0
-                localizaciones_ocupadas = 0
-                nuevos_ids = []
-                nuevos_ids_loc = []
-                ids_error_muestras = []
-                ids_error_localizaciones = []
-                ids_formato_incorrecto = []
-                ids_campos_vacios =[]
-                ids_localizaciones_ocupadas = []
-                ids_muestras_duplicadas = []
-                columna_errores_formato = []
+                # Funciones para normalizar las columnas del excel
+                def norm(value):
+                    if value is None or pd.isna(value):
+                        return None
+
+                    if isinstance(value, str):
+                        value = value.strip()
+                        return value if value != "" else None
+
+                    return value
+                
+                def norm_code(value):
+                    if value is None or pd.isna(value):
+                        return None
+
+                    if isinstance(value, float) and value.is_integer():
+                        return str(int(value))
+
+                    return str(value).strip()
+
+                # Crear estructuras previas del excel
+                filas_validas = []
+                errores = {}
+                nom_lab_excel = set()
                 numero_registros = 0
-                for _, row in df.iterrows():
-                    def normalize_value(value):
-                        if pd.isna(value) or value is None:
-                             return None
-                        return value
+
+                cache = {
+                    'subposiciones': {
+                        (c.caja.rack.estante.congelador.congelador,
+                         c.caja.rack.estante.numero,
+                         c.caja.rack.numero,
+                         c.caja.numero,
+                         c.numero): c
+                         for c in Subposicion.objects.select_related('caja__rack__estante__congelador')
+                    },
+
+                    'estudios':{e:Estudio.objects.get(id=e)
+                                for e in Estudio.objects.values_list('id', flat=True)},
+
+                    'muestras_existentes': set(Muestra.objects.values_list('nom_lab',flat=True))
+                }
+                
+
+                # Recorrer el df para detectar errores y normalizar
+                for idx, row in df.iterrows():
                     numero_registros += 1
-                    fecha_extraccion=normalize_value(row['fecha_extraccion'])
-                    fecha_llegada = normalize_value(row['fecha_llegada'])
-                    volumen_actual = normalize_value(row['volumen_actual'])
-                    concentracion_actual = normalize_value(row['concentracion_actual'])
-                    masa_actual = normalize_value(row['masa_actual'])
+                    fila = idx + 2 
+                    errores[fila]={"bloqueantes":[],"advertencias":[]}
+                    datos = {
+                        "id_individuo":norm(row['id_individuo']),
+                        "nom_lab":norm(row['nom_lab']),
+                        "id_material":norm(row['id_material']),
+                        "volumen_actual":norm_code(row['volumen_actual']),
+                        "unidad_volumen":norm(row['unidad_volumen']),
+                        "concentracion_actual":norm_code(row['concentracion_actual']),
+                        "unidad_concentracion":norm(row['unidad_concentracion']),
+                        "masa_actual":norm_code(row['masa_actual']),
+                        "unidad_masa":norm(row['unidad_masa']),
+                        "fecha_extraccion":norm(row['fecha_extraccion']),
+                        "fecha_llegada":norm(row['fecha_llegada']),
+                        "observaciones":norm(row['observaciones']),
+                        "estado_inicial":norm(row['estado_inicial']),
+                        "centro_procedencia":norm(row['centro_procedencia']),
+                        "lugar_procedencia":norm(row['lugar_procedencia']),
+                        "estado_actual":norm(row['estado_actual']),
+                        "congelador":norm_code(row['congelador']),
+                        "estante":norm_code(row['estante']),
+                        "posicion_rack_estante":norm_code(row['posicion_rack_estante']),
+                        "rack":norm_code(row['rack']),
+                        "posicion_caja_rack":norm_code(row['posicion_caja_rack']),
+                        "caja":norm_code(row['caja']),
+                        "subposicion":norm_code(row['subposicion']),
+                        "estudio":norm_code(row['estudio'])  
+                    }
+                    # Comprobar si los campos obligatorios están rellenados
+                    obligatorios = ["nom_lab", "id_individuo", "congelador", "estante", "posicion_rack_estante", "rack", "caja", "posicion_caja_rack","subposicion"]
+
+                    for campo in obligatorios:
+                        if not datos.get(campo):
+                            errores[fila]["bloqueantes"].append(f"campo_obligatorio_vacio:{campo}")
+
+                    # Comprobar si los campos estan en el formato correcto
                     for campo in ['volumen_actual', 'concentracion_actual', 'masa_actual']:
-                        try:
-                            float(row[campo])
-                        except:
-                            columna_errores_formato.append(df.columns.get_loc(campo))
-                            ids_formato_incorrecto.append(row['nom_lab'])
-                            errors += 1
-                            if campo == 'volumen_actual':
-                                volumen_actual = 1000
-                            elif campo == 'concentracion_actual':
-                                concentracion_actual = 1000
-                            else: 
-                                masa_actual = 1000
-                    for campo in ['fecha_extraccion', 'fecha_llegada']:
-                        try:
-                            pd.to_datetime(row[campo], errors='raise')
-                        except Exception:
-                            columna_errores_formato.append(df.columns.get_loc(campo))
-                            ids_formato_incorrecto.append(row['nom_lab'])
-                            errors += 1
-                            if campo == 'fecha_llegada':
-                                fecha_llegada = '1000-01-01'
-                            else: 
-                                fecha_extraccion='1000-01-01'
-                            
-
-                    nombre_estudio_excel = row['estudio']
-                    if pd.isna(nombre_estudio_excel):
-                        estudio_instance = None
-                    else:
-                        try:
-                            estudio_instance = Estudio.objects.get(nombre_estudio=nombre_estudio_excel)
-                        except  Exception:
-                            estudio_instance = None
-                            errores_estudio += 1
-                    if not Muestra.objects.filter(nom_lab=row['nom_lab']):
-                        muestra, created = Muestra.objects.update_or_create(
-                            id_individuo=row['id_individuo'],
-                            nom_lab=row['nom_lab'],
-                            id_material=normalize_value(row['id_material']),
-                            volumen_actual=volumen_actual,
-                            unidad_volumen=normalize_value(row['unidad_volumen']),
-                            concentracion_actual=concentracion_actual,
-                            unidad_concentracion=normalize_value(row['unidad_concentracion']),
-                            masa_actual=masa_actual,
-                            unidad_masa=normalize_value(row['unidad_masa']),
-                            fecha_extraccion=fecha_extraccion,
-                            fecha_llegada = fecha_llegada,
-                            observaciones= normalize_value(row['observaciones']),
-                            estado_inicial=normalize_value(row['estado_inicial']),
-                            centro_procedencia=normalize_value(row['centro_procedencia']),
-                            lugar_procedencia=normalize_value(row['lugar_procedencia']),
-                            estado_actual=normalize_value(row['estado_actual']),
-                            estudio = estudio_instance
-                            )
-                        if estudio_instance != None:
-                            historial_estudio = historial_estudios.objects.create(muestra=muestra, estudio=estudio_instance,
-                                                                        fecha_asignacion=timezone.now(), usuario_asignacion=request.user)
-                    
-                            historial_estudio.save()
-                        def normalize_charfield_value(value):
-                            if pd.isna(value) or value is None:
-                                return None
+                        if datos[campo] != None:
                             try:
-                                if isinstance(value, (float, int)) and value == int(value):
-                                    return str(int(value))
-
-                            except ValueError:
-                                return str(value).strip()
-                        localizacion, loc_created = Localizacion.objects.update_or_create(
-                            muestra = muestra,
-                            congelador=normalize_charfield_value(row['congelador']),
-                            estante=normalize_charfield_value(row['estante']), 
-                            posicion_rack_estante=normalize_charfield_value(row['posicion_rack_estante']),
-                            rack=normalize_charfield_value(row['rack']),
-                            posicion_caja_rack=normalize_charfield_value(row['posicion_caja_rack']),
-                            caja=normalize_charfield_value(row['caja']),
-                            subposicion=normalize_value(row['subposicion'])    
-                        )
-                        if created:
-                            nuevos_ids.append(muestra.id)
-                        if loc_created:
-                            nuevos_ids_loc.append(localizacion.id)
-                            Localizacion.objects.filter(congelador = localizacion.congelador, 
-                                                                estante = localizacion.estante,
-                                                                posicion_rack_estante = localizacion.posicion_rack_estante,
-                                                                rack = localizacion.rack,
-                                                                posicion_caja_rack = localizacion.posicion_caja_rack,
-                                                                caja = localizacion.caja,
-                                                                subposicion = localizacion.subposicion,
-                                                                muestra__isnull=True).delete()
-                            historial_loc = historial_localizaciones.objects.create(muestra=muestra, localizacion=localizacion,
-                                                                            fecha_asignacion=timezone.now(), usuario_asignacion=request.user)
+                                datos[campo]=float(datos[campo])
+                            except (TypeError, ValueError):
+                                errores[fila]["bloqueantes"].append(f"formato_incorrecto:{campo}")
                         
-                            historial_loc.save()
-                            
-                        elif not created:
-                            ids_error_muestras.append(muestra.nom_lab)
-                            errors+=1
-                        elif not loc_created:
-                            errors_loc+=1
-                            ids_error_localizaciones.append(muestra.nom_lab)
-                        redirect('upload_excel')
-                    else:
-                        ids_muestras_duplicadas.append(row['nom_lab'])
-                        errors+=1
+                    for campo in ['fecha_extraccion', 'fecha_llegada']:
+                        if datos[campo] != None:
+                            try:
+                                fecha = pd.to_datetime(datos[campo])
+                                datos[campo] = fecha.date().isoformat()
+                            except Exception:
+                                errores[fila]["bloqueantes"].append(f"formato_incorrecto:{campo}")
+                                
+                    # Comprobar si hay duplicados entre las muestras dentro del excel o en la base de datos
+                    nom_lab = datos["nom_lab"]
 
-                    for column in df.columns:
-                        if pd.isna(row[column]):
-                            if column in [f.name for f in Muestra._meta.local_fields if f.name in ('nom_lab','id_individuo')] or column in [f.name for f in Localizacion._meta.local_fields]:
-                                if column =='nom_lab':
-                                    ids_error_muestras.append(None)
-                                    errors+=1
-                                    Muestra.objects.filter(nom_lab='nan').delete()
-                                elif column =='id_individuo':
-                                    ids_error_muestras.append(row["nom_lab"])
-                                    errors += 1
-                                    Muestra.objects.filter(id=nuevos_ids[len(nuevos_ids)-1]).delete()
-                                else:
-                                    ids_error_muestras.append(row["nom_lab"])
-                                    errors_loc+=1
-                                    if not pd.isna(row['nom_lab']):
-                                        Muestra.objects.filter(id=nuevos_ids[len(nuevos_ids)-1]).delete()
-                                        if not localizacion.id == None:
-                                            localizacion.delete()
-                            elif column in [f.name for f in Muestra._meta.local_fields if f.name not in ('nom_lab','id_individuo')]:
-                                Muestra.objects.filter(nom_lab=row['nom_lab']).update(**{column : None})
-                                ids_campos_vacios.append(row['nom_lab']) 
-                                campos_vacios += 1
-                    if Localizacion.objects.filter(
-                        ~Q(muestra__nom_lab=row['nom_lab']) | Q(muestra__isnull=True),
-                        congelador=row['congelador'],
-                        estante=row['estante'], 
-                        posicion_rack_estante=row['posicion_rack_estante'],
-                        rack=row['rack'],
-                        posicion_caja_rack=row['posicion_caja_rack'],
-                        caja=row['caja'],
-                        subposicion=normalize_value(row['subposicion'])
-                    ):
-                        ids_localizaciones_ocupadas.append(row['nom_lab'])
-                        localizaciones_ocupadas += 1
-                    if row['nom_lab'] in ids_formato_incorrecto:
-                        muestra.delete()
-                request.session['nuevos_ids'] = nuevos_ids
-                request.session['nuevos_ids_loc'] = nuevos_ids_loc
-                request.session['ids_error_muestras'] = ids_error_muestras
-                request.session['ids_error_localizaciones'] = ids_error_localizaciones
-                request.session['ids_formato_incorrecto'] = ids_formato_incorrecto
-                request.session['ids_campos_vacios'] = ids_campos_vacios
-                request.session['ids_localizaciones_ocupadas'] = ids_localizaciones_ocupadas
-                request.session['columna_errores_formato'] = columna_errores_formato
-                request.session['ids_muestras_duplicadas'] = ids_muestras_duplicadas
+                    if nom_lab in cache["muestras_existentes"]:
+                        errores[fila]["bloqueantes"].append("muestra_duplicada_bd")
+                    if nom_lab in nom_lab_excel:
+                        errores[fila]["bloqueantes"].append("muestra_duplicada_excel")
+                    else:
+                        nom_lab_excel.add(nom_lab)
+                    
+                    # Comprobar si el estudio existe en la base de datos
+                    estudio_id = datos.get("estudio")
+                    if estudio_id:
+                        estudio = cache["estudios"].get(estudio_id)
+                        if not estudio:
+                            errores[fila]["advertencias"].append("estudio_no_existe")
+                            datos["estudio"] = None
+                        else:
+                            datos["estudio"] = estudio.id
+
+                    # Comprobar si la localización está ocupada o existe
+                    key = (
+                        datos["congelador"],
+                        datos["estante"],
+                        datos["rack"],
+                        datos["caja"],
+                        datos["subposicion"]
+                    )
+
+                    subposicion = cache["subposiciones"].get(key)
+
+                    if not subposicion:
+                        errores[fila]["bloqueantes"].append("localizacion_no_existe")
+                    elif not subposicion.vacia:
+                        errores[fila]["bloqueantes"].append("localizacion_ocupada")
+                    else:
+                        datos["subposicion_id"] = subposicion.id
+
+                    # Detectar campos opcionales vacios
+                    opcionales = ["id_material",
+                                  "unidad_volumen",
+                                  "unidad_masa",
+                                  'unidad_concentracion',
+                                  "estado_inicial",
+                                  "estudio",
+                                  "estado_actual",
+                                  "observaciones", 
+                                  "centro_procedencia", 
+                                  "lugar_procedencia", 'volumen_actual', 'concentracion_actual', 'masa_actual','fecha_extraccion', 'fecha_llegada']
+                    for campo in opcionales:
+                        if datos.get(campo) is None:
+                            errores[fila]["advertencias"].append(f"campo_vacio:{campo}")
+
+                    # Registrar filas validas
+                    if not errores[fila]["bloqueantes"]:
+                        filas_validas.append(datos)
+                
+                request.session['filas_validas']=filas_validas
+                request.session['errores'] = errores
+
+                # Mensajes de información de la subida
                 messages.info(request, f'El excel subido tiene {numero_registros} registros.')
-                if errors==0 and errors_loc==0:
+                numero_errores_bloqueantes = 0
+                numero_errores_advertencia = 0
+                for fila in errores:
+                    if errores[fila]['bloqueantes']:
+                        numero_errores_bloqueantes+=1
+                    if errores[fila]["advertencias"]:
+                        numero_errores_advertencia+=1
+                if numero_errores_bloqueantes == 0:
                     messages.success(request, 'Y no tiene errores en ningún campo.')
-                    if campos_vacios!=0:
-                        messages.info(request,f"Aunque tiene {campos_vacios} campos vacios en algunas muestras.")
-                    elif localizaciones_ocupadas!=0:
-                        messages.info(request,f"Aunque hay {localizaciones_ocupadas} muestras que se están intentando archivar en una posición ocupada por otra muestra.")
+                    if numero_errores_advertencia!=0:
+                        messages.info(request,f"Aunque tiene {numero_errores_advertencia} filas con errores en algunos campos no críticos.")
                 else:
-                    messages.warning(request, f'Y contiene {errors} errores de los campos de las muestras, {errores_estudio} errores en el campo de estudios y {errors_loc} de los campos de localización.')
+                    messages.warning(request, f'Pero contiene {numero_errores_bloqueantes} filas con errores graves.')
                 return render(request, 'confirmacion_upload.html')
+        # Si se solicita un excel de errores, este se rellena en base a los errores detectados durante la validación 
         elif 'excel_errores' in request.POST:
-                    ids_error_muestras = request.session.get('ids_error_muestras', [])
-                    ids_error_localizaciones = request.session.get('ids_error_localizaciones', [])
-                    ids_formato_incorrecto = request.session.get('ids_formato_incorrecto', [])
-                    ids_campos_vacios=request.session.get('ids_campos_vacios', [])
-                    ids_localizaciones_ocupadas=request.session.get('ids_localizaciones_ocupadas', [])
-                    ids_muestras_duplicadas = request.session.get('ids_muestras_duplicadas', [])
-                    columna_errores_formato = request.session.get('columna_errores_formato',[])
+                    # Leer los errores y el excel de la sesión
+                    errores = request.session.get('errores',[])
                     excel_bytes = base64.b64decode(request.session.get('excel_file_base64'))
                     excel_file = io.BytesIO(excel_bytes)
                     wb = openpyxl.load_workbook(excel_file)
                     ws = wb.active
-                    for row in ws.iter_rows(min_row=2, max_row=ws.max_row):
-                        
-                        if row[1].value in ids_error_muestras or row[1].value in ids_muestras_duplicadas:
-                            for cell in row:
-                                cell.fill = openpyxl.styles.PatternFill(start_color="FF0000", end_color="FF0000", fill_type = "solid")
-                        elif row[1].value in ids_formato_incorrecto:
-                            for cell in row:
-                                if cell.col_idx - 1 in columna_errores_formato:
-                                    cell.fill = openpyxl.styles.PatternFill(start_color="FF8000", end_color="FF8000", fill_type = "solid")
-                        elif row[1].value in ids_campos_vacios:
-                            for cell in row:
-                                if cell.value == None:
-                                    cell.fill = openpyxl.styles.PatternFill(start_color="FFFF00", end_color="FFFF00", fill_type = "solid")
-                        elif row[1].value in ids_localizaciones_ocupadas:
-                            for cell in row:
-                                cell.fill = openpyxl.styles.PatternFill(start_color="51D1F6", end_color="51D1F6", fill_type = "solid")
-                       
+                    # Definir los estilos para pintar el excel
+                    FILL_ERROR_ROW = PatternFill("solid", fgColor="F8D7DA")   # rojo claro
+                    FILL_WARN_ROW  = PatternFill("solid", fgColor="FFF3CD")   # amarillo claro
+                    FILL_ERROR_CELL = PatternFill("solid", fgColor="F5C2C7")  # rojo fuerte
+                    FILL_WARN_CELL  = PatternFill("solid", fgColor="FFECB5")  # amarillo fuerte
+                    # Diccionario de mensajes
+                    MENSAJES_ERROR = {
+                        "campo_obligatorio_vacio": "Campo obligatorio vacío",
+                        "formato_incorrecto": "Formato incorrecto",
+                        "muestra_duplicada_bd": "La muestra ya existe en la base de datos",
+                        "muestra_duplicada_excel": "Muestra duplicada dentro del Excel",
+                        "localizacion_ocupada": "La subposición ya está ocupada",
+                        "localizacion_no_existe": "La localización no existe",
+                        "campo_vacio": "Campo opcional vacío",
+                        "estudio_no_existe": "El estudio no existe (se puede asignar después)",
+                    }
+                    # Diccionario de columnas del excel
+                    columnas_excel = {}
+                    rename_columns = {
+                        'ID Individuo': 'id_individuo', 
+                        'Nombre Laboratorio': 'nom_lab',
+                        'ID Material': 'id_material',
+                        'Volumen Actual': 'volumen_actual',
+                        'Unidad Volumen': 'unidad_volumen',
+                        'Concentracion Actual': 'concentracion_actual',
+                        'Unidad Concentracion': 'unidad_concentracion',
+                        'Masa Actual': 'masa_actual',
+                        'Unidad Masa': 'unidad_masa',
+                        'Fecha Extraccion': 'fecha_extraccion',
+                        'Fecha Llegada': 'fecha_llegada',
+                        'Observaciones': 'observaciones',
+                        'Estado Inicial': 'estado_inicial',
+                        'Centro Procedencia': 'centro_procedencia',
+                        'Lugar Procedencia': 'lugar_procedencia',
+                        'Estado actual': 'estado_actual',
+                        'Congelador': 'congelador', 
+                        'Estante': 'estante',
+                        'Posición del rack en el estante': 'posicion_rack_estante',
+                        'Rack': 'rack',
+                        'Posición de la caja en el rack': 'posicion_caja_rack',
+                        'Caja': 'caja',
+                        'Subposición': 'subposicion',
+                        'Estudio':'estudio'
+                    }
+                    for cell in ws[1]:
+                        columnas_excel[rename_columns[cell.value]] = cell.column
+                    # Añadir la columna de errores
+                    col_errores = ws.max_column + 1
+                    ws.cell(row=1, column=col_errores, value="Errores")
+                    # Recorrer filas con errores 
+                    for fila, info in errores.items():
+                        # Pintar las filas
+                        has_error = bool(info["bloqueantes"])
+                        has_warn = bool(info["advertencias"])
+
+                        if has_error:
+                            fill_fila = FILL_ERROR_ROW
+                        elif has_warn:
+                            fill_fila = FILL_WARN_ROW
+                        else:
+                            continue
+                        for col in range(1, ws.max_column + 1):
+                            ws.cell(row=int(fila), column=col).fill = fill_fila
+
+                        # Escribir en la columna de errores, colorear las celdas con error y poner un comentario en ellas
+                        mensajes = []
+                        for err in info["bloqueantes"]:
+                            if ":" in err:
+                                tipo, campo = err.split(":")
+                                mensajes.append(f"[ERROR] {MENSAJES_ERROR[tipo]}")
+                                col = columnas_excel[campo]
+                                celda = ws.cell(row=int(fila), column=col)
+                                celda.fill = FILL_ERROR_CELL
+                                celda.comment = Comment(MENSAJES_ERROR[tipo], "Sistema")
+                            else:
+                                mensajes.append(f"[ERROR] {MENSAJES_ERROR[err]}")
+                        for warn in info["advertencias"]:
+                            tipo, campo = warn.split(":")
+                            if not f"[WARN] {MENSAJES_ERROR[tipo]}" in mensajes:
+                                mensajes.append(f"[WARN] {MENSAJES_ERROR[tipo]}")
+                            col = columnas_excel[campo]
+                            celda = ws.cell(row=int(fila), column=col)
+                            celda.fill = FILL_WARN_CELL
+                            celda.comment = Comment(MENSAJES_ERROR[tipo], "Sistema")
+                        ws.cell(row=int(fila), column=col_errores, value="\n".join(mensajes))
+
+
+                    # Rertornar el excel de errores    
                     output = io.BytesIO()    
                     wb.save(output)
                     wb.close()
@@ -455,7 +613,257 @@ def upload_excel(request):
     else:
         form = UploadExcel(request)     
     return render(request, 'upload_excel.html', {'form': form}) 
-   
+@permission_required('muestras.can_change_muestras_web')
+def cambio_posicion(request):
+    if request.method=="POST":
+        form = UploadExcel(request.POST, request.FILES)
+        # Si el usuario confirma, se guardan las muestras en una nueva posición
+        if 'confirmar' in request.POST:
+            messages.success(request,'Las muestras se han cambiado de posicion dentro del archivo')
+            filas_validas = request.session.get('filas_validas',[])
+            with transaction.atomic():
+                for datos in filas_validas:
+                    subposicion = Subposicion.objects.select_for_update().get(
+                        id=datos["subposicion_id"]
+                    )
+                    subposicion_antigua = Subposicion.objects.select_for_update().get(
+                        id=datos["subposicion_antigua"]
+                    ) 
+                    muestra=Muestra.objects.get(nom_lab=datos['nom_lab'])
+                    localizacion =Localizacion.objects.create(
+                        muestra=muestra,
+                        congelador=subposicion.caja.rack.estante.congelador.congelador,
+                        estante=subposicion.caja.rack.estante.numero,
+                        rack=subposicion.caja.rack.numero,
+                        caja=subposicion.caja.numero,
+                        subposicion=subposicion.numero,
+                    )
+
+                    subposicion_antigua.vacia = True
+                    subposicion_antigua.muestra = None
+                    subposicion_antigua.save()
+
+                    subposicion.vacia = False
+                    subposicion.muestra = muestra
+                    subposicion.save()
+
+                    historial_localizaciones.objects.create(
+                    muestra=muestra,
+                    localizacion=localizacion,
+                    fecha_asignacion=timezone.now(),
+                    usuario_asignacion=request.user
+                )
+
+            return redirect('muestras_todas')
+
+        # Si el usuario cancela, no se hace nada
+        elif 'cancelar' in request.POST:
+            messages.error(request,'Las muestras no se han cambiado de posición.')
+            return redirect('muestras_todas')
+        
+        elif 'excel_file' in request.FILES:
+            if form.is_valid():
+                # Leer excel y preparar columnas 
+                excel_file = request.FILES['excel_file']
+                excel_bytes = excel_file.read()
+                request.session['excel_file_name'] = excel_file.name
+                request.session['excel_file_base64']= base64.b64encode(excel_bytes).decode()
+                excel_stream = io.BytesIO(excel_bytes)
+                df = pd.read_excel(excel_stream)
+                rename_columns = {
+                    'Nombre Laboratorio': 'nom_lab',
+                    'Congelador': 'congelador', 
+                    'Estante': 'estante',
+                    'Posición del rack en el estante': 'posicion_rack_estante',
+                    'Rack': 'rack',
+                    'Posición de la caja en el rack': 'posicion_caja_rack',
+                    'Caja': 'caja',
+                    'Subposición': 'subposicion',
+                }
+                df.rename(columns=rename_columns, inplace=True)
+                # Funciones para normalizar las columnas del excel
+                def norm(value):
+                    if value is None or pd.isna(value):
+                        return None
+
+                    if isinstance(value, str):
+                        value = value.strip()
+                        return value if value != "" else None
+
+                    return value
+                
+                def norm_code(value):
+                    if value is None or pd.isna(value):
+                        return None
+
+                    if isinstance(value, float) and value.is_integer():
+                        return str(int(value))
+
+                    return str(value).strip()
+                # Carga de datos previos y creación de estructuras 
+                filas_validas = []
+                errores = {}
+                nom_lab_excel = set()
+                numero_registros = 0
+
+                cache = {
+                    'subposiciones': {
+                        (c.caja.rack.estante.congelador.congelador,
+                         c.caja.rack.estante.numero,
+                         c.caja.rack.numero,
+                         c.caja.numero,
+                         c.numero): c
+                         for c in Subposicion.objects.select_related('caja__rack__estante__congelador')
+                    },
+                    'posiciones_actuales': {
+                        (p.muestra.nom_lab): p.id 
+                        for p in Subposicion.objects.all() if p.muestra != None
+                    },
+
+                    'muestras_existentes': set(Muestra.objects.values_list('nom_lab',flat=True))
+                }
+
+                # Recorrer el df para detectar errores y normalizar
+                for idx, row in df.iterrows():
+                    numero_registros += 1
+                    fila = idx + 2 
+                    errores[fila]={"bloqueantes":[]}
+                    datos = {
+                        "nom_lab":norm(row['nom_lab']),
+                        "congelador":norm_code(row['congelador']),
+                        "estante":norm_code(row['estante']),
+                        "posicion_rack_estante":norm_code(row['posicion_rack_estante']),
+                        "rack":norm_code(row['rack']),
+                        "posicion_caja_rack":norm_code(row['posicion_caja_rack']),
+                        "caja":norm_code(row['caja']),
+                        "subposicion":norm_code(row['subposicion']), 
+                    }
+                    # Comprobar si los campos obligatorios están rellenados
+                    obligatorios = ["nom_lab", "congelador", "estante", "posicion_rack_estante", "rack", "caja", "posicion_caja_rack","subposicion"]
+
+                    for campo in obligatorios:
+                        if not datos.get(campo):
+                            errores[fila]["bloqueantes"].append(f"campo_obligatorio_vacio:{campo}")
+                    
+                    # Comprobar si hay duplicados entre las muestras dentro del excel o si la muestra no está en la base de datos
+                    nom_lab = datos["nom_lab"]
+
+                    if nom_lab not in cache["muestras_existentes"]:
+                        errores[fila]["bloqueantes"].append("muestra_no_existe_bd")
+                    if nom_lab in nom_lab_excel:
+                        errores[fila]["bloqueantes"].append("muestra_duplicada_excel")
+                    else:
+                        nom_lab_excel.add(nom_lab)
+
+                    # Comprobar si la localización está ocupada o existe
+                    key = (
+                        datos["congelador"],
+                        datos["estante"],
+                        datos["rack"],
+                        datos["caja"],
+                        datos["subposicion"]
+                    )
+
+                    subposicion = cache["subposiciones"].get(key)
+
+                    if not subposicion:
+                        errores[fila]["bloqueantes"].append("localizacion_no_existe")
+                    elif not subposicion.vacia:
+                        errores[fila]["bloqueantes"].append("localizacion_ocupada")
+                    else:
+                        datos["subposicion_id"] = subposicion.id
+                        datos["subposicion_antigua"] = cache['posiciones_actuales'].get(datos['nom_lab'])
+                    
+                    # Registrar filas validas
+                    if not errores[fila]["bloqueantes"]:
+                        filas_validas.append(datos)
+                
+                    request.session['filas_validas']=filas_validas
+                    request.session['errores'] = errores
+
+                # Mensajes de información de la subida
+                messages.info(request, f'El excel subido tiene {numero_registros} registros.')
+                numero_errores_bloqueantes = 0
+                for fila in errores:
+                    if errores[fila]['bloqueantes']:
+                        numero_errores_bloqueantes+=1
+                if numero_errores_bloqueantes == 0:
+                    messages.success(request, 'Y no tiene errores en ningún campo.')
+                else:
+                    messages.warning(request, f'Pero contiene {numero_errores_bloqueantes} filas con errores graves.')
+                return render(request, 'confirmacion_upload_cambio_posicion.html')
+            
+        # Si se solicita un excel de errores, este se rellena en base a los errores detectados durante la validación 
+        elif 'excel_errores' in request.POST:
+                    # Leer los errores y el excel de la sesión
+                    errores = request.session.get('errores',[])
+                    excel_bytes = base64.b64decode(request.session.get('excel_file_base64'))
+                    excel_file = io.BytesIO(excel_bytes)
+                    wb = openpyxl.load_workbook(excel_file)
+                    ws = wb.active
+                    # Definir los estilos para pintar el excel
+                    FILL_ERROR_ROW = PatternFill("solid", fgColor="F8D7DA")   # rojo claro
+                    FILL_ERROR_CELL = PatternFill("solid", fgColor="F5C2C7")  # rojo fuerte
+                    # Diccionario de mensajes
+                    MENSAJES_ERROR = {
+                        "campo_obligatorio_vacio": "Campo obligatorio vacío",
+                        "muestra_no_existe_bd": "La muestra no existe en la base de datos",
+                        "muestra_duplicada_excel": "Muestra duplicada dentro del Excel",
+                        "localizacion_ocupada": "La subposición ya está ocupada",
+                        "localizacion_no_existe": "La localización no existe"
+                    }
+                    # Diccionario de columnas del excel
+                    columnas_excel = {}
+                    rename_columns = {
+                        'Nombre Laboratorio': 'nom_lab',
+                        'Congelador': 'congelador', 
+                        'Estante': 'estante',
+                        'Posición del rack en el estante': 'posicion_rack_estante',
+                        'Rack': 'rack',
+                        'Posición de la caja en el rack': 'posicion_caja_rack',
+                        'Caja': 'caja',
+                        'Subposición': 'subposicion',
+                    }
+                    for cell in ws[1]:
+                        columnas_excel[rename_columns[cell.value]] = cell.column
+                    # Añadir la columna de errores
+                    col_errores = ws.max_column + 1
+                    ws.cell(row=1, column=col_errores, value="Errores")
+                    # Recorrer filas con errores 
+                    for fila, info in errores.items():
+                        # Pintar las filas
+                        has_error = bool(info["bloqueantes"])
+                        if has_error:
+                            fill_fila = FILL_ERROR_ROW
+                        else:
+                            continue
+                        for col in range(1, ws.max_column + 1):
+                            ws.cell(row=int(fila), column=col).fill = fill_fila
+
+                        # Escribir en la columna de errores, colorear las celdas con error y poner un comentario en ellas
+                        mensajes = []
+                        for err in info["bloqueantes"]:
+                            if ":" in err:
+                                tipo, campo = err.split(":")
+                                mensajes.append(f"[ERROR] {MENSAJES_ERROR[tipo]}")
+                                col = columnas_excel[campo]
+                                celda = ws.cell(row=int(fila), column=col)
+                                celda.fill = FILL_ERROR_CELL
+                                celda.comment = Comment(MENSAJES_ERROR[tipo], "Sistema")
+                            else:
+                                mensajes.append(f"[ERROR] {MENSAJES_ERROR[err]}")
+                        ws.cell(row=int(fila), column=col_errores, value="\n".join(mensajes))
+                    # Rertornar el excel de errores    
+                    output = io.BytesIO()    
+                    wb.save(output)
+                    wb.close()
+                    response = HttpResponse(output.getvalue(),content_type='application/ms-excel')
+                    response['Content-Disposition'] = 'attachment; filename="listado_errores.xlsx"'
+                    return response        
+    else:
+        form = UploadExcel(request)
+    return render(request, 'upload_excel_cambio_posicion.html', {'form': form}) 
+
 @permission_required('muestras.can_change_muestras_web')
 def editar_muestra(request, id_individuo, nom_lab):
     # Vista para editar una muestra existente, requiere permiso para cambiar muestras
@@ -463,8 +871,55 @@ def editar_muestra(request, id_individuo, nom_lab):
     if request.method == 'POST':
         form = MuestraForm(request.POST, instance=muestra)
         if form.is_valid():
-            form.save()
-            return redirect('detalles_muestra', id_individuo=form.instance.id_individuo, nom_lab=form.instance.nom_lab)
+            form.save() 
+            campos = [
+                request.POST.get("congelador"),
+                request.POST.get("estante"),
+                request.POST.get("rack"),
+                request.POST.get("caja"),
+                request.POST.get("subposicion"),
+            ]
+
+            if not all(campos):
+                messages.success(request,'Muestra editada correctamente, pero la posición no se ha cambiado')
+                return redirect('muestras_todas')
+
+            try:
+                numero_congelador = request.POST.get("congelador")
+                congelador = Congelador.objects.get(congelador = numero_congelador)
+                numero_estante = request.POST.get("estante")
+                estante = Estante.objects.get(congelador=congelador, numero=numero_estante)
+                numero_rack= request.POST.get("rack")
+                rack = Rack.objects.get(estante=estante, numero=numero_rack)
+                numero_caja = request.POST.get("caja")
+                caja = Caja.objects.get(rack=rack, numero=numero_caja)
+                numero_subposicion = request.POST.get("subposicion")
+                subposicion= Subposicion.objects.get(caja = caja, numero = numero_subposicion)
+                if subposicion.vacia == False:
+                    messages.error(request,'la posición está ocupada por otra muestra, no se editará la posición actual de esta muestra.')
+                else:
+                    if Subposicion.objects.filter(muestra = muestra).exists():
+                        subposicion_antigua = Subposicion.objects.get(muestra = muestra)
+                        subposicion_antigua.muestra = None
+                        subposicion_antigua.vacia = True
+                        subposicion_antigua.save()
+                    subposicion.muestra = muestra
+                    subposicion.vacia = False
+                    subposicion.save()
+                    localizacion = Localizacion.objects.create(congelador=numero_congelador[0], 
+                                                estante=numero_estante[0], 
+                                                rack=numero_rack[0], 
+                                                caja=numero_caja[0], 
+                                                subposicion=numero_subposicion[0], 
+                                                muestra=muestra)
+                    historial_localizaciones.objects.create(muestra=muestra, 
+                                                            localizacion = localizacion, 
+                                                            fecha_asignacion = timezone.now(),
+                                                            usuario_asignacion = request.user)
+                    messages.success(request,'Muestra editada correctamente')
+            except ObjectDoesNotExist:
+                messages.error(request,'La localización indicada no existe, no se editará la posición actual de esta muestra.')
+            return redirect('muestras_todas')
     else:
         form = MuestraForm(instance=muestra)
     return render(request, 'editar_muestra.html', {'form': form, 'muestra': muestra})
@@ -487,6 +942,10 @@ def descargar_plantilla(request,macro:int):
         plantilla_path = os.path.join(settings.BASE_DIR, 'datos_prueba', 'globalstaticfiles', 'plantilla_estudios.xlsx')
         if os.path.exists(plantilla_path):
             return FileResponse(open(plantilla_path, 'rb'), as_attachment=True, filename='plantilla_estudios.xlsx')
+    elif macro == 4:
+        plantilla_path = os.path.join(settings.BASE_DIR, 'datos_prueba', 'globalstaticfiles', 'plantilla_cambio_posicion.xlsx')
+        if os.path.exists(plantilla_path):
+            return FileResponse(open(plantilla_path, 'rb'), as_attachment=True, filename='plantilla_cambio_posicion.xlsx')
     else:
         return HttpResponse("La plantilla no se encuentra disponible.", status=404)
     
@@ -495,132 +954,35 @@ def descargar_plantilla(request,macro:int):
 @permission_required('muestras.can_view_localizaciones_web')
 def localizaciones(request):
     # Vista que muestra todas las localizaciones, tengan o no muestra
-    localizaciones = Localizacion.objects.all().values().distinct()
-    congeladores = Localizacion.objects.exclude(congelador=None).values_list('congelador', flat=True).distinct()
-    
-    estantes = (Localizacion.objects.exclude(estante='')
-                .values_list('congelador','estante')
-                .distinct().order_by('estante'))
-    
-    posicion_estante = (Localizacion.objects.exclude(posicion_rack_estante='')
-                       .values_list('congelador','estante','posicion_rack_estante')
-                       .distinct().order_by('posicion_rack_estante'))
-    
-    racks = (Localizacion.objects.exclude(rack='')
-             .values_list('congelador','estante','posicion_rack_estante','rack')
-             .distinct().order_by('rack'))
-    
-    posiciones_caja_rack = (Localizacion.objects.exclude(posicion_caja_rack='')
-                           .values_list('congelador','estante','posicion_rack_estante','rack','posicion_caja_rack')
-                           .distinct().order_by('posicion_caja_rack'))
-    
-    cajas = (Localizacion.objects.exclude(caja='')
-             .values_list('congelador','estante','posicion_rack_estante','rack','posicion_caja_rack','caja')
-             .distinct().order_by('caja'))
-    cajas_procesadas = []
+    cajas_qs = Caja.objects.annotate(
+        numero_muestras=Count(
+            'subposiciones',
+            filter=Q(subposiciones__vacia=False)
+        )
+    )
 
-    for caja in cajas:
-        cantidad_muestras = Muestra.objects.filter(localizacion__caja=caja[5]).count()
-        nueva_caja = list(caja)
-        nueva_caja.append(str(cantidad_muestras))
-        cajas_procesadas.append(tuple(nueva_caja))
 
-    cajas = cajas_procesadas
+    congeladores = Congelador.objects.prefetch_related(
+        Prefetch(
+            'estantes__racks__cajas',
+            queryset=cajas_qs
+        ),
+        'estantes__racks__cajas__subposiciones')
 
 
     
-    subposiciones = (Localizacion.objects
-                    .values_list('congelador','estante','posicion_rack_estante','rack','posicion_caja_rack','caja','subposicion')
-                    .distinct())
-    
-    muestras = (Localizacion.objects
-                .values_list('congelador','estante','posicion_rack_estante','rack','posicion_caja_rack','caja','subposicion','muestra')
-                .distinct().order_by('subposicion'))
-    muestras_procesadas = []
-    for muestra in muestras:
-        nueva_muestra = list(muestra)
-        if muestra[7] != None:
-            estado_muestra = Muestra.objects.get(nom_lab=muestra[7]).estado_actual
-            nueva_muestra.append(estado_muestra)
-        muestras_procesadas.append(tuple(nueva_muestra))
-    muestras = muestras_procesadas
+
     template = loader.get_template('localizaciones_todas.html')
-    
-    param = ['congelador', 'estante', 'posicion_rack_estante', 'rack', 'posicion_caja_rack', 'caja', 'subposicion']
-    # Convertimos las claves de request.GET a un set para búsquedas rápidas
-    keys = set(request.GET.keys())
-
-    # Lista de niveles y sus nombres en orden jerárquico
-    niveles = [
-        (congeladores, "congelador"),
-        (estantes, "estante"),
-        (posicion_estante, "posicion_rack_estante"),
-        (racks, "rack"),
-        (posiciones_caja_rack, "posicion_caja_rack"),
-        (cajas, "caja"),
-        (subposiciones, "subposicion"),
-    ]
-
-    # Inicializamos flag para saber si se ejecutó alguna combinación completa
-    combinacion_ejecutada = False
-
-    # Procesamos primero combinaciones completas (subposiciones)
-    for subpos in subposiciones:
-        claves_combinacion = [f'{nombre}{subpos[i]}' for i, (nivel, nombre) in enumerate(niveles)]  # excluimos id/subposicion final
-        if all(clave in keys for clave in claves_combinacion):
-            eliminar_localizacion(request, "|".join([str(s) for s in subpos]), "subposicion")
-            combinacion_ejecutada = True
-
-    # Si no se ejecutó ninguna combinación completa, procesamos niveles parciales de arriba hacia abajo
-    
-    if not combinacion_ejecutada:
-        for nivel, nombre in reversed(niveles[:-1]):  # excluimos subposiciones para procesarlas solo en combinaciones completas
-            for elemento in nivel:
-                key= []
-                # Construimos la clave según la estructura de cada nivel
-                if isinstance(elemento, tuple):
-                    key_values = [str(e) for e in elemento]
-                    for i, (niv, nom) in enumerate(niveles):
-                        if i < len(elemento):
-                            key.append(f'{nom}{elemento[i]}')
-                else:
-                    key = [f'{nombre}{elemento}']
-                    key_values = [str(elemento)]
-
-                if all(clave in keys for clave in key):
-                    eliminar_localizacion(request, "|".join(key_values), nombre)
-                    combinacion_ejecutada = True
-                    break
-            if combinacion_ejecutada:
-                break
 
     context = {
-        'localizaciones': localizaciones,
-        'congeladores': congeladores,
-        'estantes': estantes,
-        'posicion_estante': posicion_estante,
-        'racks': racks,
-        'posiciones_caja_rack': posiciones_caja_rack,   
-        'cajas': cajas,
-        'muestras': muestras  
+        'congeladores':congeladores,
     }
     return HttpResponse(template.render(context, request))
 @permission_required('muestras.can_add_localizaciones_web')
 def upload_excel_localizaciones(request):
     if request.method=="POST":
         form = UploadExcel(request.POST, request.FILES)
-        if 'confirmar' in request.POST:
-            messages.success(request, 'Las localizaciones se han añadido correctamente.')
-            
-        elif 'cancelar' in request.POST:
-            # Eliminación de las muestras añadidas del excel
-            ids_to_delete = request.session.pop('nuevos_ids', [])
-            Localizacion.objects.filter(id__in=ids_to_delete).delete()
-        elif 'excel_file' in request.FILES:
-            if form.is_valid():
-                excel_file = request.FILES['excel_file']
-                df = pd.read_excel(excel_file)
-                rename_columns = {
+        rename_columns = {
                     'Congelador': 'congelador', 
                     'Estante': 'estante',
                     'Posición del rack en el estante': 'posicion_rack_estante',
@@ -629,38 +991,132 @@ def upload_excel_localizaciones(request):
                     'Caja': 'caja',
                     'Subposición': 'subposicion'
                 }
+        def limpiar_numero(valor):
+            if pd.isna(valor):
+                return None
+
+            # Normalizar floats tipo 1.0 → 1
+            if isinstance(valor, float) and valor.is_integer():
+                valor = int(valor)
+
+            valor = str(valor).strip()
+
+            if valor == "":
+                return None
+
+            return valor
+
+                
+        if 'confirmar' in request.POST:
+            filas = request.session.pop('filas_validas', [])
+
+            with transaction.atomic():
+                for fila in filas:
+                    congelador, _ = Congelador.objects.get_or_create(
+                        congelador=fila['congelador']
+                    )
+
+                    estante, _ = Estante.objects.get_or_create(
+                        congelador=congelador,
+                        numero=fila['estante']
+                    )
+
+                    rack, _ = Rack.objects.get_or_create(
+                        estante=estante,
+                        numero=fila['rack'], 
+                        defaults = {'posicion_rack_estante':fila['posicion_rack_estante']}
+                    )
+
+                    caja, _ = Caja.objects.get_or_create(
+                        rack=rack,
+                        numero=fila['caja'],
+                        defaults = {'posicion_caja_rack':fila['posicion_caja_rack']}
+                    )
+
+                    Subposicion.objects.get_or_create(
+                        caja=caja,
+                        numero=fila['subposicion']
+                    )
+
+            messages.success(request, 'Las localizaciones se han añadido correctamente.')
+            return redirect('localizaciones_todas')
+        
+        elif 'cancelar' in request.POST:
+            messages.error(request, 'Las localizaciones del excel no se han añadido.')
+            return redirect('localizaciones_todas')
+        
+        elif 'excel_file' in request.FILES:
+            if form.is_valid():
+                excel_file = request.FILES['excel_file']
+                excel_bytes = excel_file.read()
+                request.session['excel_file_base64']= base64.b64encode(excel_bytes).decode()
+                excel_stream = io.BytesIO(excel_bytes)
+                df = pd.read_excel(excel_stream)
+
+                # renombrar columnas
                 df.rename(columns=rename_columns, inplace=True)
-                errors = 0
-                nuevos_ids = []
-                for _, row in df.iterrows():
-                    try:
-                        localizacion, created = Localizacion.objects.update_or_create(
-                            congelador=row['congelador'],
-                            estante=row['estante'], 
-                            posicion_rack_estante=row['posicion_rack_estante'],
-                            rack=row['rack'],
-                            posicion_caja_rack=row['posicion_caja_rack'],
-                            caja=row['caja'],
-                            subposicion=row['subposicion']    
-                        )
-                        congelador = Congelador.objects.create(congelador = row['congelador'])
-                        congelador.save()
-                        if created:
-                            nuevos_ids.append(localizacion.id)
-                        else:
-                            messages.info(request, f'Localizacion {localizacion} ya existe, el excel no se ha procesado correctamente')
-                            errors+=1
-                    except ValueError:
-                        messages.error(request, f'El formato de alguno de los campos de la localizacion {localizacion} no es el correcto. Revisa el formato de los datos.')
-                        errors+=1
-                        redirect('localizacion_nueva')
-                request.session['nuevos_ids'] = nuevos_ids
-                nuevos_ids = []
-                if errors==0:
-                    messages.success(request, 'El archivo excel es correcto.')
+                localizaciones_duplicadas = []
+                filas_validas = []
+                filas_vacias = []
+                registros = 0
+                for idx, row in df.iterrows():
+                    registros += 1
+                    congelador = limpiar_numero(row['congelador'])
+                    estante = limpiar_numero(row['estante'])
+                    posicion_rack_estante = limpiar_numero(row['posicion_rack_estante'])
+                    rack = limpiar_numero(row['rack'])
+                    caja = limpiar_numero(row['caja'])
+                    posicion_caja_rack = limpiar_numero(row['posicion_caja_rack'])
+                    subpos = limpiar_numero(row['subposicion'])
+                    if any(v is None for v in [congelador, estante, posicion_rack_estante,rack, posicion_caja_rack,caja, subpos]):
+                        filas_vacias.append(idx + 2)
+                        continue
+                    if Subposicion.objects.filter(numero = subpos,
+                                                caja__numero = caja,
+                                                caja__rack__numero = rack,
+                                                caja__rack__estante__numero = estante, 
+                                                caja__rack__estante__congelador = congelador).exists():
+                        localizaciones_duplicadas.append(idx + 2)
+                    else:
+                        filas_validas.append({
+                            'congelador': congelador,
+                            'estante': estante,
+                            'posicion_rack_estante':posicion_rack_estante,
+                            'rack': rack,
+                            'posicion_caja_rack':posicion_caja_rack,
+                            'caja': caja,
+                            'subposicion': subpos
+                        })
+                request.session['filas_validas']=filas_validas
+                request.session['filas_vacias']=filas_vacias
+                request.session['localizaciones_duplicadas']=localizaciones_duplicadas
+                messages.info(request,f'El excel contiene {registros} registros')
+                if len(filas_validas) == registros:
+                    messages.success(request, 'Y son todos correctos.')
                 else:
-                    messages.warning(request, f'El archivo excel contiene {errors} errores.') 
-                return redirect('localizaciones_todas') 
+                    messages.error(request,f'De los cuales {len(localizaciones_duplicadas) + len(filas_vacias)} tienen errores.')
+                return render(request, 'confirmacion_upload_localizacion.html')
+
+        elif 'excel_errores' in request.POST:
+            localizaciones_duplicadas = request.session.get('localizaciones_duplicadas',[])
+            filas_vacias = request.session.get('filas_vacias',[])
+            excel_bytes = base64.b64decode(request.session.get('excel_file_base64'))
+            excel_file = io.BytesIO(excel_bytes)
+            wb = openpyxl.load_workbook(excel_file)
+            ws = wb.active
+            for row in ws.iter_rows(min_row=2, max_row=ws.max_row):
+                if row[0].row in localizaciones_duplicadas:
+                    for cell in row:
+                        cell.fill = openpyxl.styles.PatternFill(start_color="FF0000", end_color="FF0000", fill_type = "solid")
+                elif row[0].row in filas_vacias:
+                    for cell in row:
+                        cell.fill = openpyxl.styles.PatternFill(start_color="FFFF00", end_color="FFFF00", fill_type = "solid")
+            output = io.BytesIO()    
+            wb.save(output)
+            wb.close()
+            response = HttpResponse(output.getvalue(),content_type='application/ms-excel')
+            response['Content-Disposition'] = 'attachment; filename="listado_errores.xlsx"'
+            return response        
     else:
         form = UploadExcel(request)     
     return render(request, 'localizacion_nueva.html', {'form': form}) 
@@ -683,124 +1139,38 @@ def editar_congelador(request,nombre_congelador):
     return render(request, 'editar_congelador.html', {'form': form, 'congelador': congelador})
 
 @permission_required('muestras.can_delete_localizaciones_web')
-def eliminar_localizacion(request, loc, param):
-    # Vista para eliminar una localización específica
-    if param == 'congelador':
-        localizaciones = Localizacion.objects.filter(congelador=loc)
-        localizaciones.delete()
+def eliminar_localizacion(request):
+    if len(request.POST.getlist('congelador')) > 0:
+        congelador_lista = request.POST.getlist('congelador')
+        for i in range(len(congelador_lista)):
+            Congelador.objects.get(id=congelador_lista[i]).delete()
 
-    elif param == 'estante':
-        congelador,estante = loc.split('|')
-        localizaciones = Localizacion.objects.filter(congelador=congelador, estante=estante)
-        field_names = [f.name for f in Localizacion._meta.local_fields if f.name not in ('congelador','muestra','id')]
-        for unit in localizaciones:
-            for field in field_names:    
-                setattr(unit, field, '')
-            Localizacion.objects.filter(estante='').delete()
-            unit.save()
+    if len(request.POST.getlist('estante')) > 0:
+        estante_lista = request.POST.getlist('estante')
+        for i in range(len(estante_lista)):
+            Estante.objects.get(id=estante_lista[i]).delete()
+                
+    if len(request.POST.getlist('rack')) > 0:
+        rack_lista = request.POST.getlist('rack')
+        for i in range(len(rack_lista)):
+            Rack.objects.get(id=rack_lista[i]).delete()
 
-    elif param == 'posicion_rack_estante':
-        congelador, estante, posicion_rack_estante = loc.split('|')
-        localizaciones = Localizacion.objects.filter(congelador=congelador, estante=estante, posicion_rack_estante=posicion_rack_estante)
-        field_names = [f.name for f in Localizacion._meta.local_fields if f.name not in ('congelador','muestra','id','estante')]
-        for unit in localizaciones:
-            for field in field_names:    
-                setattr(unit, field, '')
-            Localizacion.objects.filter(posicion_rack_estante='').delete()
-            unit.save() 
+    if len(request.POST.getlist('caja')) > 0:
+        caja_lista = request.POST.getlist('caja')
+        for i in range(len(caja_lista)):
+            Caja.objects.get(id=caja_lista[i]).delete()
 
-    elif param == 'rack':
-        congelador, estante, posicion_rack_estante, rack = loc.split('|')
-        localizaciones = Localizacion.objects.filter(congelador=congelador, estante=estante, posicion_rack_estante=posicion_rack_estante, rack=rack)
-        field_names = [f.name for f in Localizacion._meta.local_fields if f.name not in ('congelador','muestra','id','estante','posicion_rack_estante')]
-        for unit in localizaciones:
-            for field in field_names:    
-                setattr(unit, field, '')
-            Localizacion.objects.filter(rack='').delete()
-            unit.save()
+    if len(request.POST.getlist('subposicion')) > 0:
+        subposicion_lista = request.POST.getlist('subposicion')
+        for i in range(len(subposicion_lista)):
+            Subposicion.objects.get(id=subposicion_lista[i]).delete()
 
-    elif param == 'posicion_caja_rack':
-        congelador, estante, posicion_rack_estante, rack, posicion_caja_rack = loc.split('|')
-        localizaciones = Localizacion.objects.filter(congelador=congelador, estante=estante, posicion_rack_estante=posicion_rack_estante, rack=rack, posicion_caja_rack=posicion_caja_rack)
-        field_names = [f.name for f in Localizacion._meta.local_fields if f.name not in ('congelador','muestra','id','estante','posicion_rack_estante','rack')]
-        for unit in localizaciones:
-            for field in field_names:    
-                setattr(unit, field, '')
-            Localizacion.objects.filter(posicion_caja_rack='').delete()
-            unit.save()
-
-    elif param == 'caja':
-        congelador, estante, posicion_rack_estante, rack, posicion_caja_rack, caja = loc.split('|')
-        localizaciones = Localizacion.objects.filter(congelador=congelador, estante=estante, posicion_rack_estante=posicion_rack_estante, rack=rack, posicion_caja_rack=posicion_caja_rack, caja=caja)
-        field_names = [f.name for f in Localizacion._meta.local_fields if f.name not in ('congelador','muestra','id','estante','posicion_rack_estante','rack','posicion_caja_rack')]
-        for unit in localizaciones:
-            for field in field_names:    
-                setattr(unit, field, '')
-            Localizacion.objects.filter(caja='').delete()
-            unit.save()
-
-    elif param == 'subposicion':
-        congelador, estante, posicion_rack_estante, rack, posicion_caja_rack, caja, subposicion = loc.split('|')
-        localizaciones = Localizacion.objects.filter(congelador=congelador, estante=estante, posicion_rack_estante=posicion_rack_estante, rack=rack, posicion_caja_rack=posicion_caja_rack, caja=caja, subposicion=subposicion)
-        for unit in localizaciones:
-            unit.muestra = None
-            unit.save()
-    
     else:
-        return redirect('archivo/')
+        return redirect('localizaciones_todas')
     
-    return redirect('archivo/')
+    return redirect('localizaciones_todas')
 
-@transaction.atomic
-def archivar_muestra(request):
-    # Vista para archivar una muestra en una localización específica que esté vacía 
-    if request.method == 'POST':
-        form = archivar_muestra_form(request.POST)
-        
-        if form.is_valid():
-            data = form.cleaned_data
-            
-            try:
-                muestra_obj = data['muestra']
-                if Localizacion.objects.filter(muestra=muestra_obj):
-                    new = Localizacion.objects.select_for_update().get(muestra=muestra_obj)
-                    new.muestra = None
-                    new.save()
-                slot = Localizacion.objects.select_for_update().get(
-                    congelador=data['congelador'],
-                    estante=data['estante'],
-                    posicion_rack_estante=data['posicion_rack_estante'],
-                    rack=data['rack'],
-                    posicion_caja_rack=data['posicion_caja_rack'],
-                    caja=data['caja'],
-                    subposicion=data['subposicion'],
-                    muestra__isnull=True 
-                )
 
-                
-            
-                slot.muestra = muestra_obj
-                slot.save()
-
-                historial = historial_localizaciones.objects.create(muestra=muestra_obj, localizacion=slot,
-                                                                    fecha_asignacion=timezone.now(), usuario_asignacion=request.user)
-                
-                historial.save()
-                return redirect('localizaciones_todas') 
-                
-            except Muestra.DoesNotExist:
-                
-                messages.error(request, "Error interno: La muestra no fue encontrada.")
-            
-            except Localizacion.DoesNotExist:
-                 
-                messages.error(request, "Error interno: La ubicación ya no está disponible o no existe.")
-                
-    else:
-        form =  archivar_muestra_form()
-        
-    context = {'form': form}
-    return render(request, 'archivar_muestra.html', context)
 def historial_localizaciones_muestra(request,muestra_id):
     muestra = Muestra.objects.get(id=muestra_id)
     historiales = historial_localizaciones.objects.filter(muestra=muestra).order_by('-fecha_asignacion')
@@ -842,10 +1212,27 @@ def excel_estudios(request):
         form = UploadExcel(request.POST, request.FILES)
         if 'confirmar' in request.POST:
             messages.success(request, 'Las estudios se han añadido correctamente')
+            filas_validas = request.session.get('filas_validas',[])
+            with transaction.atomic():
+                for datos in filas_validas:
+                    if datos["fecha_inicio_estudio"]:
+                        fecha_inicio_estudio =  date.fromisoformat(datos["fecha_inicio_estudio"])
+                    else:
+                        fecha_inicio_estudio = None
+                    if datos["fecha_fin_estudio"]:
+                        fecha_fin_estudio = date.fromisoformat(datos["fecha_fin_estudio"])
+                    else:
+                        fecha_fin_estudio = None
+                    Estudio.objects.create(
+                        referencia_estudio = datos['referencia_estudio'],
+                        nombre_estudio = datos['nombre_estudio'],
+                        descripcion_estudio = datos['descripcion_estudio'],
+                        fecha_inicio_estudio = fecha_inicio_estudio,
+                        fecha_fin_estudio = fecha_fin_estudio,
+                        investigador_principal = datos['investigador_principal']
+                    )
             return redirect('estudios_todos')
         elif 'cancelar' in request.POST:
-            ids_to_delete = request.session.pop('nuevos_ids', [])
-            Estudio.objects.filter(id__in=ids_to_delete).delete()
             messages.error(request,'Los estudios no se han añadido')
             return redirect('estudios_todos')
         elif 'excel_file' in request.FILES:
@@ -865,73 +1252,175 @@ def excel_estudios(request):
                     'Investigador principal': 'investigador_principal',
                 }
                 df.rename(columns=rename_columns, inplace=True)
-                nuevos_ids = []
-                estudios_existentes = []
-                fechas_mal = []
-                errors = 0
-                def normalize_value(value):
-                    if pd.isna(value) or value is None:
+                 # Funciones para normalizar las columnas del excel
+                def norm(value):
+                    if value is None or pd.isna(value):
                         return None
+
+                    if isinstance(value, str):
+                        value = value.strip()
+                        return value if value != "" else None
+
                     return value
+                
+                def norm_code(value):
+                    if value is None or pd.isna(value):
+                        return None
+
+                    if isinstance(value, float) and value.is_integer():
+                        return str(int(value))
+
+                    return str(value).strip()
                 def convertir_fecha(value):
                         if pd.isna(value) or value is None:
                             return None
-                        if isinstance(value,Number):
-                            raise ValueError
-                        fecha = pd.to_datetime(value, errors='ignore')
+                        fecha = pd.to_datetime(value)
                         return fecha.date()
-                for _, row in df.iterrows():
-                    try:
-                        fecha_inicio_estudio = convertir_fecha(row['fecha_inicio_estudio'])
-                        fecha_fin_estudio = convertir_fecha(row['fecha_fin_estudio'])
-                        investigador_principal = normalize_value(row['investigador_principal'])
-                        descripcion_estudio = normalize_value(row['descripcion_estudio'])
-                        referencia_estudio = normalize_value(row['referencia_estudio'])
-                    
-                        estudio,created  = Estudio.objects.update_or_create(
-                            nombre_estudio=row['nombre_estudio'],
-                            defaults={
-                                'referencia_estudio': referencia_estudio,
-                                'descripcion_estudio': descripcion_estudio,
-                                'fecha_inicio_estudio': fecha_inicio_estudio,
-                                'fecha_fin_estudio': fecha_fin_estudio,
-                                'investigador_principal': investigador_principal
-                            }
-                        )
 
-                        if created:
-                                nuevos_ids.append(estudio.id)
-                        else:
-                            messages.info(request, f'El estudio {estudio} ya existe, el excel no se ha procesado correctamente')
-                            errors+=1
-                            estudios_existentes.append(estudio.nombre_estudio)
-                    except (ValueError, TypeError):
-                        errors += 1
-                        fechas_mal.append(row['nombre_estudio'])
-                        continue
+                # Crear estructuras previas del excel
+                filas_validas = []
+                errores = {}
+                nombre_estudios_excel = set()
+                numero_registros = 0
+                cache = {
+                    'estudios_existentes': Estudio.objects.values_list('nombre_estudio',flat=True)
+                }
+                
+                for idx, row in df.iterrows():
+                    # Recorrer el df para detectar errores y normalizar
+                    numero_registros += 1
+                    fila = idx + 2 
+                    errores[fila]={"advertencias":[], "bloqueantes":[]}
+                    datos = {
+                        "nombre_estudio":norm(row['nombre_estudio']),
+                        'referencia_estudio': norm(row['referencia_estudio']),
+                        'descripcion_estudio': norm(row['descripcion_estudio']),
+                        'fecha_inicio_estudio':norm(row['fecha_inicio_estudio']),
+                        'fecha_fin_estudio': norm(row['fecha_fin_estudio']),
+                        'investigador_principal': norm(row['investigador_principal'])
+                    }
+                    # Detectar campos vacios
+                    optativos = ["referencia_estudio", "descripcion_estudio", "fecha_inicio_estudio", "fecha_fin_estudio", "investigador_principal"]
+                    for campo in optativos:
+                        if not datos.get(campo):
+                            errores[fila]["advertencias"].append(f"campo_optativo_vacio:{campo}")
+                    obligatorios = ["nombre_estudio"]
+                    for campo in obligatorios:
+                        if not datos.get(campo):
+                            errores[fila]["bloqueantes"].append(f"campo_obligatorio_vacio:{campo}")
+                    
+                    # Detectar formato de fecha erróneo
+                    for campo in ['fecha_inicio_estudio', 'fecha_fin_estudio']:
+                        if datos[campo] != None:
+                            try:
+                                fecha = pd.to_datetime(datos[campo])
+                                datos[campo] = fecha.date().isoformat()
+                            except Exception:
+                                errores[fila]["bloqueantes"].append(f"formato_incorrecto:{campo}")
+
+                    # Detectar si el estudio ya existe
+                    nombre_estudio = datos['nombre_estudio']
+                    if nombre_estudio in cache['estudios_existentes']:
+                        errores[fila]["bloqueantes"].append(f"estudio_existente")
+                    if nombre_estudio in nombre_estudios_excel:
+                        errores[fila]["bloqueantes"].append("estudio_duplicado_excel")
+                    else:
+                        nombre_estudios_excel.add(nombre_estudio)
                    
-                request.session['nuevos_ids'] = nuevos_ids
-                request.session['estudios_existentes'] = estudios_existentes
-                request.session['fechas_mal'] = fechas_mal
-                if errors==0:
-                    messages.success(request, 'El archivo excel es correcto.')
+                   # Registrar filas validas
+                    if not errores[fila]["bloqueantes"]:
+                        filas_validas.append(datos)
+                
+                request.session['filas_validas']=filas_validas
+                request.session['errores'] = errores
+
+                # Mensajes de información de la subida
+                messages.info(request, f'El excel subido tiene {numero_registros} registros.')
+                numero_errores_bloqueantes = 0
+                numero_errores_advertencia = 0
+                for fila in errores:
+                    if errores[fila]['bloqueantes']:
+                        numero_errores_bloqueantes+=1
+                    if errores[fila]["advertencias"]:
+                        numero_errores_advertencia+=1
+                if numero_errores_bloqueantes == 0:
+                    messages.success(request, 'Y no tiene errores en ningún campo.')
+                    if numero_errores_advertencia!=0:
+                        messages.info(request,f"Aunque tiene {numero_errores_advertencia} filas con errores en algunos campos no críticos.")
                 else:
-                    messages.warning(request, f'El archivo excel contiene {errors} errores.') 
+                    messages.warning(request, f'Pero contiene {numero_errores_bloqueantes} filas con errores graves.')
                 return render(request, 'confirmacion_upload_estudios.html')
         elif 'excel_errores' in request.POST:
-                    estudios_existentes = request.session.get('estudios_existentes', [])
-                    fechas_mal = request.session.get('fechas_mal', [])
+                    errores = request.session.get('errores',[])
                     excel_bytes = base64.b64decode(request.session.get('excel_file_base64'))
                     excel_file = io.BytesIO(excel_bytes)
                     wb = openpyxl.load_workbook(excel_file)
                     ws = wb.active
-                    for row in ws.iter_rows(min_row=2, max_row=ws.max_row):
-                        if row[1].value in estudios_existentes:
-                            for cell in row:
-                                cell.fill = openpyxl.styles.PatternFill(start_color="FF0000", end_color="FF0000", fill_type = "solid")
-                        elif row[1].value in fechas_mal:
-                            for cell in row:
-                                cell.fill = openpyxl.styles.PatternFill(start_color="FF8000", end_color="FF8000", fill_type = "solid")
+                    # Definir los estilos para pintar el excel
+                    FILL_ERROR_ROW = PatternFill("solid", fgColor="F8D7DA")   # rojo claro
+                    FILL_WARN_ROW  = PatternFill("solid", fgColor="FFF3CD")   # amarillo claro
+                    FILL_ERROR_CELL = PatternFill("solid", fgColor="F5C2C7")  # rojo fuerte
+                    FILL_WARN_CELL  = PatternFill("solid", fgColor="FFECB5")  # amarillo fuerte
+                    # Diccionario de mensajes
+                    MENSAJES_ERROR = {
+                        "campo_obligatorio_vacio": "Campo obligatorio vacío",
+                        "formato_incorrecto": "Formato incorrecto",
+                        "estudio_existente": "El estudio ya existe en la base de datos",
+                        "estudio_duplicado_excel": "Muestra duplicada dentro del Excel",
+                        "campo_optativo_vacio": "Campo opcional vacío"
+                    }
+                    # Diccionario de columnas del excel
+                    columnas_excel = {}
+                    rename_columns = {
+                    'Referencia del estudio': 'referencia_estudio', 
+                    'Nombre del estudio': 'nombre_estudio',
+                    'Descripción': 'descripcion_estudio',
+                    'Fecha de inicio': 'fecha_inicio_estudio',
+                    'Fecha de fin': 'fecha_fin_estudio',
+                    'Investigador principal': 'investigador_principal',
+                    }
+                    for cell in ws[1]:
+                        columnas_excel[rename_columns[cell.value]] = cell.column
+                    # Añadir la columna de errores
+                    col_errores = ws.max_column + 1
+                    ws.cell(row=1, column=col_errores, value="Errores")
+                    # Recorrer filas con errores 
+                    for fila, info in errores.items():
+                        # Pintar las filas
+                        has_error = bool(info["bloqueantes"])
+                        has_warn = bool(info["advertencias"])
+
+                        if has_error:
+                            fill_fila = FILL_ERROR_ROW
+                        elif has_warn:
+                            fill_fila = FILL_WARN_ROW
+                        else:
+                            continue
+                        for col in range(1, ws.max_column + 1):
+                            ws.cell(row=int(fila), column=col).fill = fill_fila
+
+                        # Escribir en la columna de errores, colorear las celdas con error y poner un comentario en ellas
+                        mensajes = []
+                        for err in info["bloqueantes"]:
+                            if ":" in err:
+                                tipo, campo = err.split(":")
+                                mensajes.append(f"[ERROR] {MENSAJES_ERROR[tipo]}")
+                                col = columnas_excel[campo]
+                                celda = ws.cell(row=int(fila), column=col)
+                                celda.fill = FILL_ERROR_CELL
+                                celda.comment = Comment(MENSAJES_ERROR[tipo], "Sistema")
+                            else:
+                                mensajes.append(f"[ERROR] {MENSAJES_ERROR[err]}")
+                        for warn in info["advertencias"]:
+                            tipo, campo = warn.split(":")
+                            if not f"[WARN] {MENSAJES_ERROR[tipo]}" in mensajes:
+                                mensajes.append(f"[WARN] {MENSAJES_ERROR[tipo]}")
+                            col = columnas_excel[campo]
+                            celda = ws.cell(row=int(fila), column=col)
+                            celda.fill = FILL_WARN_CELL
+                            celda.comment = Comment(MENSAJES_ERROR[tipo], "Sistema")
+                        ws.cell(row=int(fila), column=col_errores, value="\n".join(mensajes))
+
                     output = io.BytesIO()    
                     wb.save(output)
                     wb.close()
@@ -1000,6 +1489,7 @@ def añadir_muestras_estudio(request):
                             usuario_asignacion = request.user
                         )
                         historial.save()
+                        messages.success(request,'Muestras añadidas correctamente a los estudios')
         if 'muestras_estudio' in request.session:
             del request.session['muestras_estudio']
         return redirect('muestras_todas')
@@ -1073,10 +1563,49 @@ def formulario_envios(request,centro):
     return HttpResponse(template.render({'muestras':muestras,'centro':centro_envio},request))
 
 def upload_excel_envios(request,centro):
+    centro_envio = agenda_envio.objects.get(id=centro)
     if request.method=='POST':
         form = UploadExcel(request.POST, request.FILES)
-        if 'descargar_excel_envio' in request.POST:
-            centro_envio = agenda_envio.objects.get(id=centro)
+        if 'confirmar' in request.POST:
+            messages.success(request,'El envio se ha registrado correctamente')
+            filas_validas = request.session.get('filas_validas',[])
+            with transaction.atomic():
+                for datos in filas_validas:
+                    muestra=Muestra.objects.get(nom_lab=datos['nom_lab'])
+                    envio = Envio.objects.create(
+                        muestra=muestra,
+                        volumen_enviado=datos['volumen_enviado'],
+                        unidad_volumen_enviado=datos['unidad_volumen_enviado'],
+                        concentracion_enviada=datos['concentracion_enviada'],
+                        unidad_concentracion_enviada=datos['unidad_concentracion_enviada'],
+                        centro_destino=datos['centro_destino'],
+                        lugar_destino=datos['lugar_destino'],
+                        fecha_envio=timezone.now(),
+                        usuario_envio=request.user
+                    )
+                    envio.save()
+                    if datos['volumen_enviado'] >= muestra.volumen_actual:
+                        muestra.volumen_actual = 0
+                        muestra.concentracion_actual = 0
+                        muestra.estado_actual = 'ENV'
+                        muestra.save()
+                        if Subposicion.objects.filter(muestra=muestra).exists():
+                            sub = Subposicion.objects.get(muestra=muestra)
+                            sub.muestra = None
+                            sub.save()
+                    else:
+                        muestra.volumen_actual -= float(datos['volumen_enviado'])
+                        muestra.estado_actual = 'PENV'
+                        muestra.save()
+                    
+            
+            return redirect('muestras_todas')
+        
+        elif 'cancelar' in request.POST:
+            messages.error(request,'El envio no se ha registrado')
+            return redirect('muestras_todas')
+        
+        elif 'descargar_excel_envio' in request.POST:
             muestras = request.session.get('muestras_envio',[])
             response = HttpResponse(content_type='application/ms-excel')
             response['Content-Disposition'] = 'attachment; filename="listado_envio.xlsx"'
@@ -1098,13 +1627,7 @@ def upload_excel_envios(request,centro):
             return response
         elif 'excel_file' in request.FILES:
             if form.is_valid():
-                ids_errores_envio = []
-                errores_envio= 0
-                errores_campos_vacios=0
-                errores_formato = 0
-                ids_errores_formato = []
-                ids_errores_campos_vacios = []
-                numero_registros = 0
+                # Leer excel y preparar columnas 
                 excel_file = request.FILES['excel_file']
                 excel_bytes = excel_file.read()
                 request.session['excel_file_name'] = excel_file.name
@@ -1112,84 +1635,191 @@ def upload_excel_envios(request,centro):
                 excel_stream = io.BytesIO(excel_bytes)
                 df = pd.read_excel(excel_stream)
                 rename_columns = {
-                    'Muestra':'muestra',
+                    'Muestra':'nom_lab',
                     'Volumen enviado':'volumen_enviado', 
+                    'Volumen actual': 'volumen_actual',
+                    'Concentración actual':'concentracion_actual',
                     'Concentración enviada':'concentracion_enviada',
+                    'Unidad de volumen':'unidad_volumen_enviado',
+                    'Unidad de concentración':'unidad_concentracion_enviada',
                     'Centro de destino':'centro_destino',
                     'Lugar de destino':'lugar_destino'
                 }
                 df.rename(columns=rename_columns, inplace=True)
-                for _, row in df.iterrows():
-                    try:
-                        instancia_muestra = Muestra.objects.get(nom_lab=row['muestra'])
-                        envio = Envio.objects.create(muestra=instancia_muestra,
-                                                    volumen_enviado=row['volumen_enviado'],
-                                                    unidad_volumen_enviado=instancia_muestra.unidad_volumen,
-                                                    concentracion_enviada=row['concentracion_enviada'],
-                                                    centro_destino=row['centro_destino'],
-                                                    unidad_concentracion_enviada=instancia_muestra.unidad_concentracion,
-                                                    lugar_destino=row['lugar_destino'],
-                                                    fecha_envio=timezone.now(),
-                                                    usuario_envio=request.user
-                                                    )
-                        envio.save()
-                        numero_registros += 1
-                        if float(row['volumen_enviado']) == instancia_muestra.volumen_actual:
-                            instancia_muestra.volumen_actual = 0
-                            instancia_muestra.concentracion_actual = 0
-                            instancia_muestra.estado_actual = 'Enviada'
-                            instancia_muestra.save()
-                            if Localizacion.objects.filter(muestra=instancia_muestra).exists():
-                                loc = Localizacion.objects.get(muestra=instancia_muestra)
-                                loc.muestra = None
-                                loc.save()
-                        elif float(row['volumen_enviado']) > instancia_muestra.volumen_actual or float(row['volumen_enviado']) <= 0:
-                            ids_errores_envio.append(instancia_muestra.nom_lab)
-                            errores_envio += 1
-                            envio.delete()
-                        else:
-                            instancia_muestra.volumen_actual -= float(row['volumen_enviado'])
-                            instancia_muestra.estado_actual = 'Parcialmente enviada'
-                            instancia_muestra.save()
-                    except ValueError:
-                        errores_formato += 1
-                        ids_errores_formato.append(instancia_muestra.nom_lab)
-                        numero_registros+=1
-                    except ProgrammingError:
-                        errores_campos_vacios += 1
-                        ids_errores_campos_vacios.append(instancia_muestra.nom_lab)
-                        numero_registros+=1
-                if 'muestras_envio' in request.session:
-                    del request.session['muestras_envio']
-                request.session['ids_errores_formato'] = ids_errores_formato
-                request.session['ids_errores_envio'] = ids_errores_envio
-                request.session['ids_errores_campos_vacios']= ids_errores_campos_vacios
+                # Funciones para normalizar las columnas del excel
+                def norm(value):
+                    if value is None or pd.isna(value):
+                        return None
+
+                    if isinstance(value, str):
+                        value = value.strip()
+                        return value if value != "" else None
+
+                    return value
+                
+                def norm_code(value):
+                    if value is None or pd.isna(value):
+                        return None
+
+                    if isinstance(value, float) and value.is_integer():
+                        return str(int(value))
+
+                    return str(value).strip()
+           
+                
+                # Preparar datos para comprobaciones y variables previas
+
+                cache = {
+                    'muestras': Muestra.objects.values_list('nom_lab',flat=True),
+                    'volumenes_actuales':{
+                        sample.nom_lab : sample.volumen_actual
+                        for sample in Muestra.objects.all() if sample.volumen_actual != None 
+                    },
+                    'estados_actuales':{
+                        sample.nom_lab 
+                        for sample in Muestra.objects.all() if sample.estado_actual != 'Destruida' or sample.estado_actual != 'ENV' or sample.estado_actual != None or sample.estado_actual != 'DEST'
+                    },
+                    'centros_envio': agenda_envio.objects.values_list('centro','lugar')
+                }
+
+                filas_validas = []
+                errores = {}
+                nom_lab_excel = set()
+                numero_registros = 0
+
+                # Recorrer las filas del excel para realizar la validación previa a la carga de datos
+                for idx, row in df.iterrows():
+                    numero_registros += 1
+                    fila = idx + 2 
+                    errores[fila]={"bloqueantes":[],"advertencias":[]}
+                    # Registrar en el excel el centro y lugar de envio 
+                    row['centro_destino'] = centro_envio.centro
+                    row['lugar_destino'] = centro_envio.lugar
+
+                    datos = {
+                        "nom_lab":norm(row['nom_lab']),
+                        "volumen_enviado":norm_code(row['volumen_enviado']),
+                        "unidad_volumen_enviado":norm(row['unidad_volumen_enviado']),
+                        "concentracion_enviada":norm_code(row['concentracion_enviada']),
+                        "unidad_concentracion_enviada":norm(row['unidad_concentracion_enviada'])
+                    }
+              
+                    # Comprobar si los campos obligatorios han sido rellenados
+                    obligatorios = ["nom_lab", "volumen_enviado", "unidad_volumen_enviado", "concentracion_enviada", "unidad_concentracion_enviada"]
+
+                    for campo in obligatorios:
+                        if not datos.get(campo):
+                            errores[fila]["bloqueantes"].append(f"campo_obligatorio_vacio:{campo}")
+                    
+                     # Comprobar si los campos estan en el formato correcto
+                    for campo in ['volumen_enviado', 'concentracion_enviada']:
+                        if datos[campo] != None:
+                            try:
+                                datos[campo]=float(datos[campo])
+                            except (TypeError, ValueError):
+                                errores[fila]["bloqueantes"].append(f"formato_incorrecto:{campo}")
+                    
+                    # Comprobar que la muestra exista en la base de datos y no esté duplicada en el excel
+                    nom_lab = datos["nom_lab"]
+                    if nom_lab not in cache["muestras"]:
+                        errores[fila]["bloqueantes"].append("muestra_inexistente")
+                    if nom_lab in nom_lab_excel:
+                        errores[fila]["bloqueantes"].append("muestra_duplicada_excel")
+                    else:
+                        nom_lab_excel.add(nom_lab)
+
+                    # Comprobar que el volumen a enviar no sea mayor al actual
+                    volumen_envio = datos["volumen_enviado"]
+                    if volumen_envio > cache["volumenes_actuales"][nom_lab]:
+                        errores[fila]["bloqueantes"].append("volumen_alto")
+
+                    # Comprobar que el estado de la muestra sea 'Disponible' o 'Parcialmente enviada'
+                    if nom_lab not in cache['estados_actuales']:
+                        errores[fila]["bloqueantes"].append("estado_no_disponible")
+
+                    # Rellenar con el centro y lugar de destino
+                    datos['centro_destino'] = centro_envio.centro
+                    datos['lugar_destino'] = centro_envio.lugar
+                    
+                    # Registrar filas validas
+                    if not errores[fila]["bloqueantes"]:
+                        filas_validas.append(datos)
+                
+                request.session['filas_validas']=filas_validas
+                request.session['errores'] = errores
+
+                # Mensajes de la información de la subida 
                 messages.info(request, f'El excel subido tiene {numero_registros} registros.')
-                if errores_envio==0 and errores_campos_vacios==0 and errores_formato==0:
-                    messages.success(request, 'Y no tiene errores en ningún campo.')
+                numero_errores = 0
+                for fila in errores:
+                    if errores[fila]['bloqueantes']:
+                        numero_errores +=1
                 else:
-                    messages.warning(request, f'Y contiene {errores_envio} errores en el volumen de envio de algunas muestras, {errores_formato} errores de formato y {errores_campos_vacios} campos vacios.')
+                    messages.warning(request, f'Pero contiene {numero_errores} filas con errores graves.')
                 return render(request,'confirmacion_upload_envio.html') 
+        # Si se solicita un excel de errores, este se rellena en base a los errores detectados durante la validación 
         elif 'excel_errores' in request.POST:
-                ids_errores_envio = request.session.get('ids_errores_envio', [])
-                ids_errores_campos_vacios= request.session.get('ids_errores_campos_vacios',[])
-                ids_errores_formato=request.session.get('ids_errores_formato',[])
+                # Leer los errores y el excel de la sesión
+                errores = request.session.get('errores',[])
                 excel_bytes = base64.b64decode(request.session.get('excel_file_base64'))
                 excel_file = io.BytesIO(excel_bytes)
                 wb = openpyxl.load_workbook(excel_file)
                 ws = wb.active
-                for row in ws.iter_rows(min_row=2, max_row=ws.max_row):
+                # Definir los estilos para pintar el excel
+                FILL_ERROR_ROW = PatternFill("solid", fgColor="F8D7DA")   # rojo claro
+                FILL_ERROR_CELL = PatternFill("solid", fgColor="F5C2C7")  # rojo fuerte
+                # Diccionario de mensajes
+                MENSAJES_ERROR = {
+                    "campo_obligatorio_vacio": "Campo obligatorio vacío",
+                    "formato_incorrecto": "Formato incorrecto de un campo",
+                    "muestra_inexistente": "La muestra no existe en la base de datos",
+                    "muestra_duplicada_excel": "Muestra duplicada dentro del Excel",
+                    "volumen_alto": "La muestra no tiene suficiente volumen para el envio",
+                    "estado_no_disponible": "La muestra está enviada o destruida, o no tiene un estado definido"
+                }
+                # Diccionario de columnas del excel
+                columnas_excel = {}
+                rename_columns = {
+                    'Muestra':'nom_lab',
+                    'Volumen enviado':'volumen_enviado', 
+                    'Volumen actual': 'volumen_actual',
+                    'Concentración actual':'concentracion_actual',
+                    'Concentración enviada':'concentracion_enviada',
+                    'Unidad de volumen':'unidad_volumen_enviado',
+                    'Unidad de concentración':'unidad_concentracion_enviada',
+                    'Centro de destino':'centro_destino',
+                    'Lugar de destino':'lugar_destino'
+                }
+                for cell in ws[1]:
+                    columnas_excel[rename_columns[cell.value]] = cell.column
+                # Añadir la columna de errores
+                col_errores = ws.max_column + 1
+                ws.cell(row=1, column=col_errores, value="Errores")
+                # Recorrer filas con errores 
+                for fila, info in errores.items():
+                    # Pintar las filas
+                    has_error = bool(info["bloqueantes"])
+                    if has_error:
+                        fill_fila = FILL_ERROR_ROW
+                    else:
+                        continue
+                    for col in range(1, ws.max_column + 1):
+                        ws.cell(row=int(fila), column=col).fill = fill_fila
 
-                    if row[0].value in ids_errores_campos_vacios:
-                        for cell in row:
-                            cell.fill = openpyxl.styles.PatternFill(start_color="FF8000", end_color="FF8000", fill_type = "solid")
-                    elif row[0].value in ids_errores_formato:
-                        for cell in row:
-                            cell.fill = openpyxl.styles.PatternFill(start_color="FFFF00", end_color="FFFF00", fill_type = "solid")
-                    elif row[0].value in ids_errores_envio:
-                        for cell in row:
-                            cell.fill = openpyxl.styles.PatternFill(start_color="FF0000", end_color="FF0000", fill_type = "solid")
-                    
+                    # Escribir en la columna de errores, colorear las celdas con error y poner un comentario en ellas
+                    mensajes = []
+                    for err in info["bloqueantes"]:
+                        if ":" in err:
+                            tipo, campo = err.split(":")
+                            mensajes.append(f"[ERROR] {MENSAJES_ERROR[tipo]}")
+                            col = columnas_excel[campo]
+                            celda = ws.cell(row=int(fila), column=col)
+                            celda.fill = FILL_ERROR_CELL
+                            celda.comment = Comment(MENSAJES_ERROR[tipo], "Sistema")
+                        else:
+                            mensajes.append(f"[ERROR] {MENSAJES_ERROR[err]}")
+                    ws.cell(row=int(fila), column=col_errores, value="\n".join(mensajes))
+                # Retornar el excel de errores 
                 output = io.BytesIO()    
                 wb.save(output)
                 wb.close()
@@ -1227,7 +1857,7 @@ def registrar_envio(request,centro):
             if float(volumen_enviado_form[iterar]) >= instancia_muestra.volumen_actual:
                 instancia_muestra.volumen_actual = 0
                 instancia_muestra.concentracion_actual = 0
-                instancia_muestra.estado_actual = 'Enviada'
+                instancia_muestra.estado_actual = 'ENV'
                 instancia_muestra.save()
                 if Localizacion.objects.filter(muestra=instancia_muestra).exists():
                     loc = Localizacion.objects.get(muestra=instancia_muestra)
@@ -1235,7 +1865,7 @@ def registrar_envio(request,centro):
                     loc.save()
             else:
                 instancia_muestra.volumen_actual -= float(volumen_enviado_form[iterar])
-                instancia_muestra.estado_actual = 'Parcialmente enviada'
+                instancia_muestra.estado_actual = 'PENV'
                 instancia_muestra.save()
             iterar += 1
         if 'muestras_envio' in request.session:

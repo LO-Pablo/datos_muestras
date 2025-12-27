@@ -99,7 +99,7 @@ class archivar_muestra_form(forms.ModelForm):
         """Archivar una muestra en una localización específica."""
         class Meta:
             model = Localizacion
-            fields = ['muestra', 'congelador', 'estante', 'posicion_rack_estante', 'rack', 'posicion_caja_rack', 'caja', 'subposicion']
+            exclude = ('muestra', )
 class EstudioForm(forms.ModelForm):
     class Meta:
         model=Estudio

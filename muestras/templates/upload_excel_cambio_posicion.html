@@ -4,11 +4,10 @@
 Subir archivo Excel
 {% endblock %}
 {% block content %}
-<h2>Subir archivo Excel del envio</h2>
+<h2>Subir archivo excel para cambiar posiciones</h2>
+Utilizando la siguiente <a href="{% url 'descargar_plantilla_muestras' macro=4 %}" download="plantilla_cambio_posicion.xlsx">plantilla</a>, en la cual todas las columnas son obligatorias. 
 <form method="post" enctype="multipart/form-data">
   {% csrf_token %}
-  <p>Se ha generado un excel con las muestras y el centro de envio seleccionado para usar como plantilla (si no se ha seleccionado ninguno, el excel estará vacío):</p>
-  <input name="descargar_excel_envio" type="submit" class="btn btn-success" value="Descargar excel del envio">
   {{ form.as_p }}
   <input name="upload_excel" type="submit" class="btn btn-success" value="Upload excel">
 </form>
