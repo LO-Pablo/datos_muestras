@@ -19,9 +19,20 @@ class Muestra(models.Model):
     estado_inicial = models.CharField(max_length=50,blank=True, null=True)
     centro_procedencia = models.CharField(max_length=100,blank=True, null=True)
     lugar_procedencia = models.CharField(max_length=100,blank=True, null=True)
-    estado_actual = models.CharField(max_length=50, default='Disponible',
-                                        choices=[('DISP','Disponible'), ('ENV','Enviada'), ('ENVP','Parcialmente enviada'), ('DEST','Destruida')],blank=True, null=True)
+    estado_actual = models.CharField(max_length=50, default='DISP',
+                                        choices=[('DISP','Disponible'), ('ENV','Enviada'), ('PENV','Parcialmente enviada'), ('DEST','Destruida')],blank=True, null=True)
     estudio = models.ForeignKey('Estudio', blank=True, to_field='nombre_estudio', on_delete=models.SET_NULL, null=True)
+
+    def posicion_completa(self):
+        try: 
+            sub = self.subposicion
+        except Subposicion.DoesNotExist:
+            return None
+        caja = sub.caja
+        rack = caja.rack
+        estante = rack.estante
+        congelador = estante.congelador
+        return(f'{congelador.congelador}-{estante.numero}-{rack.numero}-{caja.numero}-{sub.numero}')
     class Meta:
         # Definición de permisos personalizados para el modelo Muestra
         permissions = [
@@ -39,9 +50,7 @@ class Localizacion(models.Model):
     muestra = models.ForeignKey('Muestra',to_field = "nom_lab",related_name="localizacion", blank=True, null=True, on_delete=models.SET_NULL)
     congelador = models.CharField(max_length=50, blank=True, null=True)
     estante = models.CharField(max_length=50,blank=True, null=True)
-    posicion_rack_estante = models.CharField(max_length=50,blank=True, null=True)
     rack = models.CharField(max_length=50,blank=True, null=True)
-    posicion_caja_rack = models.CharField(max_length=50,blank=True, null=True)
     caja = models.CharField(max_length=50,blank=True, null=True)
     subposicion = models.CharField(max_length=50,blank=True, null=True)
 
@@ -54,7 +63,7 @@ class Localizacion(models.Model):
             ("can_delete_localizaciones_web", "Puede eliminar localizaciones en la web"),
         ]
     def __str__(self):
-        return f"{self.congelador} - {self.estante} - {self.posicion_rack_estante} - {self.rack} - {self.posicion_caja_rack} - {self.caja} - {self.subposicion}"
+        return f"{self.congelador} - {self.estante} - {self.rack} - {self.caja} - {self.subposicion}"
 
 
 class Congelador(models.Model):
@@ -108,7 +117,7 @@ class Subposicion(models.Model):
     caja = models.ForeignKey(Caja, on_delete=models.CASCADE, related_name='subposiciones')
     numero = models.CharField(max_length=50)
     vacia = models.BooleanField(default=True)
-    muestra = models.ForeignKey(Muestra, on_delete=models.SET_NULL, null=True, blank=True)
+    muestra = models.OneToOneField(Muestra, on_delete=models.SET_NULL, null=True, blank=True, related_name='subposicion')
     class Meta:
         constraints = [
             models.UniqueConstraint(

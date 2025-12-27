@@ -11,4 +11,10 @@
   {% csrf_token %}
   <button name="excel_errores" type="submit" class="btn btn-success">Descargar excel con errores</button>
 </form>
+<p>¿Desea subir el archivo excel?</p>
+<form method="post" action="">
+    {% csrf_token %}
+    <button type ="submit" name="confirmar" class="btn btn-success">Confirmar</button>
+    <button type ="submit" name="cancelar"  class="btn btn-success">Cancelar</button>
+</form>
 <p><a href="/muestras"> Volver a todas las muestras</a></p>

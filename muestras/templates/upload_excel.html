@@ -5,8 +5,17 @@ Subir archivo Excel
 {% endblock %}
 {% block content %}
 <h2>Subir archivo Excel</h2>
-Utilizando la siguiente <a href="{% url 'descargar_plantilla_muestras' macro=2 %}" download="plantilla_muestras.xlsx">plantilla</a>, en la cual están marcadas en rojo las columnas obligatorias.
-Si estas columnas obligatorias no se rellenan, la muestra no se subirá a la base de datos. 
+Utilizando la siguiente <a href="{% url 'descargar_plantilla_muestras' macro=2 %}" download="plantilla_muestras.xlsx">plantilla</a>, si no se usa dicha plantilla, no se pueden subir las muestras (no usar el excel de errores). 
+En la plantilla están marcadas en rojo las siguientes columnas obligatorias: 
+<ul>
+  <li>Id del individuo del cual proviene la muestra</li>
+  <li>Nombre de la muestra asignado por el laboratorio</li>
+  <li>Nombres de las distintas posiciones (congelador, estante...) que sirven para situar a la muestra en el congelador</li>
+</ul>
+Si estas columnas obligatorias no se rellenan, la muestra no se subirá a la base de datos.
+
+La columna "Estudio" se debe de rellenar con el ID interno del estudio (ID en la tabla de la sección de estudios).
+
 <form method="post" enctype="multipart/form-data">
   {% csrf_token %}
   {{ form.as_p }}

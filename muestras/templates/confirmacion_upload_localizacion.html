@@ -1,0 +1,27 @@
+{% extends "master.html" %}
+{% load static %}
+{% block title %}
+Confirmación de la subida del excel de localizaciones
+{% endblock %}
+
+{% block content %} 
+{% if messages %}
+  {% for message in messages %}
+        {{ message }}<br>
+  {% endfor %}
+{% endif %}
+<p>Se ha creado un excel en el que se marcan las filas del excel original en rojo si esa localizacion ya existe en la base de datos.</p>
+<p>En amarillo si tienen algun campo vacio.</p>
+<p>Las filas con estos errores no se añadirán a la base de datos.</p>
+<form method="post" action="">
+  {% csrf_token %}
+  <button name="excel_errores" type="submit" class="btn btn-success">Descargar excel con errores</button>
+</form>
+<p>¿Desea subir las filas válidas del archivo excel?</p>
+<form method="post" action="">
+    {% csrf_token %}
+    <button type ="submit" name="confirmar" class="btn btn-success">Confirmar</button>
+    <button type ="submit" name="cancelar"  class="btn btn-success">Cancelar</button>
+</form>
+<p><a href="/archivo"> Volver a la vista de congeladores</a></p>
+{% endblock %}

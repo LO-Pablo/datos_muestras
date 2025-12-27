@@ -22,6 +22,14 @@ Lista de Muestras
 
                 {% if "fecha" in field %}
                     <input type="date" name="{{field}}">
+                {% elif "estado_actual" in field %}
+                <select name="estado_actual" form="filter-form">
+                  <option value=""></option>
+                  <option value="DISP">Disponible</option>
+                  <option value="PENV">Parcialmente enviada</option>
+                  <option value="ENV">Enviada</option>
+                  <option value="Destruida">Destruida</option>
+                </select>
                 {% else %}
                     <input type="text" name="{{field}}">
                 {% endif %}
@@ -33,14 +41,7 @@ Lista de Muestras
                 <input type="text" name="estudio">
             </div>
             <div class="filter-field">
-            <label>Estado actual</label>
-                <select name="estado_actual">
-                  <option value=""></option>
-                  <option value="Disponible">Disponible</option>
-                  <option value="Parcialmente enviada">Parcialmente enviada</option>
-                  <option value="Enviada">Enviada</option>
-                  <option value="Destruida">Destruida</option>
-                </select>
+            
             </div>
         </div>
 
@@ -103,6 +104,7 @@ Lista de Muestras
     {%endif%}
     {% if perms.muestras.can_change_muestras_web %}
     <button type="submit"  value="true" id='envio' name ='envio' class="btn btn-success">📦 Registrar envío</button>
+    <button type="submit"  value="true" id='cambio_posicion' name ='cambio_posicion' class="btn btn-success"> 🔄 Cambio de posición</button>
     {%endif%}
  </div>
  </div>
@@ -149,19 +151,17 @@ Lista de Muestras
  
   <tbody>
     {% for x in muestras %}
-   <tr class="{% if x.estado_actual == 'Disponible' %}status-available{% elif x.estado_actual == 'Parcialmente enviada' %}status-processing{% elif x.estado_actual == 'Destruida' %}status-destroyed{% else %}status-enviada{% endif %}">
-      <td><input type="checkbox" name="muestra_id" value ="{{x.id}}" class="form-control"></td>
+   <tr class="{% if x.estado_actual == 'DISP' %}status-available{% elif x.estado_actual == 'PENV' %}status-processing{% elif x.estado_actual == 'Destruida' %}status-destroyed{% else %}status-enviada{% endif %}">
+      <td><input type="checkbox" name="muestra_id" value ="{{x.id}}" class="form-control"> <a href="/muestras/detalles_muestra/{{x.id_individuo}}/{{x.nom_lab}}/editar" class="chip-detalle">
+                        ✍ Editar
+                    </a></td>
       <td class="wrap-text">{{ x.id_individuo }}</td>
       <td>{{ x.nom_lab }}</td>
-      {% with y=x.localizacion.all %}
-      {% if y %}
-      {% for y in x.localizacion.all %}
-      <td>{{y.congelador}}-{{y.estante}}-{{y.posicion_rack_estante}}-{{y.rack}}-{{y.posicion_caja_rack}}-{{y.caja}}-{{y.subposicion}}</td>
-      {% endfor %}
+      {% if x.posicion_completa %}
+      <td>{{x.posicion_completa}}</td>
       {% else %}
-      <td>Sin localización asignada</td>
+      <td>Sin asignar</td>
       {% endif %}
-      {% endwith %}
       <td class="wrap-text"><a href="{%url 'historial_localizaciones' x.id%}">Ver historial de localizaciones</a></td>
       <td>
       {% if x.id_material != None %}
@@ -170,12 +170,16 @@ Lista de Muestras
       </td>
       <td>
       {%if x.volumen_actual != None %}
+      {% if x.volumen_actual != 0.0 %}
         {{ x.volumen_actual}} {{ x.unidad_volumen }}
+      {%endif%}
       {%endif%}
       </td>
       <td>
       {% if x.concentracion_actual != None %}
+      {% if x.concentracion_actual != 0.0 %}
         {{ x.concentracion_actual }}  {{ x.unidad_concentracion }}
+      {%endif%}
       {%endif%}
       </td>
       <td>

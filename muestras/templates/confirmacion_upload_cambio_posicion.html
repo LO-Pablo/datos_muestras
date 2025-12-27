@@ -4,10 +4,9 @@
   {% endfor %}
 {% endif %}
 <p>Se ha creado un excel en el que se marcan las filas del excel original según los errores encontrados:</p>
-<li>En rojo, si la muestra ya existe en la base de datos, alguno de los campos obligatorios no se ha rellenado(indicando cual con un comentario) o hay un problema con la localización.</li>
-<li>En amarillo, si alguno de los campos no obligatorios está vacio, marcando el campo en cuestión con un comentario.</li>
+<li>En rojo, si la muestra no existe en la base de datos, alguno de los campos obligatorios no se ha rellenado(indicando cual con un comentario) o hay un problema con la localización.</li>
 <p>Todos los errores se detallan en la columna "Errores"</p>
-<p>Este excel de errores NO se debe de subir directamente a la hora de añadir muestras</p>
+<p>Este excel de errores NO se debe de subir directamente a la hora de cambiar la localización de las muestras</p>
 <form method="post" action="">
   {% csrf_token %}
   <button name="excel_errores" type="submit" class="btn btn-success">Descargar excel con errores</button>
