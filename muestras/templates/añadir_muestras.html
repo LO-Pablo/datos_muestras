@@ -6,6 +6,7 @@ Añadir 1 o varias muestras
 
 {% block content %}
 <h1>Añada 1 muestra</h1>
+<!-- Formulario para añadir una muestra (basado en el Modelform correspondiente) y su ubicación -->
 <form method="post">
     {% csrf_token %}
     {{ form_muestra.as_p}}

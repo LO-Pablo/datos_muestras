@@ -5,9 +5,11 @@ Agenda
 {% endblock %}
 
 {% block content %}
+<!-- Lista de centros de envio -->
 <a href="/muestras"> Volver a la lista de muestras </a>
 <h1>Centros de envio</h1>
 <a href="/muestras/nuevo_centro"> Añadir un centro de envio</a>
+<!-- Tabla con los centros de envio y formulario para eliminar centros -->
 <form action="{% url 'eliminar_centro' %}" method="post">
      {% csrf_token %} 
     <button type="submit" class="btn btn-primary" value = "true" id='eliminar' name ='eliminar' onclick="return confirm('¿Quieres eliminar los centros seleccionados?')">Eliminar centros seleccionados</button>

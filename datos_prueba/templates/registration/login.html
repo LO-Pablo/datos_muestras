@@ -1,15 +1,17 @@
 {% extends "master.html" %}
 {% load static %}
 {% block content %}
+<!-- Template de login -->
 <link rel ="stylesheet" href="{% static 'login.css' %}">
 <div class="login-container">
     <div class="login-card">
-
+        <!-- Mensajes de error e información en caso de que no coincidan los datos del formulario -->
         {% if form.errors %}
             <p class="error-msg">Su nombre de usuario y contraseña no coinciden. Inténtalo de nuevo.</p>
         {% endif %}
 
         {% if next %}
+        <!-- Mensaje de información si el usuario intenta acceder a una página sin estar autenticado o por no tener permisos -->
             {% if user.is_authenticated %}
                 <p class="info-msg">Su cuenta no tiene acceso a esta página. Para continuar, inicie sesión con una cuenta que tenga acceso.</p>
             {% else %}
@@ -19,6 +21,8 @@
           <div class="login-logo">
             <img src="/static/logo.png" alt="Logo de la aplicación">
           </div>
+        
+        <!-- Formulario de login -->
         <h2>Iniciar sesión</h2>
 
         <form method="post" action="{% url 'login' %}">

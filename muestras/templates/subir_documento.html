@@ -5,7 +5,7 @@ Subir documento
 {% endblock %}
 {% block content %}
 <h2>Subir documento</h2>
-
+<!-- Formulario para subir un documento asociado a un estudio específico -->
 <form method="POST" enctype="multipart/form-data">
     <p>Estudio: {{estudio.nombre_estudio}}</p>
     {% csrf_token %}

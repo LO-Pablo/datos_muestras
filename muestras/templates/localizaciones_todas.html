@@ -5,7 +5,7 @@ Archivo de muestras
 {% endblock %}
 
 {% block content %} 
-
+<!-- Página que muestra todas las localizaciones de las muestras en el archivo -->
 
 <link rel="stylesheet" href="{% static 'localizaciones_todas.css' %}">
 <script src="{% static 'mostrar.js' %}"></script>
@@ -39,7 +39,7 @@ Archivo de muestras
 </script>
 {%endfor%}
 {% endif %}
-
+<!-- Navegación jerárquica y desplegable de congeladores, estantes, racks, cajas y muestras -->
 <nav id="archivo">
   <ul class="congeladores">
     {% for congelador in congeladores %}
