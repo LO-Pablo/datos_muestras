@@ -1,27 +1,27 @@
 from django.http import HttpResponse, FileResponse
 from .models import Muestra, Localizacion, Estudio, Envio, Documento, historial_estudios, historial_localizaciones,agenda_envio, registro_destruido, Congelador, Estante, Rack,Caja, Subposicion
 from django.template import loader
-from .forms import MuestraForm, UploadExcel, archivar_muestra_form, DocumentoForm, EstudioForm, Centroform, Congeladorform
+from .forms import MuestraForm, UploadExcel, DocumentoForm, EstudioForm, Centroform, Congeladorform
 from django.db import transaction
 from django.contrib import messages  
 from django.shortcuts import render,redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required, permission_required
 import pandas as pd
 import io,base64
+# No quitar en caso de necesitar exportar las muestras en formato PDF
 from reportlab.pdfgen import canvas
 from django.conf import settings
 import openpyxl,os
 from django.db.models import Q
-from django.db import IntegrityError, ProgrammingError
 from django.utils import timezone 
-from django.contrib.auth.models import User
-from numbers import Number
-from collections import defaultdict
 from django.db.models import Count, Q, Prefetch
 from django.core.exceptions import ObjectDoesNotExist
 from openpyxl.styles import PatternFill
 from openpyxl.comments import Comment
 from datetime import date
+
+# Archivo que define las vistas de la aplicación, es decir, la manera de organizar,recoger y enviar al navegador los datos de los modelos del modelo 
+# Los @ son decoradores de permisos, que limitan el acceso a las vistas de los distintos usuarios en base a si tienen ese permiso activado 
 @login_required
 def principal(request):
     # Vista principal de la aplicación, muestra una página de bienvenida
@@ -32,24 +32,29 @@ def principal(request):
 # Vistas para Muestras
 @permission_required('muestras.can_view_muestras_web')
 def muestras_todas(request):
-    # Vista que muestra todas las muestras, requiere que el usuario esté autenticado
+    # Vista que muestra todas las muestras y su localización asociada, requiere que el usuario esté autenticado
     muestras = (Muestra.objects.select_related('subposicion__caja__rack__estante__congelador'))
 
-    # Filtrado de muestras si se proporcionan parámetros de búsqueda
+    # Filtrado de muestras si se proporcionan parámetros de búsqueda en los filtros del template
     field_names = [f.name for f in Muestra._meta.local_fields if f.name not in ('id','estudio')]
     fields_loc = [f.name for f in Localizacion._meta.local_fields if f.name not in ('id','muestra')]
     field_names_readable = ['Id del individuo','Nombre dado por el laboratorio','Material','Volumen actual','Unidad de volumen','Concentración actual','Unidad de concentración','Masa actual','Unidad de masa','Fecha de extracción','Fecha de llegada','Observaciones','Estado inicial','Centro de procedencia','Lugar de procedencia','Estado actual']
     field_names_readable_dict = {k:v for (k,v) in zip(field_names,field_names_readable)}
-    if request.user.groups.filter(name='Investigadores'):
-        muestras = Muestra.objects.filter(Q(estudio__investigadores_asociados__username=request.user))
     for field in field_names:
         if request.GET.get(field):
             filter_kwargs = {f"{field}__icontains": request.GET[field]}
             muestras = muestras.filter(**filter_kwargs)
+    
+    # Filtrado de las muestras en base al estudio al que pertenecen
     if request.GET.get('estudio'):
         filtro_estudio = request.GET['estudio']
         muestras = muestras.filter(estudio__nombre_estudio__icontains=filtro_estudio)
 
+    # Filtrado de las muestras a mostrar si el perfil es de un investigador, mostrando solo las asociadas a sus estudios
+    if request.user.groups.filter(name='Investigadores'):
+        muestras = Muestra.objects.filter(Q(estudio__investigadores_asociados__username=request.user))
+    
+    
     '''
     # Crear un PDF con las muestras filtradas
     if request.GET.get('crear_pdf'):    
@@ -96,13 +101,14 @@ def muestras_todas(request):
             ws.cell(row_num, col_num).value= str(value)
             col_num += 1
             try:
-                loc = Localizacion.objects.get(muestra=muestra.nom_lab)
-                for field in fields_loc:
-                    value = loc.__dict__[field]
-                    if value is None:
-                        value = ''
-                    ws.cell(row_num, col_num).value= str(value)
-                    col_num += 1
+                value = muestra.posicion_completa()
+                if value is None:
+                    value = ''
+                else:
+                    value = value.split("-")
+                    for columna in value:
+                        ws.cell(row_num, col_num).value= str(columna)
+                        col_num += 1
                 row_num += 1
             except:
                 row_num += 1
