@@ -7,8 +7,9 @@ Subir archivo Excel
 <h2>Subir archivo Excel del envio</h2>
 <form method="post" enctype="multipart/form-data">
   {% csrf_token %}
-  <p>Se ha generado un excel con las muestras y el centro de envio seleccionado para usar como plantilla (si no se ha seleccionado ninguno, el excel estará vacío):</p>
+  <p>Se ha generado un excel con las muestras y el centro de envio seleccionado para usar como plantilla :</p>
   <input name="descargar_excel_envio" type="submit" class="btn btn-success" value="Descargar excel del envio">
+  Si no se ha seleccionado ningun centro, el excel estará vacio, y solo hace falta rellenar el nombre de la muestra, el volumen y las unidades de volumen, y la concentración y las unidades de concentración a enviar. 
   {{ form.as_p }}
   <input name="upload_excel" type="submit" class="btn btn-success" value="Upload excel">
 </form>

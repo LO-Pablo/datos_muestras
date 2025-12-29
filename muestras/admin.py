@@ -1,7 +1,10 @@
 from django.contrib import admin
-from .models import Muestra, Localizacion, Estudio, Envio, Documento,historial_estudios,historial_localizaciones,registro_destruido, Congelador
+from .models import Muestra, Localizacion, Estudio, Envio, Documento,historial_estudios,historial_localizaciones,registro_destruido, Congelador, Subposicion, Caja, Rack, Estante
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from django.contrib.auth.models import User
+
+# Se posibilita que el usuario admin añada, elimine y cambie los datos de todos los modelos de la aplicación 
+
 admin.site.register(Muestra)
 admin.site.register(Localizacion)
 admin.site.register(Estudio)
@@ -11,7 +14,12 @@ admin.site.register(historial_estudios)
 admin.site.register(historial_localizaciones)
 admin.site.register(registro_destruido)
 admin.site.register(Congelador)
+admin.site.register(Estante)
+admin.site.register(Caja)
+admin.site.register(Rack)
+admin.site.register(Subposicion)
 
+# Clases y funcionalidades necesarias para que el admin asocie los estudios a los investigadores
 class EstudioInline(admin.TabularInline):
     model = Estudio.investigadores_asociados.through  
     extra = 1  

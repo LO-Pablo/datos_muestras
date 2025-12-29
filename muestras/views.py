@@ -1,7 +1,7 @@
 from django.http import HttpResponse, FileResponse
 from .models import Muestra, Localizacion, Estudio, Envio, Documento, historial_estudios, historial_localizaciones,agenda_envio, registro_destruido, Congelador, Estante, Rack,Caja, Subposicion
 from django.template import loader
-from .forms import MuestraForm, LocalizacionForm, UploadExcel, archivar_muestra_form, DocumentoForm, EstudioForm, Centroform, Congeladorform
+from .forms import MuestraForm, UploadExcel, archivar_muestra_form, DocumentoForm, EstudioForm, Centroform, Congeladorform
 from django.db import transaction
 from django.contrib import messages  
 from django.shortcuts import render,redirect, get_object_or_404
