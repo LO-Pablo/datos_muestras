@@ -9,6 +9,22 @@ Repositorio de documentación del estudio {{estudio.id_estudio}}
 <p><a href="/estudios"> Volver a la lista de estudios</a></p>
 <p><a href="/estudios/{{id}}/subir"> Subir un documento nuevo</a></p>
 
+<form action="" id="filtros">
+    <input type="text" name="categoria">
+    <select name="usuario" form="filtros">
+            <option value=""></option>
+        {% for user in usuarios %}
+            <option value="{{user.username}}">{{user.username}}</option>
+        {% endfor %}
+    </select>
+    <button type="submit" class="btn btn-primary">
+        🔎 Filtrar
+    </button>
+    <a href="/estudios/{{id}}" class="btn btn-secondary">
+                ✖ Eliminar filtros
+    </a>
+</form>
+
 <table>
     <tr>
         <th>Archivo</th>

@@ -11,6 +11,7 @@ import io,base64
 # No quitar en caso de necesitar exportar las muestras en formato PDF
 from reportlab.pdfgen import canvas
 from django.conf import settings
+from django.contrib.auth.models import User
 import openpyxl,os
 from django.db.models import Q
 from django.utils import timezone 
@@ -37,7 +38,6 @@ def muestras_todas(request):
 
     # Filtrado de muestras si se proporcionan parámetros de búsqueda en los filtros del template
     field_names = [f.name for f in Muestra._meta.local_fields if f.name not in ('id','estudio')]
-    fields_loc = [f.name for f in Localizacion._meta.local_fields if f.name not in ('id','muestra')]
     field_names_readable = ['Id del individuo','Nombre dado por el laboratorio','Material','Volumen actual','Unidad de volumen','Concentración actual','Unidad de concentración','Masa actual','Unidad de masa','Fecha de extracción','Fecha de llegada','Observaciones','Estado inicial','Centro de procedencia','Lugar de procedencia','Estado actual']
     field_names_readable_dict = {k:v for (k,v) in zip(field_names,field_names_readable)}
     for field in field_names:
@@ -100,20 +100,19 @@ def muestras_todas(request):
             value = muestra.estudio.nombre_estudio if muestra.estudio else ''
             ws.cell(row_num, col_num).value= str(value)
             col_num += 1
-            try:
-                value = muestra.posicion_completa()
-                if value is None:
-                    value = ''
-                else:
-                    value = value.split("-")
-                    for columna in value:
-                        ws.cell(row_num, col_num).value= str(columna)
-                        col_num += 1
-                row_num += 1
-            except:
-                row_num += 1
+            value = muestra.posicion_completa()
+            if value is None:
+                value = ''
+            else:
+                value = value.split("-")
+                for columna in value:
+                    ws.cell(row_num, col_num).value= str(columna)
+                    col_num += 1
+            row_num += 1
+    
         wb.save(response)
         return response
+    # Cargar el template y pasar las muestras y los campos de filtro al mismo
     template = loader.get_template('muestras_todas.html')
     context = {    
         'muestras': muestras,
@@ -124,26 +123,32 @@ def muestras_todas(request):
 @login_required
 @permission_required('muestras.can_view_muestras_web')
 def acciones_post(request):
+    # Vista que redirigue la petición del usuario según el botón de acción que haya pulsado y las muestras que haya seleccionado
     if request.method=="POST":
         muestras_seleccionadas = request.POST.getlist('muestra_id')
         if 'estudio' in request.POST:
+            # Se guardan las muestras seleccionadas en la sesión y se redirigue al usuario a la selección de un estudio
             if muestras_seleccionadas:
                 request.session['muestras_estudio']=muestras_seleccionadas
                 return redirect('seleccionar_estudio')
         elif 'eliminar' in request.POST:
+            # Se eliminan las muestras seleccionadas
             if muestras_seleccionadas:
                 muestras_a_procesar = Muestra.objects.filter(id__in=muestras_seleccionadas)
                 for muestra in muestras_a_procesar:
                     eliminar_muestra(request, muestra.id_individuo, muestra.nom_lab) 
         elif 'envio' in request.POST:
+            # Se guardan las muestras seleccionadas en la sesión y se redirigue al usuario a la agenda de envíos
             if 'muestras_envio' in request.session:
                 del request.session['muestras_envio']
             for muestra in muestras_seleccionadas:
+                # Se eliminan las muestras destruidas de la lista de envío
                 if Muestra.objects.get(id=muestra).estado_actual == 'Destruida':
                     muestras_seleccionadas.remove(muestra)
             request.session['muestras_envio']=muestras_seleccionadas
             return redirect('agenda')
         elif 'destruir' in request.POST:
+            # Se marcan las muestras seleccionadas como destruidas
             if muestras_seleccionadas:
                 muestras_a_destruir = Muestra.objects.filter(id__in=muestras_seleccionadas)
                 for sample in muestras_a_destruir:
@@ -160,6 +165,7 @@ def acciones_post(request):
                                                                              usuario = request.user)
                     registro_destruccion.save()
         elif 'cambio_posicion' in request.POST:
+            # Se redirigue al usuario a la vista de cambio de posición de muestras
             return redirect('cambio_posicion')             
     return redirect('muestras_todas')    
 def detalles_muestra(request, nom_lab):
@@ -174,11 +180,13 @@ def detalles_muestra(request, nom_lab):
 
 
 def añadir_muestras(request):
+    # Vista para añadir una nueva muestra, requiere permiso para añadir muestras
     if request.method == 'POST':
         form_muestra = MuestraForm(request.POST)
         if form_muestra.is_valid():
             muestra = form_muestra.save()
             try:
+                # Asignar la localización a la muestra si se ha proporcionado una
                 numero_congelador = request.POST.getlist("congelador")
                 congelador = Congelador.objects.get(congelador = numero_congelador[0])
                 numero_estante = request.POST.getlist("estante")
@@ -190,8 +198,10 @@ def añadir_muestras(request):
                 numero_subposicion = request.POST.getlist("subposicion")
                 subposicion= Subposicion.objects.get(caja = caja, numero = numero_subposicion[0])
                 if subposicion.vacia == False:
+                    # La posición está ocupada, se guarda la muestra sin localización
                     messages.error(request,'la posición está ocupada por otra muestra, la muestra a archivar se guardará sin localización')
                 else:
+                    # Asignar la muestra a la subposición y crear la localización y la entrada en el historial
                     subposicion.muestra = muestra
                     subposicion.vacia = False
                     subposicion.save()
@@ -207,6 +217,7 @@ def añadir_muestras(request):
                                                             usuario_asignacion = request.user)
                     messages.success(request, 'Muestra añadida correctamente')
             except ObjectDoesNotExist:
+                # La localización no existe, se guarda la muestra sin localización
                 messages.error(request,'La localización indicada no existe, la muestra se guardará sin una localización asignada')
             return redirect('muestras_todas')
     else:
@@ -219,6 +230,7 @@ def eliminar_muestra(request, id_individuo, nom_lab):
     # Vista para eliminar una muestra, requiere permiso para eliminar muestras
     muestra = get_object_or_404(Muestra,id_individuo=id_individuo, nom_lab=nom_lab)
     if Subposicion.objects.filter(muestra = muestra).exists():
+        # Liberar la subposición asociada a la muestra antes de eliminarla
         subposicion = Subposicion.objects.get(muestra = muestra)
         subposicion.muestra = None
         subposicion.vacia = True
@@ -228,6 +240,7 @@ def eliminar_muestra(request, id_individuo, nom_lab):
     return redirect('muestras_todas')
 @permission_required('muestras.can_add_muestras_web')
 def upload_excel(request):
+    # Vista para subir un archivo Excel con múltiples muestras y asociarlas a un estudio y subposición desde el excel, requiere permiso para añadir muestras
     if request.method=="POST":
         form = UploadExcel(request.POST, request.FILES)
         # Si el usuario confirma, se crean en la base de datos los registros validos
@@ -494,6 +507,7 @@ def upload_excel(request):
                     if not errores[fila]["bloqueantes"]:
                         filas_validas.append(datos)
                 
+                # Guardar en la sesión las filas validas y los errores detectados
                 request.session['filas_validas']=filas_validas
                 request.session['errores'] = errores
 
@@ -621,9 +635,10 @@ def upload_excel(request):
     return render(request, 'upload_excel.html', {'form': form}) 
 @permission_required('muestras.can_change_muestras_web')
 def cambio_posicion(request):
+    # Vista para cambiar la posición de múltiples muestras a partir de un archivo Excel, requiere permiso para cambiar muestras
     if request.method=="POST":
         form = UploadExcel(request.POST, request.FILES)
-        # Si el usuario confirma, se guardan las muestras en una nueva posición
+        # Si el usuario confirma, se guardan las muestras en una nueva posición, vaciando la posicion antigua
         if 'confirmar' in request.POST:
             messages.success(request,'Las muestras se han cambiado de posicion dentro del archivo')
             filas_validas = request.session.get('filas_validas',[])
@@ -891,6 +906,7 @@ def editar_muestra(request, id_individuo, nom_lab):
                 return redirect('muestras_todas')
 
             try:
+                # Obtener la nueva localización
                 numero_congelador = request.POST.get("congelador")
                 congelador = Congelador.objects.get(congelador = numero_congelador)
                 numero_estante = request.POST.get("estante")
@@ -902,13 +918,17 @@ def editar_muestra(request, id_individuo, nom_lab):
                 numero_subposicion = request.POST.get("subposicion")
                 subposicion= Subposicion.objects.get(caja = caja, numero = numero_subposicion)
                 if subposicion.vacia == False:
+                    # La subposición está ocupada
                     messages.error(request,'la posición está ocupada por otra muestra, no se editará la posición actual de esta muestra.')
                 else:
+                    # Vaciar la subposición antigua
                     if Subposicion.objects.filter(muestra = muestra).exists():
                         subposicion_antigua = Subposicion.objects.get(muestra = muestra)
                         subposicion_antigua.muestra = None
                         subposicion_antigua.vacia = True
                         subposicion_antigua.save()
+
+                    # Asignar la nueva subposición, actualizar la localización y generar el historial
                     subposicion.muestra = muestra
                     subposicion.vacia = False
                     subposicion.save()
@@ -924,6 +944,7 @@ def editar_muestra(request, id_individuo, nom_lab):
                                                             usuario_asignacion = request.user)
                     messages.success(request,'Muestra editada correctamente')
             except ObjectDoesNotExist:
+                # La localización no existe
                 messages.error(request,'La localización indicada no existe, no se editará la posición actual de esta muestra.')
             return redirect('muestras_todas')
     else:
@@ -960,6 +981,8 @@ def descargar_plantilla(request,macro:int):
 @permission_required('muestras.can_view_localizaciones_web')
 def localizaciones(request):
     # Vista que muestra todas las localizaciones, tengan o no muestra
+
+    # Anotar el número de muestras en cada caja
     cajas_qs = Caja.objects.annotate(
         numero_muestras=Count(
             'subposiciones',
@@ -967,7 +990,7 @@ def localizaciones(request):
         )
     )
 
-
+    # Prefetch para optimizar consultas
     congeladores = Congelador.objects.prefetch_related(
         Prefetch(
             'estantes__racks__cajas',
@@ -987,7 +1010,9 @@ def localizaciones(request):
 @permission_required('muestras.can_add_localizaciones_web')
 def upload_excel_localizaciones(request):
     if request.method=="POST":
+        # Vista para subir localizaciones desde un archivo Excel, requiere permiso para añadir localizaciones
         form = UploadExcel(request.POST, request.FILES)
+        # Definir el mapeo de columnas
         rename_columns = {
                     'Congelador': 'congelador', 
                     'Estante': 'estante',
@@ -997,6 +1022,7 @@ def upload_excel_localizaciones(request):
                     'Caja': 'caja',
                     'Subposición': 'subposicion'
                 }
+        # Función para limpiar y normalizar los valores
         def limpiar_numero(valor):
             if pd.isna(valor):
                 return None
@@ -1012,7 +1038,7 @@ def upload_excel_localizaciones(request):
 
             return valor
 
-                
+        # Si el usuario confirma, se guardan las localizaciones en la base de datos      
         if 'confirmar' in request.POST:
             filas = request.session.pop('filas_validas', [])
 
@@ -1046,13 +1072,14 @@ def upload_excel_localizaciones(request):
 
             messages.success(request, 'Las localizaciones se han añadido correctamente.')
             return redirect('localizaciones_todas')
-        
+        # Si el usuario cancela, no se hace nada
         elif 'cancelar' in request.POST:
             messages.error(request, 'Las localizaciones del excel no se han añadido.')
             return redirect('localizaciones_todas')
-        
+        # Si se sube un archivo excel, se procesa y valida
         elif 'excel_file' in request.FILES:
             if form.is_valid():
+                # Leer excel
                 excel_file = request.FILES['excel_file']
                 excel_bytes = excel_file.read()
                 request.session['excel_file_base64']= base64.b64encode(excel_bytes).decode()
@@ -1067,6 +1094,7 @@ def upload_excel_localizaciones(request):
                 registros = 0
                 for idx, row in df.iterrows():
                     registros += 1
+                    # Limpiar y normalizar los valores
                     congelador = limpiar_numero(row['congelador'])
                     estante = limpiar_numero(row['estante'])
                     posicion_rack_estante = limpiar_numero(row['posicion_rack_estante'])
@@ -1074,9 +1102,11 @@ def upload_excel_localizaciones(request):
                     caja = limpiar_numero(row['caja'])
                     posicion_caja_rack = limpiar_numero(row['posicion_caja_rack'])
                     subpos = limpiar_numero(row['subposicion'])
+                    # Comprobar si hay campos vacíos
                     if any(v is None for v in [congelador, estante, posicion_rack_estante,rack, posicion_caja_rack,caja, subpos]):
                         filas_vacias.append(idx + 2)
                         continue
+                    # Comprobar si la localización ya existe
                     if Subposicion.objects.filter(numero = subpos,
                                                 caja__numero = caja,
                                                 caja__rack__numero = rack,
@@ -1084,6 +1114,7 @@ def upload_excel_localizaciones(request):
                                                 caja__rack__estante__congelador = congelador).exists():
                         localizaciones_duplicadas.append(idx + 2)
                     else:
+                        # Guardar fila válida
                         filas_validas.append({
                             'congelador': congelador,
                             'estante': estante,
@@ -1093,16 +1124,20 @@ def upload_excel_localizaciones(request):
                             'caja': caja,
                             'subposicion': subpos
                         })
+                # Guardar en sesión los resultados de la validación
                 request.session['filas_validas']=filas_validas
                 request.session['filas_vacias']=filas_vacias
                 request.session['localizaciones_duplicadas']=localizaciones_duplicadas
+
+                # Mensajes de información de la subida
                 messages.info(request,f'El excel contiene {registros} registros')
                 if len(filas_validas) == registros:
                     messages.success(request, 'Y son todos correctos.')
                 else:
                     messages.error(request,f'De los cuales {len(localizaciones_duplicadas) + len(filas_vacias)} tienen errores.')
                 return render(request, 'confirmacion_upload_localizacion.html')
-
+            
+        # Si se solicita un excel de errores, este se rellena en base a los errores detectados durante la validación
         elif 'excel_errores' in request.POST:
             localizaciones_duplicadas = request.session.get('localizaciones_duplicadas',[])
             filas_vacias = request.session.get('filas_vacias',[])
@@ -1128,11 +1163,13 @@ def upload_excel_localizaciones(request):
     return render(request, 'localizacion_nueva.html', {'form': form}) 
 
 def detalles_congelador(request, nombre_congelador):
+    # Vista para ver los detalles de un congelador específico
     freezer= Congelador.objects.filter(congelador=nombre_congelador)
     template=loader.get_template('detalles_congelador.html')
     return HttpResponse(template.render({'congelador':freezer[0]},request))
 @permission_required('muestras.can_add_localizaciones_web')
 def editar_congelador(request,nombre_congelador):
+    # Vista para editar un congelador existente, requiere permiso para añadir localizaciones
     congelador = Congelador.objects.filter(congelador=nombre_congelador)
     congelador=congelador[0]
     if request.method == 'POST':
@@ -1146,6 +1183,7 @@ def editar_congelador(request,nombre_congelador):
 
 @permission_required('muestras.can_delete_localizaciones_web')
 def eliminar_localizacion(request):
+    # Vista para eliminar localizaciones, requiere permiso para eliminar localizaciones
     if len(request.POST.getlist('congelador')) > 0:
         congelador_lista = request.POST.getlist('congelador')
         for i in range(len(congelador_lista)):
@@ -1178,6 +1216,7 @@ def eliminar_localizacion(request):
 
 
 def historial_localizaciones_muestra(request,muestra_id):
+    # Vista para ver el historial de localizaciones de una muestra específica
     muestra = Muestra.objects.get(id=muestra_id)
     historiales = historial_localizaciones.objects.filter(muestra=muestra).order_by('-fecha_asignacion')
     if muestra.estado_actual=='Destruida':
@@ -1191,6 +1230,7 @@ def historial_localizaciones_muestra(request,muestra_id):
 @login_required
 @permission_required('muestras.can_view_estudios_web')
 def estudios_todos(request):
+    # Vista para ver todos los estudios, los investigadores solo ven los suyos asociados
     if request.user.groups.filter(name='Investigadores'):
         estudios = Estudio.objects.filter(investigadores_asociados=request.user)
     else:
@@ -1202,6 +1242,7 @@ def estudios_todos(request):
     return HttpResponse(template.render(context,request))
 @permission_required('muestras.can_add_estudios_web')
 def nuevo_estudio(request):
+    # Vista para crear un nuevo estudio
     if request.method == 'POST':
         form = EstudioForm(request.POST)
         if form.is_valid():
@@ -1214,8 +1255,10 @@ def nuevo_estudio(request):
     return HttpResponse(template.render({'form':form},request))
 @permission_required('muestras.can_add_estudios_web')
 def excel_estudios(request):
+    # Vista para subir estudios desde un archivo Excel, requiere permiso para añadir estudios
     if request.method=="POST":
         form = UploadExcel(request.POST, request.FILES)
+        # Si el usuario confirma, se guardan los estudios en la base de datos
         if 'confirmar' in request.POST:
             messages.success(request, 'Las estudios se han añadido correctamente')
             filas_validas = request.session.get('filas_validas',[])
@@ -1238,11 +1281,14 @@ def excel_estudios(request):
                         investigador_principal = datos['investigador_principal']
                     )
             return redirect('estudios_todos')
+        # Si el usuario cancela, no se hace nada
         elif 'cancelar' in request.POST:
             messages.error(request,'Los estudios no se han añadido')
             return redirect('estudios_todos')
+        # Si se sube un archivo excel, se procesa y valida
         elif 'excel_file' in request.FILES:
             if form.is_valid():
+                # Leer excel y preparar columnas
                 excel_file = request.FILES['excel_file']
                 excel_bytes = excel_file.read()
                 request.session['excel_file_name'] = excel_file.name
@@ -1268,7 +1314,7 @@ def excel_estudios(request):
                         return value if value != "" else None
 
                     return value
-                
+                '''
                 def norm_code(value):
                     if value is None or pd.isna(value):
                         return None
@@ -1282,7 +1328,7 @@ def excel_estudios(request):
                             return None
                         fecha = pd.to_datetime(value)
                         return fecha.date()
-
+                '''
                 # Crear estructuras previas del excel
                 filas_validas = []
                 errores = {}
@@ -1356,6 +1402,8 @@ def excel_estudios(request):
                 else:
                     messages.warning(request, f'Pero contiene {numero_errores_bloqueantes} filas con errores graves.')
                 return render(request, 'confirmacion_upload_estudios.html')
+            
+        # Si se solicita un excel de errores, este se rellena en base a los errores detectados durante la validación
         elif 'excel_errores' in request.POST:
                     errores = request.session.get('errores',[])
                     excel_bytes = base64.b64decode(request.session.get('excel_file_base64'))
@@ -1438,6 +1486,7 @@ def excel_estudios(request):
     return render(request, 'upload_excel_estudios.html', {'form': form}) 
 @permission_required('muestras.can_change_estudios_web')
 def editar_estudio(request, id_estudio):
+    # Vista para editar un estudio existente
     estudio = Estudio.objects.get(id=id_estudio)
     if request.method == 'POST':
         form = EstudioForm(request.POST, instance=estudio)
@@ -1450,20 +1499,25 @@ def editar_estudio(request, id_estudio):
     return render(request, 'editar_estudio.html', {'form': form, 'estudio': estudio})
 @permission_required('muestras.can_delete_estudios_web')
 def eliminar_estudio(request, id_estudio):
+    # Vista para eliminar un estudio existente
     estudio = get_object_or_404(Estudio,id=id_estudio)
     estudio.delete()
     messages.success(request,'Estudio eliminado correctamente')
     return redirect('estudios_todos')
 @permission_required('muestras.can_change_estudios_web')
 def seleccionar_estudio(request):
+    # Vista para seleccionar un estudio al que añadir muestras
     estudios = Estudio.objects.all()
     template = loader.get_template('seleccionar_estudio.html')
     return HttpResponse(template.render({'estudios':estudios},request))
 @permission_required('muestras.can_change_estudios_web')
 def añadir_muestras_estudio(request):
+    # Vista para añadir muestras a un estudio seleccionado
     if request.method == 'POST':
+        # Obtener las muestras de la sesión
         muestras = request.session.get('muestras_estudio', [])
         muestras=Muestra.objects.filter(id__in=muestras)
+        # Desasociar muestras de sus estudios si se selecciona esa opción
         if len(request.POST.getlist('desasociar')) ==1:
             for muestra in muestras:
                 if muestra.estado_actual != 'Destruida':
@@ -1478,6 +1532,7 @@ def añadir_muestras_estudio(request):
                     historial.save()
 
             return redirect('muestras_todas')
+        # Obtener los estudios seleccionados y asociar las muestras
         ids_estudios = request.POST.getlist('estudio_nombre')
         for study in ids_estudios:
             studio = Estudio.objects.get(nombre_estudio=study)
@@ -1485,6 +1540,7 @@ def añadir_muestras_estudio(request):
                 if muestra.estado_actual != 'Destruida':
                     muestra.estudio = studio
                     muestra.save()
+                    # Crear entrada en el historial de estudios si la muestra no estaba ya asociada a ese estudio
                     if historial_estudios.objects.filter(muestra=muestra,estudio=studio).exists():
                         pass
                     else:   
@@ -1502,15 +1558,18 @@ def añadir_muestras_estudio(request):
     return redirect('muestras_todas')
 
 def historial_estudios_muestra(request,muestra_id):
+    # Vista para ver el historial de estudios de una muestra específica
     muestra = Muestra.objects.get(id=muestra_id)
     historiales = historial_estudios.objects.filter(muestra=muestra).order_by('-fecha_asignacion')
     template = loader.get_template('historial_estudios.html')
     return HttpResponse(template.render({'historiales':historiales, 'muestra':muestra},request))
 @permission_required('muestras.can_view_estudios_web')
 def repositorio_estudio(request, id_estudio):
+    # Vista para ver el repositorio de documentos asociado a un estudio
     estudio = Estudio.objects.get(id=id_estudio)
     documentos = Documento.objects.filter(estudio = estudio, eliminado= False)
     request.session['id'] = id_estudio
+    usuarios = User.objects.all()
     # Filtrado opcional por usuario
     usuario = request.GET.get('usuario')
     if usuario:
@@ -1523,14 +1582,16 @@ def repositorio_estudio(request, id_estudio):
         if request.GET.get(f'{doc.id}'):
             eliminar_documento(request, doc.id)
     template = loader.get_template('repositorio_estudio.html')
-    return HttpResponse(template.render({'documentos':documentos, 'id':estudio.id},request))
+    return HttpResponse(template.render({'documentos':documentos, 'id':estudio.id, 'usuarios':usuarios},request))
 
 def subir_documento(request, id_estudio):
+    # Vista para subir un documento a un estudio específico
     estudio = Estudio.objects.get(id = id_estudio)
     if request.method == 'POST':
         form = DocumentoForm(request.POST, request.FILES)
         if form.is_valid():
             doc = form.save(commit=False)
+            # Definir el usuario que sube el documento y el estudio asociado
             doc.usuario_subida = request.user
             doc.estudio = estudio
             doc.save()
@@ -1543,10 +1604,12 @@ def subir_documento(request, id_estudio):
     return HttpResponse(template.render({'form':form, 'estudio':estudio},request))
 
 def descargar_documento(request, documento_id,id):
+    # Vista para descargar un documento del repositorio de un estudio
     doc = Documento.objects.get(pk=documento_id, eliminado=False)      
     return FileResponse(open(doc.archivo.path, 'rb'), as_attachment=True, filename=os.path.basename(doc.archivo.name))
 
 def eliminar_documento(request):
+    # Vista para eliminar documentos del repositorio de un estudio
     ids_documento = request.POST.getlist('doc_id')
     for element in ids_documento:
         try:
@@ -1562,17 +1625,70 @@ def eliminar_documento(request):
 # Vistas relacionadas con el envio de muestras
 @permission_required('muestras.can_change_muestras_web')
 def formulario_envios(request,centro):
+    # Vista para mostrar el formulario de envíos de muestras a un centro específico
     muestras_envio = request.session.get('muestras_envio', [])
     centro_envio = agenda_envio.objects.get(id=centro)
     muestras = Muestra.objects.filter(id__in=muestras_envio, volumen_actual__gt=0)
     template = loader.get_template('formulario_envios.html')
     return HttpResponse(template.render({'muestras':muestras,'centro':centro_envio},request))
 
+def registrar_envio(request,centro):
+    # Vista para registrar el envío de muestras a un centro específico desde el formulario de envíos
+    if request.method=='POST':
+        # Obtener los datos del formulario, guardados en la sesión y registrar los envíos
+        centro_envio = agenda_envio.objects.get(id=centro)
+        muestras = request.session.get('muestras_envio', [])
+        volumen_enviado_form = request.POST.getlist('volumen_enviado')
+        concentracion_enviada_form = request.POST.getlist('concentracion_enviada')
+        centro_destino_form = centro_envio.centro
+        lugar_destino_form = centro_envio.lugar
+        iterar = 0
+        for muestra in muestras:
+            instancia_muestra = Muestra.objects.get(id=muestra)
+            envio = Envio.objects.create(
+                muestra=instancia_muestra,
+                fecha_envio=timezone.now(),
+                volumen_enviado = volumen_enviado_form[iterar],
+                unidad_volumen_enviado = instancia_muestra.unidad_volumen,
+                concentracion_enviada = concentracion_enviada_form[iterar],
+                unidad_concentracion_enviada = instancia_muestra.unidad_concentracion,
+                centro_destino = centro_destino_form,
+                lugar_destino=lugar_destino_form,
+                usuario_envio = request.user
+            )
+            envio.save()
+            # Actualizar el estado, la posición y el volumen de la muestra tras el envío
+            if float(volumen_enviado_form[iterar]) >= instancia_muestra.volumen_actual:
+                instancia_muestra.volumen_actual = 0
+                instancia_muestra.concentracion_actual = 0
+                instancia_muestra.estado_actual = 'ENV'
+                instancia_muestra.save()
+                if Localizacion.objects.filter(muestra=instancia_muestra).exists():
+                    loc = Localizacion.objects.get(muestra=instancia_muestra)
+                    loc.muestra = None
+                    loc.save()
+                if Subposicion.objects.filter(muestra=instancia_muestra).exists():
+                    sub = Subposicion.objects.get(muestra=instancia_muestra)
+                    sub.muestra = None
+                    sub.vacia = True
+                    sub.save()
+            else:
+                instancia_muestra.volumen_actual -= float(volumen_enviado_form[iterar])
+                instancia_muestra.estado_actual = 'PENV'
+                instancia_muestra.save()
+            iterar += 1
+        if 'muestras_envio' in request.session:
+            del request.session['muestras_envio']
+        return redirect('muestras_todas')
+    return redirect('formulario_envios')
+
 def upload_excel_envios(request,centro):
+    # Vista para subir un archivo Excel con los datos de envío de muestras
     centro_envio = agenda_envio.objects.get(id=centro)
     if request.method=='POST':
         form = UploadExcel(request.POST, request.FILES)
         if 'confirmar' in request.POST:
+            # Si el usuario confirma, se registran los envíos en la base de datos
             messages.success(request,'El envio se ha registrado correctamente')
             filas_validas = request.session.get('filas_validas',[])
             with transaction.atomic():
@@ -1590,6 +1706,7 @@ def upload_excel_envios(request,centro):
                         usuario_envio=request.user
                     )
                     envio.save()
+                    # Actualizar el estado, la posición y el volumen de la muestra tras el envío
                     if datos['volumen_enviado'] >= muestra.volumen_actual:
                         muestra.volumen_actual = 0
                         muestra.concentracion_actual = 0
@@ -1608,10 +1725,12 @@ def upload_excel_envios(request,centro):
             return redirect('muestras_todas')
         
         elif 'cancelar' in request.POST:
+            # Si el usuario cancela, no se registra nada
             messages.error(request,'El envio no se ha registrado')
             return redirect('muestras_todas')
         
         elif 'descargar_excel_envio' in request.POST:
+            # Si se solicita descargar el excel de envío, se genera y se rellena con los datos de las muestras a enviar, en caso de que se hayan seleccionado y no estén destruidas
             muestras = request.session.get('muestras_envio',[])
             response = HttpResponse(content_type='application/ms-excel')
             response['Content-Disposition'] = 'attachment; filename="listado_envio.xlsx"'
@@ -1632,6 +1751,7 @@ def upload_excel_envios(request,centro):
             wb.save(response)
             return response
         elif 'excel_file' in request.FILES:
+            # Si se sube un archivo excel, se procesa y valida
             if form.is_valid():
                 # Leer excel y preparar columnas 
                 excel_file = request.FILES['excel_file']
@@ -1698,7 +1818,7 @@ def upload_excel_envios(request,centro):
                     numero_registros += 1
                     fila = idx + 2 
                     errores[fila]={"bloqueantes":[],"advertencias":[]}
-                    # Registrar en el excel el centro y lugar de envio 
+                    # Registrar en el excel el centro y lugar de envio seleccionados de la agenda de envios
                     row['centro_destino'] = centro_envio.centro
                     row['lugar_destino'] = centro_envio.lugar
 
@@ -1837,51 +1957,13 @@ def upload_excel_envios(request,centro):
     template = loader.get_template('upload_excel_envios.html')     
     return HttpResponse(template.render({'form': form},request))
 
-def registrar_envio(request,centro):
-    if request.method=='POST':
-        centro_envio = agenda_envio.objects.get(id=centro)
-        muestras = request.session.get('muestras_envio', [])
-        volumen_enviado_form = request.POST.getlist('volumen_enviado')
-        concentracion_enviada_form = request.POST.getlist('concentracion_enviada')
-        centro_destino_form = centro_envio.centro
-        lugar_destino_form = centro_envio.lugar
-        iterar = 0
-        for muestra in muestras:
-            instancia_muestra = Muestra.objects.get(id=muestra)
-            envio = Envio.objects.create(
-                muestra=instancia_muestra,
-                fecha_envio=timezone.now(),
-                volumen_enviado = volumen_enviado_form[iterar],
-                unidad_volumen_enviado = instancia_muestra.unidad_volumen,
-                concentracion_enviada = concentracion_enviada_form[iterar],
-                unidad_concentracion_enviada = instancia_muestra.unidad_concentracion,
-                centro_destino = centro_destino_form,
-                lugar_destino=lugar_destino_form,
-                usuario_envio = request.user
-            )
-            envio.save()
-            if float(volumen_enviado_form[iterar]) >= instancia_muestra.volumen_actual:
-                instancia_muestra.volumen_actual = 0
-                instancia_muestra.concentracion_actual = 0
-                instancia_muestra.estado_actual = 'ENV'
-                instancia_muestra.save()
-                if Localizacion.objects.filter(muestra=instancia_muestra).exists():
-                    loc = Localizacion.objects.get(muestra=instancia_muestra)
-                    loc.muestra = None
-                    loc.save()
-            else:
-                instancia_muestra.volumen_actual -= float(volumen_enviado_form[iterar])
-                instancia_muestra.estado_actual = 'PENV'
-                instancia_muestra.save()
-            iterar += 1
-        if 'muestras_envio' in request.session:
-            del request.session['muestras_envio']
-        return redirect('muestras_todas')
-    return redirect('formulario_envios')
+
 
 def historial_envios(request,muestra_id):
+    # Vista para ver el historial de envíos de una muestra específica
     sample = Muestra.objects.get(id=muestra_id)
     envios = Envio.objects.filter(muestra=sample).order_by('-fecha_envio')
+    # Calcular el volumen original y el volumen restante
     volumen_original = sample.volumen_actual + sum(envio.volumen_enviado for envio in envios)
     volumen_restante = sample.volumen_actual
     template = loader.get_template('historial_envios.html')
@@ -1894,11 +1976,13 @@ def historial_envios(request,muestra_id):
     return HttpResponse(template.render(context,request))
 
 def agenda(request):
+    # Vista para ver la agenda de envíos de muestras
     agenda_envios = agenda_envio.objects.all()
     template = loader.get_template('agenda.html')
     return HttpResponse(template.render({'agenda':agenda_envios},request))
 
 def nuevo_centro(request):
+    # Vista para añadir un nuevo centro a la agenda de envíos
     if request.method == 'POST':
         form = Centroform(request.POST)
         if form.is_valid():
@@ -1912,6 +1996,7 @@ def nuevo_centro(request):
     return HttpResponse(template.render({'form':form},request))
 
 def editar_centro(request, id_centro):
+    # Vista para editar un centro existente en la agenda de envíos
     centro = agenda_envio.objects.get(id=id_centro)
     if request.method == 'POST':
         form = Centroform(request.POST, instance=centro)
@@ -1923,6 +2008,7 @@ def editar_centro(request, id_centro):
     return render(request, 'editar_centro.html', {'form': form, 'centro': centro})
 
 def eliminar_centro(request):
+    # Vista para eliminar centros de la agenda de envíos
     if request.method=="POST":
         ids = request.POST.getlist('ids_centro')
         for centro_id in ids:
