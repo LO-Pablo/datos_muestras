@@ -2,6 +2,8 @@ from django.urls import path, include
 from django.conf.urls.static import static
 from django.conf import settings
 from . import views
+
+# Archivo que define las urls de la aplicación, y redirigue las peticiones del usuario a views concretas
 urlpatterns = [
     path('', views.muestras_todas, name='principal'),
     path('muestras/', views.muestras_todas, name='muestras_todas'),
@@ -43,5 +45,6 @@ urlpatterns = [
     path('estudios/eliminar_documento',views.eliminar_documento, name="eliminar_documento")
 ]
 
+# Ajuste para poder servir los archivos estáticos cuando el DEBUG es True
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

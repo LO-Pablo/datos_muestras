@@ -32,10 +32,12 @@ class Muestra(models.Model):
         except Subposicion.DoesNotExist:
             return None
         caja = sub.caja
+        posicion_caja_rack = caja.posicion_caja_rack
         rack = caja.rack
+        posicion_rack_estante = rack.posicion_rack_estante
         estante = rack.estante
         congelador = estante.congelador
-        return(f'{congelador.congelador}-{estante.numero}-{rack.numero}-{caja.numero}-{sub.numero}')
+        return(f'{congelador.congelador}-{estante.numero}-{posicion_rack_estante}-{rack.numero}-{posicion_caja_rack}-{caja.numero}-{sub.numero}')
     class Meta:
         # Definición de permisos personalizados para el modelo Muestra
         permissions = [
