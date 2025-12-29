@@ -2,6 +2,8 @@ from django.db import models
 from django.utils import timezone
 from django.contrib.auth.models import User
 from django.conf import settings
+
+# Archivo que define las tablas(modelos) de la base de datos de la aplicación 
 class Muestra(models.Model):
     # Campos del modelo Muestra
     id_individuo = models.CharField(max_length=20)
@@ -23,6 +25,7 @@ class Muestra(models.Model):
                                         choices=[('DISP','Disponible'), ('ENV','Enviada'), ('PENV','Parcialmente enviada'), ('DEST','Destruida')],blank=True, null=True)
     estudio = models.ForeignKey('Estudio', blank=True, to_field='nombre_estudio', on_delete=models.SET_NULL, null=True)
 
+    # Función para definir un método del modelo muestra que devuelva la posición completa del archivo en el que se situa la misma
     def posicion_completa(self):
         try: 
             sub = self.subposicion
@@ -46,7 +49,7 @@ class Muestra(models.Model):
         return f"{self.id_individuo} - {self.nom_lab}"
 
 class Localizacion(models.Model):
-    # Campos del modelo Localizacion, que referencia a una muestra
+    # Campos del modelo Localizacion, que referencia a una muestra, usado en la aplicación web en el historial de localizaciones y para definir permisos
     muestra = models.ForeignKey('Muestra',to_field = "nom_lab",related_name="localizacion", blank=True, null=True, on_delete=models.SET_NULL)
     congelador = models.CharField(max_length=50, blank=True, null=True)
     estante = models.CharField(max_length=50,blank=True, null=True)
@@ -55,7 +58,7 @@ class Localizacion(models.Model):
     subposicion = models.CharField(max_length=50,blank=True, null=True)
 
     class Meta:
-        # Campos unicos de localización en conjunción
+        # Permisos asociados al modelo localización
         permissions = [
             ("can_view_localizaciones_web", "Puede ver localizaciones en la web"),
             ("can_add_localizaciones_web", "Puede añadir localizaciones en la web"),
@@ -67,6 +70,7 @@ class Localizacion(models.Model):
 
 
 class Congelador(models.Model):
+    # Modelo congelador, que lista los datos y el nombre de los congeladores disponibles 
     congelador = models.CharField(max_length=50, unique=True)
     modelo = models.CharField(max_length=50,blank=True, null=True)
     temperatura_minima = models.CharField(max_length=50,blank=True, null=True)
@@ -76,9 +80,11 @@ class Congelador(models.Model):
 
 
 class Estante(models.Model):
+    # Modelo estante, que está relacionado con un congelador
     congelador = models.ForeignKey(Congelador, on_delete=models.CASCADE, related_name='estantes', to_field='congelador')
     numero = models.CharField(max_length=50)
     class Meta:
+        # Un estante en concreto solo puede estar asociado a un congelador
         constraints = [
             models.UniqueConstraint(
                 fields=['congelador', 'numero'],
@@ -88,10 +94,12 @@ class Estante(models.Model):
 
 
 class Rack(models.Model):
+    # Modelo rack, que está relacionado con un estante y contiene la posición del mismo dentro del estante
     estante = models.ForeignKey(Estante, on_delete=models.CASCADE, related_name='racks')
     numero = models.CharField(max_length=50)
     posicion_rack_estante = models.CharField(max_length=50)
     class Meta:
+        # Un rack en concreto solo puede estar asociado a un estante
         constraints = [
             models.UniqueConstraint(
                 fields=['estante', 'numero'],
@@ -101,10 +109,12 @@ class Rack(models.Model):
 
 
 class Caja(models.Model):
+    # Modelo caja, que está relacionado con un rack y contiene la posición de la misma dentro del rack
     rack = models.ForeignKey(Rack, on_delete=models.CASCADE, related_name='cajas')
     numero = models.CharField(max_length=50)
     posicion_caja_rack = models.CharField(max_length=50)
     class Meta:
+        # Una caja en concreto solo puede estar asociada a un rack
         constraints = [
             models.UniqueConstraint(
                 fields=['rack', 'numero'],
@@ -114,11 +124,13 @@ class Caja(models.Model):
 
 
 class Subposicion(models.Model):
+    # Modelo subposicion, que está relacionado con un congelador
     caja = models.ForeignKey(Caja, on_delete=models.CASCADE, related_name='subposiciones')
     numero = models.CharField(max_length=50)
     vacia = models.BooleanField(default=True)
     muestra = models.OneToOneField(Muestra, on_delete=models.SET_NULL, null=True, blank=True, related_name='subposicion')
     class Meta:
+        # Una subposicion en concreto solo puede estar asociada a una caja
         constraints = [
             models.UniqueConstraint(
                 fields=['caja', 'numero'],
@@ -127,12 +139,14 @@ class Subposicion(models.Model):
         ]
 
 class historial_localizaciones(models.Model):
+    # Modelo que guarda el historial de localizaciones de una muestra
     muestra = models.ForeignKey('Muestra',related_name="historial_localizaciones",on_delete=models.CASCADE)
     localizacion = models.ForeignKey('Localizacion',related_name="historial_localizaciones",on_delete=models.SET_NULL, null=True, blank=True)
     fecha_asignacion = models.DateField(default=timezone.now) 
     usuario_asignacion = models.ForeignKey(User,on_delete=models.PROTECT, blank=True, null=True)   
 
 class registro_destruido(models.Model):
+    # Modelo que guarda el registro del estado 'destruida' de una muestra
     muestra = models.ForeignKey('Muestra',related_name="estado_destruido",on_delete=models.CASCADE)
     fecha = models.DateField(default = timezone.now)
     usuario = models.ForeignKey(User,on_delete=models.PROTECT, blank=True, null=True)
@@ -146,6 +160,7 @@ class Estudio(models.Model):
     investigador_principal = models.CharField(max_length=100, blank=True, null=True)
     investigadores_asociados = models.ManyToManyField(settings.AUTH_USER_MODEL, limit_choices_to={'groups__name': 'Investigadores'},related_name="estudios_asignados",blank = True)
     class Meta:
+        # Permisos asociados al modelo estudio
         permissions = [
             ("can_view_estudios_web", "Puede ver estudios en la web"),
             ("can_add_estudios_web", "Puede añadir estudios en la web"),
@@ -155,14 +170,17 @@ class Estudio(models.Model):
     def __str__(self):
         return f"Estudio {self.nombre_estudio}"
 class historial_estudios(models.Model):
+    # Modelo que guarda el historial de estudios de una muestra
     muestra = models.ForeignKey('Muestra',related_name="historial_estudios",on_delete=models.CASCADE)
     estudio = models.ForeignKey('Estudio',related_name="historial_estudios",on_delete=models.SET_NULL, blank=True, null=True)
     fecha_asignacion = models.DateField(default=timezone.now)
     usuario_asignacion = models.ForeignKey(User,on_delete=models.PROTECT,blank=True, null=True) 
 
 def ruta_documentos(instance,filename):
+    # Función que define la carpeta asociada a cada estudio para guardar los documentos 
     return f"estudios/{instance.estudio.id}/{filename}"
 class Documento(models.Model):
+    # Campos del modelo documento, asociado a un estudio
     estudio = models.ForeignKey('Estudio',related_name = "estudio", on_delete=models.CASCADE)
     archivo = models.FileField(upload_to=ruta_documentos)
     fecha_subida = models.DateTimeField(auto_now_add=True)
@@ -187,6 +205,7 @@ class Envio(models.Model):
         return f"Envio de Muestra {self.id_individuo} - {self.nom_lab} el {self.fecha_envio}"
     
 class agenda_envio(models.Model):
+    # Campos de los datos de contacto de los centros de envio
     centro = models.CharField(max_length=200,unique=True,default=None)
     lugar=models.CharField(max_length=200)
     direccion=models.TextField()
