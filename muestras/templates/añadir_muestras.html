@@ -3,19 +3,96 @@
 {% block title %} 
 Añadir 1 o varias muestras
 {% endblock %}
-
-{% block content %}
-<h1>Añada 1 muestra</h1>
+{% load static %}
 <!-- Formulario para añadir una muestra (basado en el Modelform correspondiente) y su ubicación -->
-<form method="post">
-    {% csrf_token %}
-    {{ form_muestra.as_p}}
-    <label for="congelador">Congelador: </label><input type="text" id="congelador" name="congelador"/>
-    <label for="estante">Estante: </label><input type="text" id="estante" name="estante"/>
-    <label for="rack">Rack: </label><input type="text" id="rack" name="rack"/>
-    <label for="caja">Caja: </label><input type="text" id="caja" name="caja"/>
-    <label for="subposicion">Subposición: </label><input type="text" id="subposicion" name="subposicion"/>
-    <button type="submit">Guardar</button>
-</form>
-<p><a href="/muestras"> Volver a la lista de muestras </a></p>
+{% block content %}
+<link rel ="stylesheet" href="{% static 'forms.css' %}">
+
+<div class="form-container">
+
+    <div class="form-header">
+        <h1>➕ Añadir muestra</h1>
+        <p class="form-subtitle">
+            Introduzca los datos de la muestra y su ubicación física.
+            Los campos marcados con * son obligatorios.
+        </p>
+    </div>
+
+    <form method="post" class="styled-form">
+        {% csrf_token %}
+
+        <!-- TARJETA: DATOS DE LA MUESTRA -->
+        <div class="form-card">
+            <h2>🧪 Datos de la muestra</h2>
+
+            {% for field in form_muestra %}
+                <div class="form-field">
+                    <label for="{{ field.id_for_label }}">
+                        {{ field.label }}
+                        {% if field.field.required %}
+                            <span class="required">*</span>
+                        {% endif %}
+                    </label>
+
+                    {{ field }}
+
+                    {% if field.help_text %}
+                        <small class="help-text">{{ field.help_text }}</small>
+                    {% endif %}
+
+                    {% if field.errors %}
+                        <div class="error-text">
+                            {{ field.errors|striptags }}
+                        </div>
+                    {% endif %}
+                </div>
+            {% endfor %}
+        </div>
+
+        <!-- TARJETA: UBICACIÓN -->
+        <div class="form-card">
+            <h2>📍 Ubicación en el archivo</h2>
+
+            <div class="form-grid">
+                <div class="form-field">
+                    <label for="congelador">Congelador</label>
+                    <input type="text" id="congelador" name="congelador">
+                </div>
+
+                <div class="form-field">
+                    <label for="estante">Estante</label>
+                    <input type="text" id="estante" name="estante">
+                </div>
+
+                <div class="form-field">
+                    <label for="rack">Rack</label>
+                    <input type="text" id="rack" name="rack">
+                </div>
+
+                <div class="form-field">
+                    <label for="caja">Caja</label>
+                    <input type="text" id="caja" name="caja">
+                </div>
+
+                <div class="form-field">
+                    <label for="subposicion">Subposición</label>
+                    <input type="text" id="subposicion" name="subposicion">
+                </div>
+            </div>
+        </div>
+
+        <!-- BOTONES -->
+        <div class="form-actions">
+            <button type="submit" class="accion-btn accion-primaria">
+                💾 Guardar muestra
+            </button>
+
+            <a href="/muestras" class="accion-btn accion-secundaria">
+                ↩ Volver a muestras
+            </a>
+        </div>
+    </form>
+
+</div>
+
 {% endblock %}

@@ -1,17 +1,69 @@
 {% extends "master.html" %}
 
 {% block title %}
-Lista de Muestras
+Seleccionar estudio
 {% endblock %}
+{% load static %}
 <!-- Página para seleccionar un estudio al que asociar muestras -->
 {% block content %}
-<h1>Lista de estudios</h1>
-<form action="{% url 'añadir_muestras_estudio'%}" method="post">
-{%csrf_token%}
-{%for estudio in estudios%}
-<input type="checkbox" name="estudio_nombre" value ="{{estudio.nombre_estudio}}" class="form-control">{{estudio.nombre_estudio}}
-{%endfor%}
-<input type="checkbox" name="desasociar" value ="desasociar" class="form-control">Desvincular las muestras de cualquier estudio
-<button type="submit" class="btn btn-primary" id='estudio' name ="asociar_estudio" onclick="return confirm('¿Quieres asociar las muestras seleccionadas al estudio seleccionado?')">Asociar a estudio</button>
-</form>
+<link rel ="stylesheet" href="{% static 'forms.css' %}">
+<div class="form-container">
+
+    <!-- CABECERA -->
+    <div class="form-header">
+        <h1>🧬 Asociar muestras a un estudio</h1>
+        <p class="form-subtitle">
+            Seleccione el estudio al que desea asociar las muestras seleccionadas.
+        </p>
+    </div>
+
+    <form action="{% url 'añadir_muestras_estudio' %}" method="post" class="styled-form">
+        {% csrf_token %}
+
+        <!-- LISTA DE ESTUDIOS -->
+        <div class="form-card">
+            <h2>📋 Estudios disponibles</h2>
+
+            <div class="checkbox-list">
+                {% for estudio in estudios %}
+                    <label class="checkbox-item">
+                        <input type="radio"
+                               name="estudio_nombre"
+                               value="{{ estudio.nombre_estudio }}">
+                        <span>{{ estudio.nombre_estudio }}</span>
+                    </label>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- OPCIÓN DESASOCIAR -->
+        <div class="form-card warning-card">
+            <label class="checkbox-item">
+                <input type="checkbox"
+                       name="desasociar"
+                       value="desasociar">
+                <span>
+                    🚫 Desvincular las muestras de cualquier estudio
+                </span>
+            </label>
+        </div>
+
+        <!-- ACCIONES -->
+        <div class="form-actions">
+            <button type="submit"
+                    class="accion-btn accion-primaria"
+                    name="asociar_estudio"
+                    onclick="return confirm('¿Quieres asociar las muestras seleccionadas al estudio indicado?')">
+                🔗 Asociar a estudio
+            </button>
+
+            <a href="/muestras" class="accion-btn accion-secundaria">
+                ↩ Volver a muestras
+            </a>
+        </div>
+
+    </form>
+
+</div>
+
 {%endblock%}

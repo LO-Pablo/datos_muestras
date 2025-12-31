@@ -3,40 +3,92 @@
 {% block title %}
 Agenda
 {% endblock %}
-
+{% load static %}
 {% block content %}
-<!-- Lista de centros de envio -->
-<a href="/muestras"> Volver a la lista de muestras </a>
-<h1>Centros de envio</h1>
-<a href="/muestras/nuevo_centro"> Añadir un centro de envio</a>
-<!-- Tabla con los centros de envio y formulario para eliminar centros -->
-<form action="{% url 'eliminar_centro' %}" method="post">
-     {% csrf_token %} 
-    <button type="submit" class="btn btn-primary" value = "true" id='eliminar' name ='eliminar' onclick="return confirm('¿Quieres eliminar los centros seleccionados?')">Eliminar centros seleccionados</button>
-    <table>
-        <tr>
-            <th>Seleccionar</th>
-            <th>Editar</th>
-            <th>Centro</th>
-            <th>Lugar</th>
-            <th>Dirección</th>
-            <th>Persona de contacto</th>
-            <th>Teléfono de contacto</th>
-            <th>¿Enviar?</th>
-        </tr>
-            {% for contacto in agenda %}
-            <tr>
-                <td><input type="checkbox" name="ids_centro" value ="{{contacto.id}}" class="form-control"></td>
-                <td><a href="agenda/editar/{{contacto.id}}">Editar centro</a></td>
-                <td>{{ contacto.centro }}</td>
-                <td>{{ contacto.lugar }}</td>
-                <td>{{ contacto.direccion }}</td>
-                <td>{{ contacto.persona_contacto }}</td>
-                <td>{{ contacto.telefono_contacto }}</td>
-                <td><a href="agenda/{{contacto.id}}/envio">Enviar</a></td>
-                <td></td>
-            </tr>
-            {% endfor %}
-    </table>
-</form>
+<link rel ="stylesheet" href="{% static 'muestras_todas.css' %}">
+    <!-- BARRA DE ACCIONES -->
+    <div class="acciones-estudios">
+        <a href="/muestras" class="accion-btn accion-secundaria">
+            ⬅ Volver a muestras
+        </a>
+
+        <a href="/muestras/nuevo_centro" class="accion-btn accion-primaria">
+            ➕ Añadir centro de envío
+        </a>
+    </div>
+
+    <!-- CABECERA -->
+    <div class="form-header">
+        <h1>📦 Agenda de centros de envío</h1>
+        <p class="form-subtitle">
+            Gestión de centros, contactos y envíos de muestras.
+        </p>
+    </div>
+
+    <!-- FORMULARIO + TABLA -->
+    <form action="{% url 'eliminar_centro' %}" method="post">
+        {% csrf_token %}
+
+        <!-- ACCIONES SOBRE SELECCIÓN -->
+        <div class="form-actions" style="margin-bottom: 15px;">
+            <button type="submit"
+                    class="accion-btn accion-peligro"
+                    name="eliminar"
+                    onclick="return confirm('¿Quieres eliminar los centros seleccionados?')">
+                🗑 Eliminar centros seleccionados
+            </button>
+        </div>
+
+        <!-- TABLA -->
+        <div class="table-container">
+            <table class="styled-table">
+                <thead>
+                    <tr>
+                        <th>✓</th>
+                        <th>Editar</th>
+                        <th>Centro</th>
+                        <th>Lugar</th>
+                        <th>Dirección</th>
+                        <th>Contacto</th>
+                        <th>Teléfono</th>
+                        <th>Enviar</th>
+                    </tr>
+                </thead>
+
+                <tbody>
+                {% for contacto in agenda %}
+                    <tr>
+                        <td>
+                            <input type="checkbox"
+                                   name="ids_centro"
+                                   value="{{ contacto.id }}">
+                        </td>
+
+                        <td>
+                            <a href="agenda/editar/{{ contacto.id }}"
+                               class="chip-detalle">
+                                ✏️ Editar
+                            </a>
+                        </td>
+
+                        <td>{{ contacto.centro }}</td>
+                        <td>{{ contacto.lugar }}</td>
+                        <td class="wrap-text">{{ contacto.direccion }}</td>
+                        <td>{{ contacto.persona_contacto }}</td>
+                        <td>{{ contacto.telefono_contacto }}</td>
+
+                        <td>
+                            <a href="agenda/{{ contacto.id }}/envio"
+                               class="accion-btn accion-secundaria"
+                               style="height:32px; font-size:13px;">
+                                📤 Enviar
+                            </a>
+                        </td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </form>
+
 {% endblock %}

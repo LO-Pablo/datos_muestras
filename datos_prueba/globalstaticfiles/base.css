@@ -112,3 +112,113 @@ body {
     border-radius: 10px;        /* suaviza bordes */
     box-shadow: 0 4px 15px rgba(0,0,0,0.05);  /* sombra ligera */
 }
+
+/* =========================================
+   BOTONES GLOBALES DE LA APLICACIÓN
+   ========================================= */
+
+/* Base común */
+.accion-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+
+    height: 40px;
+    padding: 0 18px;
+
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    text-decoration: none;
+
+    border: none;
+    cursor: pointer;
+
+    transition: background-color 0.2s ease,
+                box-shadow 0.2s ease,
+                transform 0.05s ease;
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+
+    font-family: inherit;
+    line-height: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Accesibilidad: focus visible */
+.accion-btn:focus {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(26, 61, 124, 0.3);
+}
+
+/* Feedback click */
+.accion-btn:active {
+    transform: translateY(1px);
+}
+
+/* ===== ACCIÓN PRIMARIA ===== */
+.accion-primaria {
+    background-color: #1a3d7c;
+    color: #ffffff;
+}
+
+.accion-primaria:hover {
+    background-color: #163366;
+}
+
+/* ===== ACCIÓN SECUNDARIA ===== */
+.accion-secundaria {
+    background-color: #f0f5ff;
+    color: #1a3d7c;
+}
+
+.accion-secundaria:hover {
+    background-color: #e1ebff;
+}
+
+/* ===== ACCIÓN PELIGRO ===== */
+.accion-peligro {
+    background-color: #d32f2f;
+    color: #ffffff;
+}
+
+.accion-peligro:hover {
+    background-color: #b71c1c;
+}
+
+/* ===== BOTONES DESHABILITADOS ===== */
+.accion-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+}
+
+/* ===== VISTA DETALLE ===== */
+.detalle-grid {
+    display: grid;
+    grid-template-columns: 1fr 300px;
+    gap: 20px;
+    align-items: start;
+}
+
+.detalle-datos p {
+    margin: 6px 0;
+    font-size: 14px;
+}
+
+.detalle-imagen img {
+    width: 100%;
+    border-radius: 10px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+/* Responsive */
+@media (max-width: 900px) {
+    .detalle-grid {
+        grid-template-columns: 1fr;
+    }
+}

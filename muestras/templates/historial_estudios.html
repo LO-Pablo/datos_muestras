@@ -6,28 +6,88 @@ Historial de estudios
 <!-- Página que muestra el historial de estudios asignados a una muestra específica -->
 {% load static %}
 {% block content %}
-<a href="/muestras"> Volver a la lista de muestras </a><br>
-<h1>Historial de estudios de la muestra {{ muestra.nom_lab }}</h1>
-<p>Llegada al laboratorio: {{muestra.fecha_llegada}}</p>
-<p>Centro de procedencia: {{muestra.centro_procedencia}}</p>
-<p>Estado actual: {{muestra.estado_actual}}</p>
+<link rel ="stylesheet" href="{% static 'muestras_todas.css' %}">
+<div class="form-container">
 
-<table>
-    <tr>
-        <th>Estudio</th>
-        <th>Fecha de asignación</th>
-        <th>Usuario</th>
-    </tr>
-    {% for estudio in historiales %}
-    <tr>
-         {% if estudio.estudio == None %}
-        <td>Estudio eliminado</td>
-        {% else%}
-        <td>{{ estudio.estudio }}</td>
-        {% endif %}
-        <td>{{ estudio.fecha_asignacion }}</td>
-        <td>{{ estudio.usuario_asignacion.username }}</td>
-    </tr>
-    {% endfor %}
-</table>
+    <!-- BARRA DE ACCIONES -->
+    <div class="acciones-estudios">
+        <a href="/muestras" class="accion-btn accion-secundaria">
+            ⬅ Volver a muestras
+        </a>
+    </div>
+
+    <!-- CABECERA -->
+    <div class="form-header">
+        <h1>📚 Historial de estudios</h1>
+        <p class="form-subtitle">
+            Muestra: <strong>{{ muestra.nom_lab }}</strong>
+        </p>
+    </div>
+
+    <!-- RESUMEN DE LA MUESTRA -->
+    <div class="form-card">
+        <h2>📋 Resumen de la muestra</h2>
+
+        <div class="detalle-grid">
+            <p>
+                <strong>Llegada al laboratorio:</strong>
+                {{ muestra.fecha_llegada|default:"—" }}
+            </p>
+
+            <p>
+                <strong>Centro de procedencia:</strong>
+                {{ muestra.centro_procedencia|default:"—" }}
+            </p>
+
+            <p>
+                <strong>Estado actual:</strong>
+                <span class="estado-chip estado-{{ muestra.estado_actual|lower }}">
+                    {{ muestra.estado_actual|default:"—" }}
+                </span>
+            </p>
+        </div>
+    </div>
+
+    <!-- HISTORIAL -->
+    <div class="form-card">
+        <h2>🕒 Historial de asignación a estudios</h2>
+
+        <div class="table-container">
+            <table class="styled-table">
+                <thead>
+                    <tr>
+                        <th>Estudio</th>
+                        <th>Fecha de asignación</th>
+                        <th>Usuario</th>
+                    </tr>
+                </thead>
+
+                <tbody>
+                {% for historial in historiales %}
+                    <tr>
+                        <td>
+                            {% if historial.estudio %}
+                                {{ historial.estudio }}
+                            {% else %}
+                                <em>Estudio eliminado</em>
+                            {% endif %}
+                        </td>
+
+                        <td>{{ historial.fecha_asignacion }}</td>
+                        <td>{{ historial.usuario_asignacion.username }}</td>
+                    </tr>
+                {% empty %}
+                    <tr>
+                        <td colspan="3" style="text-align:center;">
+                            No existen asignaciones de estudio registradas.
+                        </td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</div>
+
 {% endblock %}

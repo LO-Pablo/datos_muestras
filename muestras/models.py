@@ -7,22 +7,22 @@ from django.conf import settings
 class Muestra(models.Model):
     # Campos del modelo Muestra
     id_individuo = models.CharField(max_length=20)
-    nom_lab = models.CharField(max_length=100, unique=True)
-    id_material = models.CharField(max_length=20,blank=True, null=True)
+    nom_lab = models.CharField(max_length=100, unique=True, help_text="Nombre único de la muestra asignado por el laboratorio")
+    id_material = models.CharField(max_length=20,blank=True, null=True, help_text="Material de la muestra")
     volumen_actual = models.FloatField(blank=True, null=True)
     unidad_volumen = models.CharField(max_length=15,blank=True, null=True)
     concentracion_actual = models.FloatField(blank=True, null=True)
     unidad_concentracion = models.CharField(max_length=15,blank=True, null=True)
     masa_actual = models.FloatField(blank=True, null=True)
     unidad_masa = models.CharField(max_length=15,blank=True, null=True)
-    fecha_extraccion = models.DateField(blank=True, null=True)
-    fecha_llegada = models.DateField(blank=True, null=True)
+    fecha_extraccion = models.DateField(blank=True, null=True, help_text="Fecha de extracción de la muestra, en formato AAAA-MM-DD")
+    fecha_llegada = models.DateField(blank=True, null=True, help_text="Fecha de llegada de la muestra, en formato AAAA-MM-DD")
     observaciones = models.TextField(blank=True, null=True)
     estado_inicial = models.CharField(max_length=50,blank=True, null=True)
     centro_procedencia = models.CharField(max_length=100,blank=True, null=True)
     lugar_procedencia = models.CharField(max_length=100,blank=True, null=True)
     estado_actual = models.CharField(max_length=50, default='DISP',
-                                        choices=[('DISP','Disponible'), ('ENV','Enviada'), ('PENV','Parcialmente enviada'), ('DEST','Destruida')],blank=True, null=True)
+                                        choices=[('DISP','Disponible'), ('ENV','Enviada'), ('PENV','Parcialmente enviada'), ('DEST','Destruida')],blank=True, null=True, help_text="Disponible por defecto")
     estudio = models.ForeignKey('Estudio', blank=True, to_field='nombre_estudio', on_delete=models.SET_NULL, null=True)
 
     # Función para definir un método del modelo muestra que devuelva la posición completa del archivo en el que se situa la misma

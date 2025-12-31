@@ -3,13 +3,73 @@
 {% block title %} 
 Añadir centro
 {% endblock %}
+{% load static %}
 <!-- Formulario para crear un nuevo centro de envío -->
 {% block content %}
-<h1>Crear un nuevo centro</h1>
-<form method="post">
-    {% csrf_token %}
-    {{ form.as_p}}
-    <button type="submit">Guardar</button>
-</form>
-<p><a href="/muestras/envio/agenda"> Volver a la lista de centros </a></p>
+<link rel ="stylesheet" href="{% static 'forms.css' %}">
+<div class="form-container">
+
+    <!-- BARRA DE ACCIONES -->
+    <div class="acciones-estudios">
+        <a href="/muestras/envio/agenda"
+           class="accion-btn accion-secundaria">
+            ⬅ Volver a la lista de centros
+        </a>
+    </div>
+
+    <!-- CABECERA -->
+    <div class="form-header">
+        <h1>➕ Crear nuevo centro de envío</h1>
+        <p class="form-subtitle">
+            Introduzca los datos del nuevo centro de envío. Los campos marcados con * son obligatorios. 
+        </p>
+    </div>
+
+    <!-- FORMULARIO -->
+    <form method="post" class="styled-form">
+        {% csrf_token %}
+
+        <div class="form-card">
+            <h2>📍 Datos del centro</h2>
+
+            {% for field in form %}
+                <div class="form-field">
+                    <label for="{{ field.id_for_label }}">
+                        {{ field.label }}
+                        {% if field.field.required %}
+                            <span class="required">*</span>
+                        {% endif %}
+                    </label>
+
+                    {{ field }}
+
+                    {% if field.help_text %}
+                        <small class="help-text">{{ field.help_text }}</small>
+                    {% endif %}
+
+                    {% if field.errors %}
+                        <div class="error-text">
+                            {{ field.errors|striptags }}
+                        </div>
+                    {% endif %}
+                </div>
+            {% endfor %}
+        </div>
+
+        <!-- ACCIONES -->
+        <div class="form-actions">
+            <button type="submit"
+                    class="accion-btn accion-primaria">
+                💾 Guardar centro
+            </button>
+
+            <a href="/muestras/envio/agenda"
+               class="accion-btn accion-secundaria">
+                ↩ Cancelar
+            </a>
+        </div>
+    </form>
+
+</div>
+
 {% endblock %}

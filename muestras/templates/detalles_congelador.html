@@ -3,16 +3,59 @@
 Detalles del congelador
 {% endblock %}
 {%block content %}
-<!-- Detalles de un congelador específico -->
-<a href="/archivo">Volver al archivo</a>
-<a href="{{congelador.congelador}}/editar">Editar detalles del congelador</a>
-<h1>Datos del congelador {{congelador.congelador}}</h1>
-<p><strong>Nombre:</strong> {{ congelador.congelador }}</p>
-<p><strong>Modelo:</strong> {{ congelador.modelo }}</p> 
-<p><strong>Temperatura mínima:</strong>{{ congelador.temperatura_minima }}</p>
-<p><strong>Temperatura máxima:</strong> {{ congelador.temperatura_maxima }}</p>
-<p><strong>Localización dentro del edificio:</strong> {{ congelador.localizacion_edificio }}</p>
-{% if congelador.fotografia  %}
-<img src="{{ congelador.fotografia.url }}" class="img-responsive" style="width: 30%;">
-{% endif %}
+<div class="form-container">
+
+    <!-- BARRA DE ACCIONES -->
+    <div class="acciones-estudios">
+        <a href="/archivo" class="accion-btn accion-secundaria">
+            ⬅ Volver al archivo
+        </a>
+
+        <a href="{{ congelador.congelador }}/editar"
+           class="accion-btn accion-primaria">
+            ✏️ Editar congelador
+        </a>
+    </div>
+
+    <!-- CABECERA -->
+    <div class="form-header">
+        <h1>🧊 Congelador {{ congelador.congelador }}</h1>
+        <p class="form-subtitle">
+            Detalles técnicos y localización del congelador.
+        </p>
+    </div>
+
+    <!-- CONTENIDO -->
+    <div class="form-card">
+
+        <div class="detalle-grid">
+
+            <!-- DATOS -->
+            <div class="detalle-datos">
+                <p><strong>Nombre:</strong> {{ congelador.congelador }}</p>
+                <p><strong>Modelo:</strong> {{ congelador.modelo }}</p>
+                <p><strong>Temperatura mínima:</strong>
+                    {{ congelador.temperatura_minima }} °C
+                </p>
+                <p><strong>Temperatura máxima:</strong>
+                    {{ congelador.temperatura_maxima }} °C
+                </p>
+                <p><strong>Localización:</strong>
+                    {{ congelador.localizacion_edificio }}
+                </p>
+            </div>
+
+            <!-- IMAGEN -->
+            {% if congelador.fotografia %}
+            <div class="detalle-imagen">
+                <img src="{{ congelador.fotografia.url }}"
+                     alt="Fotografía del congelador {{ congelador.congelador }}">
+            </div>
+            {% endif %}
+
+        </div>
+    </div>
+
+</div>
+
 {%endblock%}

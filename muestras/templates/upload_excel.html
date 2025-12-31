@@ -3,24 +3,104 @@
 {% block title %}
 Subir archivo Excel
 {% endblock %}
-{% block content %}
+{% load static %}
+
 <!-- Formulario para subir un archivo Excel con datos de muestras -->
-<h2>Subir archivo Excel</h2>
-Utilizando la siguiente <a href="{% url 'descargar_plantilla_muestras' macro=2 %}" download="plantilla_muestras.xlsx">plantilla</a>, si no se usa dicha plantilla, no se pueden subir las muestras (no usar el excel de errores). 
-En la plantilla están marcadas en rojo las siguientes columnas obligatorias: 
-<ul>
-  <li>Id del individuo del cual proviene la muestra</li>
-  <li>Nombre de la muestra asignado por el laboratorio</li>
-  <li>Nombres de las distintas posiciones (congelador, estante...) que sirven para situar a la muestra en el congelador</li>
-</ul>
-Si estas columnas obligatorias no se rellenan, la muestra no se subirá a la base de datos.
+{% block content %}
+<link rel ="stylesheet" href="{% static 'forms.css' %}">
+<div class="form-container">
 
-La columna "Estudio" se debe de rellenar con el ID interno del estudio (ID en la tabla de la sección de estudios).
+    <!-- CABECERA -->
+    <div class="form-header">
+        <h1>📤 Subir archivo Excel de muestras</h1>
+        <p class="form-subtitle">
+            Carga múltiples muestras utilizando la plantilla oficial.
+        </p>
+    </div>
 
-<form method="post" enctype="multipart/form-data">
-  {% csrf_token %}
-  {{ form.as_p }}
-  <input name="upload_excel" type="submit" class="btn btn-success" value="Upload excel">
-</form>
-<p><a href="/muestras"> Volver a todas las muestras</a></p>
+    <!-- TARJETA INFORMATIVA -->
+    <div class="form-card info-card">
+        <h2>ℹ️ Instrucciones</h2>
+
+        <p>
+            Utiliza exclusivamente la siguiente
+            <a href="{% url 'descargar_plantilla_muestras' macro=2 %}"
+               class="link-plantilla"
+               download="plantilla_muestras.xlsx">
+                plantilla oficial de Excel
+            </a>.
+        </p>
+
+        <p>
+            Si no se usa esta plantilla (no usar el Excel de errores),
+            las muestras no podrán subirse a la base de datos.
+        </p>
+
+        <p>
+            En la plantilla están marcadas en <strong>rojo</strong> las columnas obligatorias, sin las cuales la muestra no se subirá a la base de datos:
+        </p>
+
+        <ul class="requirements-list">
+            <li>ID del individuo del cual proviene la muestra</li>
+            <li>Nombre asignado por el laboratorio</li>
+            <li>
+                Posiciones de archivo
+                <span class="hint">(congelador, estante, rack, caja…)</span>
+            </li>
+        </ul>
+
+        <p class="note">
+            La columna <strong>“Estudio”</strong>, en caso de rellenarse, debe rellenarse con el
+            <strong>ID interno del estudio</strong> (visible en la tabla de estudios).
+        </p>
+    </div>
+
+
+
+    
+    <!-- FORMULARIO -->
+    <form method="post" enctype="multipart/form-data" class="styled-form">
+        {% csrf_token %}
+
+        <div class="form-card">
+            <h2>📁 Seleccionar archivo</h2>
+
+            {% for field in form %}
+                <div class="form-field">
+                    <label for="{{ field.id_for_label }}">
+                        {{ field.label }}
+                        {% if field.field.required %}
+                            <span class="required">*</span>
+                        {% endif %}
+                    </label>
+
+                    {{ field }}
+
+                    {% if field.help_text %}
+                        <small class="help-text">{{ field.help_text }}</small>
+                    {% endif %}
+
+                    {% if field.errors %}
+                        <div class="error-text">
+                            {{ field.errors|striptags }}
+                        </div>
+                    {% endif %}
+                </div>
+            {% endfor %}
+        </div>
+
+        <!-- BOTONES -->
+        <div class="form-actions">
+            <button type="submit" name="upload_excel" class="accion-btn accion-primaria">
+                ⬆️ Subir Excel
+            </button>
+
+            <a href="/muestras" class="accion-btn accion-secundaria">
+                ↩ Volver a muestras
+            </a>
+        </div>
+    </form>
+
+</div>
+
 {% endblock %}
