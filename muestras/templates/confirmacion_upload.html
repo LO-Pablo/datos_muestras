@@ -1,22 +1,97 @@
-{% if messages %}
-  {% for message in messages %}
-        {{ message }}<br>
-  {% endfor %}
-{% endif %}
+{% extends "master.html" %}
+
+{% block title %}
+Confirmación subida
+{% endblock %}
+{% load static %}
 <!-- Página de confirmación para la subida de un excel para añadir muestras -->
-<h1>Confirmación de subida de excel para añadir muestras</h1>
-<p>Se ha creado un excel en el que se marcan las filas del excel original según los errores encontrados:</p>
-<li>En rojo, si la muestra ya existe en la base de datos, alguno de los campos obligatorios no se ha rellenado(indicando cual con un comentario) o hay un problema con la localización.</li>
-<li>En amarillo, si alguno de los campos no obligatorios está vacio, marcando el campo en cuestión con un comentario.</li>
-<p>Todos los errores se detallan en la columna "Errores"</p>
-<p>Este excel de errores NO se debe de subir directamente a la hora de añadir muestras</p>
-<form method="post" action="">
-  {% csrf_token %}
-  <button name="excel_errores" type="submit" class="btn btn-success">Descargar excel con errores</button>
-</form>
-<p>¿Desea subir el archivo excel?</p>
-<form method="post" action="">
-    {% csrf_token %}
-    <button type ="submit" name="confirmar" class="btn btn-success">Confirmar</button>
-    <button type ="submit" name="cancelar"  class="btn btn-success">Cancelar</button>
-</form>
+ {% block content %}
+<link rel ="stylesheet" href="{% static 'forms.css' %}">
+<div class="form-container">
+
+    <!-- CABECERA -->
+    <div class="form-header">
+        <h1>✅ Confirmación de subida de Excel</h1>
+        <p class="form-subtitle">
+            Revisa la información antes de confirmar la creación de muestras.
+        </p>
+    </div>
+
+    <!-- MENSAJES DEL SISTEMA -->
+    {% if messages %}
+    <div class="form-card messages-card">
+        <h2>📢 Mensajes</h2>
+        {% for message in messages %}
+            <p class="message-item">{{ message }}</p>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- EXPLICACIÓN DE ERRORES -->
+    <div class="form-card info-card">
+        <h2>ℹ️ Resultado de la validación del Excel</h2>
+
+        <p>
+            Se ha generado un archivo Excel donde se indican los posibles problemas
+            encontrados en el archivo original:
+        </p>
+
+        <ul class="requirements-list">
+            <li>
+                <strong style="color:#d32f2f;">Filas en rojo</strong>:
+                la muestra ya existe en la base de datos o en el excel, faltan campos obligatorios
+                (indicando cuál en un comentario), hay un problema con la localización o algún campo está en el formato incorrecto.
+            </li>
+            <li>
+                <strong style="color:#ffa000;">Filas en amarillo</strong>:
+                campos no obligatorios vacíos, marcados con un comentario. Estudio no existe en la base de datos. 
+            </li>
+        </ul>
+
+        <p>
+            Todos los detalles se describen en la columna
+            <strong>“Errores”</strong>.
+        </p>
+
+        <p class="note warning">
+            ⚠️ El Excel de errores <strong>NO debe subirse directamente</strong>
+            para crear muestras.
+        </p>
+    </div>
+
+    <!-- DESCARGA EXCEL ERRORES -->
+    <div class="form-card">
+        <h2>📄 Excel de errores</h2>
+
+        <form method="post">
+            {% csrf_token %}
+            <button name="excel_errores" type="submit"
+                    class="accion-btn accion-secundaria">
+                ⬇️ Descargar Excel con errores
+            </button>
+        </form>
+    </div>
+
+    <!-- CONFIRMACIÓN -->
+    <div class="form-card confirm-card">
+        <h2>❓ Confirmación</h2>
+        <p>¿Desea continuar con la subida del archivo Excel?</p>
+
+        <form method="post" class="form-actions">
+            {% csrf_token %}
+
+            <button type="submit" name="confirmar"
+                    class="accion-btn accion-primaria">
+                ✅ Confirmar subida
+            </button>
+
+            <button type="submit" name="cancelar"
+                    class="accion-btn accion-peligro">
+                ❌ Cancelar
+            </button>
+        </form>
+    </div>
+
+</div>
+
+{% endblock %}

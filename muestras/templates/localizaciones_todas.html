@@ -13,14 +13,19 @@ Archivo de muestras
   {%csrf_token%}
   <div class="acciones-archivo">
 
-    <a href="/" class="accion-btn accion-secundaria">
-        ⬅ Volver al inicio
-    </a>
+    <button type="button"
+        onclick="location.href='/'"
+        class="accion-btn accion-secundaria">
+    ⬅ Volver al inicio
+    </button>
 
-    <a href="/archivo/nuevo" class="accion-btn accion-primaria">
-        ➕ Añadir posiciones
-    </a>
-<button type="submit" class="accion-btn accion-peligro" id="eliminar" name="eliminar"
+    <button type="button"
+        onclick="location.href='/archivo/nuevo'"
+        class="accion-btn accion-primaria">
+    ➕ Añadir posiciones
+    </button>
+
+    <button type="submit" class="accion-btn accion-peligro" id="eliminar" name="eliminar"
         onclick="return confirm('¿Quieres eliminar las posiciones seleccionadas?')">
         🗑 Eliminar posiciones
     </button>
@@ -49,10 +54,10 @@ Archivo de muestras
         <li><input type="checkbox" name="estante" value = "{{estante.id}}" class="form-control"><button type ="button" onclick = "desplegar(this,'racks')" class="dropbtn">Estante {{ estante.numero }}</button>
           {% for rack in estante.racks.all %}
             <ul class="racks">
-              <li> <input type="checkbox" name="rack" value = "{{rack.id}}" class="form-control"><button type ="button" onclick = "desplegar(this,'cajas')" class="dropbtn">Rack {{ rack.numero }} Posición dentro del estante: {{rack.posicion_rack_estante}}</button>
+              <li> <input type="checkbox" name="rack" value = "{{rack.id}}" class="form-control"><button type ="button" onclick = "desplegar(this,'cajas')" class="dropbtn">Rack {{ rack.numero }} - Posición dentro del estante: {{rack.posicion_rack_estante}}</button>
                 <ul class ="cajas">
                   {% for caja in rack.cajas.all %}
-                    <li> <input type="checkbox" name="caja" value = "{{caja.id}}" class="form-control"><button type ="button" onclick = "desplegar(this,'muestras')" class="dropbtn">Caja {{ caja.numero }} Posición dentro del rack: {{caja.posicion_caja_rack}}<span class="chip">{{ caja.numero_muestras }} muestras</span></button>
+                    <li> <input type="checkbox" name="caja" value = "{{caja.id}}" class="form-control"><button type ="button" onclick = "desplegar(this,'muestras')" class="dropbtn">Caja {{ caja.numero }} - Posición dentro del rack: {{caja.posicion_caja_rack}}<span class="chip">{{ caja.numero_muestras }} muestras</span></button>
                       <ul class="muestras">
                         {% for subposicion in caja.subposiciones.all %}
                                   {% if subposicion.vacia == False %}

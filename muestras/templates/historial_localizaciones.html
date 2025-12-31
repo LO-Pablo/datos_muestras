@@ -6,33 +6,90 @@ Historial de localizaciones
 <!-- Página que muestra el historial de localizaciones de una muestra específica -->
 {% load static %}
 {% block content %}
-<a href="/muestras"> Volver a la lista de muestras </a><br>
-<h1>Historial de localizaciones de la muestra {{ muestra.nom_lab }}</h1>
-<p>Llegada al laboratorio: {{muestra.fecha_llegada}}</p>
-<p>Centro de procedencia: {{muestra.centro_procedencia}}</p>
-<p>Estado actual: {{muestra.estado_actual}}</p>
+<link rel ="stylesheet" href="{% static 'muestras_todas.css' %}">
+<div class="form-container">
 
-<table>
-    <tr>
-        <th>Localizacion</th>
-        <th>Fecha de asignación</th>
-        <th>Usuario</th>
-    </tr>
-    {% for localizacion in historiales %}
-    <tr>
-        {% if localizacion.localizacion == None %}
-        <td>Localización eliminada</td>
-        {% else %}
-        <td>{{ localizacion.localizacion }}</td>
-        {% endif %}
-        <td>{{ localizacion.fecha_asignacion }}</td>
-        <td>{{ localizacion.usuario_asignacion.username }}</td>
-    </tr>
-    {% endfor %}
-    {% if muestra.estado_actual == 'Destruida'%}
-        <td>Destruida</td>
-        <td>{{ estado_destruccion.fecha }}</td>
-        <td>{{ estado_destruccion.usuario.username }}</td>
-    {% endif %}
-</table>
+    <!-- BARRA DE ACCIONES -->
+    <div class="acciones-estudios">
+        <a href="/muestras" class="accion-btn accion-secundaria">
+            ⬅ Volver a muestras
+        </a>
+    </div>
+
+    <!-- CABECERA -->
+    <div class="form-header">
+        <h1>📍 Historial de localizaciones</h1>
+        <p class="form-subtitle">
+            Muestra: <strong>{{ muestra.nom_lab }}</strong>
+        </p>
+    </div>
+
+    <!-- RESUMEN DE LA MUESTRA -->
+    <div class="form-card">
+        <h2>📋 Resumen de la muestra</h2>
+
+        <div class="detalle-grid">
+            <p>
+                <strong>Llegada al laboratorio:</strong>
+                {{ muestra.fecha_llegada|default:"—" }}
+            </p>
+
+            <p>
+                <strong>Centro de procedencia:</strong>
+                {{ muestra.centro_procedencia|default:"—" }}
+            </p>
+
+            <p>
+                <strong>Estado actual:</strong>
+                <span class="estado-chip estado-{{ muestra.estado_actual|lower }}">
+                    {{ muestra.estado_actual|default:"—" }}
+                </span>
+            </p>
+        </div>
+    </div>
+
+    <!-- HISTORIAL -->
+    <div class="form-card">
+        <h2>🕒 Historial de localizaciones</h2>
+
+        <div class="table-container">
+            <table class="styled-table">
+                <thead>
+                    <tr>
+                        <th>Localización</th>
+                        <th>Fecha de asignación</th>
+                        <th>Usuario</th>
+                    </tr>
+                </thead>
+
+                <tbody>
+                {% for historial in historiales %}
+                    <tr>
+                        <td>
+                            {% if historial.localizacion %}
+                                {{ historial.localizacion }}
+                            {% else %}
+                                <em>Localización eliminada</em>
+                            {% endif %}
+                        </td>
+
+                        <td>{{ historial.fecha_asignacion }}</td>
+                        <td>{{ historial.usuario_asignacion.username }}</td>
+                    </tr>
+                {% endfor %}
+
+                {% if muestra.estado_actual == 'Destruida' %}
+                    <tr class="status-destroyed">
+                        <td><strong>Destruida</strong></td>
+                        <td>{{ estado_destruccion.fecha }}</td>
+                        <td>{{ estado_destruccion.usuario.username }}</td>
+                    </tr>
+                {% endif %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</div>
+
 {% endblock %}

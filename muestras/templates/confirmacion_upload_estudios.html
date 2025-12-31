@@ -1,23 +1,107 @@
-{% if messages %}
-  {% for message in messages %}
-        {{ message }}<br>
-  {% endfor %}
-{% endif %}
+{% extends "master.html" %}
+
+{% block title %}
+Confirmación subida excel estudios
+{% endblock %}
+{% load static %}
+{% block content %}
 <!-- Página de confirmación para la subida de un excel para añadir estudios -->
-<h1>Confirmación de subida de excel para añadir estudios</h1>
-<p>Se ha creado un excel en el que se marcan las filas del excel original según los errores encontrados:</p>
-<li>En rojo, si el estudio ya existe en la base de datos o dentro del excel, y si las fechas tienen un formato incorrecto.</li>
-<li>En amarillo, si alguno de los campos no obligatorios están vacios.</li>
-<p>Las filas con errores amarillos no se añadirán a la base de datos.</p>
-<p>No utilizar este excel de errores generados para subir nuevos estudios.</p>
-<form method="post" action="">
-  {% csrf_token %}
-  <button name="excel_errores" type="submit" class="btn btn-success">Descargar excel con errores</button>
-</form>
-<p>¿Desea subir el archivo excel?</p>
-<form method="post" action="">
-    {% csrf_token %}
-    <button type ="submit" name="confirmar" class="btn btn-success">Confirmar</button>
-    <button type ="submit" name="cancelar"  class="btn btn-success">Cancelar</button>
-</form>
-<p><a href="/estudios"> Volver a todos los estudios</a></p>
+  
+<link rel ="stylesheet" href="{% static 'forms.css' %}">
+<div class="form-container">
+
+    <!-- CABECERA -->
+    <div class="form-header">
+        <h1>✅ Confirmación de subida de Excel de estudios</h1>
+        <p class="form-subtitle">
+            Revise los errores detectados antes de confirmar la creación de nuevos estudios.
+        </p>
+    </div>
+
+    <!-- MENSAJES DEL SISTEMA -->
+    {% if messages %}
+    <div class="form-card messages-card">
+        <h2>📢 Mensajes</h2>
+        {% for message in messages %}
+            <p class="message-item">{{ message }}</p>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- INFORMACIÓN DE ERRORES -->
+    <div class="form-card info-card">
+        <h2>ℹ️ Resultado de la validación del Excel</h2>
+
+        <p>
+            Se ha generado un archivo Excel donde se indican las filas del
+            archivo original que contienen errores:
+        </p>
+
+        <ul class="requirements-list">
+            <li>
+                <strong style="color:#d32f2f;">Filas en rojo</strong>:
+                el estudio ya existe en la base de datos o dentro del propio Excel,
+                o las fechas tienen un formato incorrecto.
+            </li>
+            <li>
+                <strong style="color:#fbc02d;">Filas en amarillo</strong>:
+                uno o más campos no obligatorios están vacíos.
+            </li>
+        </ul>
+
+        <p class="note warning">
+            ⚠️ Las filas que contengan errores
+            <strong>no se añadirán</strong> a la base de datos.
+        </p>
+
+        <p class="note warning">
+            ⚠️ No utilice el Excel de errores generado para subir nuevos estudios.
+        </p>
+    </div>
+
+    <!-- DESCARGA DE EXCEL DE ERRORES -->
+    <div class="form-card">
+        <h2>📄 Excel con errores</h2>
+
+        <form method="post">
+            {% csrf_token %}
+            <button name="excel_errores"
+                    type="submit"
+                    class="accion-btn accion-secundaria">
+                ⬇️ Descargar Excel con errores
+            </button>
+        </form>
+    </div>
+
+    <!-- CONFIRMACIÓN -->
+    <div class="form-card confirm-card">
+        <h2>❓ Confirmación</h2>
+        <p>¿Desea añadir los estudios válidos del archivo Excel?</p>
+
+        <form method="post" class="form-actions">
+            {% csrf_token %}
+
+            <button type="submit"
+                    name="confirmar"
+                    class="accion-btn accion-primaria">
+                🧬 Confirmar creación de estudios
+            </button>
+
+            <button type="submit"
+                    name="cancelar"
+                    class="accion-btn accion-peligro">
+                ❌ Cancelar
+            </button>
+        </form>
+    </div>
+
+    <!-- VOLVER -->
+    <div class="form-actions">
+        <a href="/estudios" class="accion-btn accion-secundaria">
+            ↩ Volver a estudios
+        </a>
+    </div>
+
+</div>
+
+{% endblock %}

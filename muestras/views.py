@@ -150,6 +150,7 @@ def acciones_post(request):
         elif 'destruir' in request.POST:
             # Se marcan las muestras seleccionadas como destruidas
             if muestras_seleccionadas:
+                numero_muestras_destruidas = 0
                 muestras_a_destruir = Muestra.objects.filter(id__in=muestras_seleccionadas)
                 for sample in muestras_a_destruir:
                     sample.estado_actual = 'Destruida'
@@ -164,6 +165,8 @@ def acciones_post(request):
                                                                              fecha = timezone.now(),
                                                                              usuario = request.user)
                     registro_destruccion.save()
+                    numero_muestras_destruidas += 1
+                messages.success(request, f'{numero_muestras_destruidas} muestras destruidas correctamente. ')
         elif 'cambio_posicion' in request.POST:
             # Se redirigue al usuario a la vista de cambio de posición de muestras
             return redirect('cambio_posicion')             
@@ -604,7 +607,8 @@ def upload_excel(request):
                         for err in info["bloqueantes"]:
                             if ":" in err:
                                 tipo, campo = err.split(":")
-                                mensajes.append(f"[ERROR] {MENSAJES_ERROR[tipo]}")
+                                if not f"[ERROR] {MENSAJES_ERROR[tipo]}" in mensajes:
+                                    mensajes.append(f"[ERROR] {MENSAJES_ERROR[tipo]}")
                                 col = columnas_excel[campo]
                                 celda = ws.cell(row=int(fila), column=col)
                                 celda.fill = FILL_ERROR_CELL
@@ -612,13 +616,16 @@ def upload_excel(request):
                             else:
                                 mensajes.append(f"[ERROR] {MENSAJES_ERROR[err]}")
                         for warn in info["advertencias"]:
-                            tipo, campo = warn.split(":")
-                            if not f"[WARN] {MENSAJES_ERROR[tipo]}" in mensajes:
-                                mensajes.append(f"[WARN] {MENSAJES_ERROR[tipo]}")
-                            col = columnas_excel[campo]
-                            celda = ws.cell(row=int(fila), column=col)
-                            celda.fill = FILL_WARN_CELL
-                            celda.comment = Comment(MENSAJES_ERROR[tipo], "Sistema")
+                            if ":" in warn:
+                                tipo, campo = warn.split(":")
+                                if not f"[WARN] {MENSAJES_ERROR[tipo]}" in mensajes:
+                                    mensajes.append(f"[WARN] {MENSAJES_ERROR[tipo]}")
+                                col = columnas_excel[campo]
+                                celda = ws.cell(row=int(fila), column=col)
+                                celda.fill = FILL_WARN_CELL
+                                celda.comment = Comment(MENSAJES_ERROR[tipo], "Sistema")
+                            else:
+                                mensajes.append(f"[WARN] {MENSAJES_ERROR[warn]}")
                         ws.cell(row=int(fila), column=col_errores, value="\n".join(mensajes))
 
 
@@ -1551,7 +1558,7 @@ def añadir_muestras_estudio(request):
                             usuario_asignacion = request.user
                         )
                         historial.save()
-                        messages.success(request,'Muestras añadidas correctamente a los estudios')
+            messages.success(request,'Muestras añadidas correctamente a los estudios')
         if 'muestras_estudio' in request.session:
             del request.session['muestras_estudio']
         return redirect('muestras_todas')
@@ -1620,7 +1627,7 @@ def eliminar_documento(request):
             return redirect('repositorio_estudio', id_estudio=doc.estudio.id)
         except:
             return redirect('repositorio_estudio', id_estudio=doc.estudio.id)
-    return redirect('repositorio_estudio', id=request.session.get('id'))
+    return redirect('repositorio_estudio', id_estudio=request.session['id'])
 
 # Vistas relacionadas con el envio de muestras
 @permission_required('muestras.can_change_muestras_web')
@@ -1741,8 +1748,10 @@ def upload_excel_envios(request,centro):
                 sample = Muestra.objects.get(id=muestra)
                 if sample.estado_actual != 'Destruida':
                     ws.cell(row_num,1).value=str(sample.nom_lab)
-                    ws.cell(row_num,2).value=str(sample.volumen_actual) + ' ' + str(sample.unidad_volumen)
-                    ws.cell(row_num,3).value=str(sample.concentracion_actual) + ' ' + str(sample.unidad_concentracion)
+                    if sample.volumen_actual != None:
+                        ws.cell(row_num,2).value=str(sample.volumen_actual) + ' ' + str(sample.unidad_volumen)
+                    if sample.concentracion_actual != None:
+                        ws.cell(row_num,3).value=str(sample.concentracion_actual) + ' ' + str(sample.unidad_concentracion)
                     ws.cell(row_num,5).value=str(sample.unidad_volumen)
                     ws.cell(row_num,7).value=str(sample.unidad_concentracion)
                     ws.cell(row_num,8).value=str(centro_envio.centro)
@@ -1856,8 +1865,9 @@ def upload_excel_envios(request,centro):
 
                     # Comprobar que el volumen a enviar no sea mayor al actual
                     volumen_envio = datos["volumen_enviado"]
-                    if volumen_envio > cache["volumenes_actuales"][nom_lab]:
-                        errores[fila]["bloqueantes"].append("volumen_alto")
+                    if nom_lab in cache["volumenes_actuales"]:
+                        if volumen_envio > cache["volumenes_actuales"][nom_lab]:
+                            errores[fila]["bloqueantes"].append("volumen_alto")
 
                     # Comprobar que el estado de la muestra sea 'Disponible' o 'Parcialmente enviada'
                     if nom_lab not in cache['estados_actuales']:
@@ -1880,8 +1890,10 @@ def upload_excel_envios(request,centro):
                 for fila in errores:
                     if errores[fila]['bloqueantes']:
                         numero_errores +=1
-                else:
+                if numero_errores > 0:
                     messages.warning(request, f'Pero contiene {numero_errores} filas con errores graves.')
+                else:
+                    messages.success(request, 'Y no tiene errores en ningún campo.')
                 return render(request,'confirmacion_upload_envio.html') 
         # Si se solicita un excel de errores, este se rellena en base a los errores detectados durante la validación 
         elif 'excel_errores' in request.POST:

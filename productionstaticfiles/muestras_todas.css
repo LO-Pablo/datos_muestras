@@ -291,3 +291,30 @@
     text-decoration: underline;
 }
 
+/* Inputs con unidad inline */
+.inline-input {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.inline-input input {
+    width: 90px;
+    padding: 6px 8px;
+    font-size: 13px;
+}
+
+.inline-input span {
+    font-size: 13px;
+    color: #555;
+}
+
+.detalle-grid {
+    display: grid;
+    grid-template-columns: max-content max-content;
+    column-gap: 40px;
+    row-gap: 6px;
+}
+
+
+

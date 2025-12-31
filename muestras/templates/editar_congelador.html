@@ -3,13 +3,73 @@
 {% block title %} 
 Editar congelador
 {% endblock %}
+{% load static %}
 <!-- Formulario para editar un congelador -->
 {% block content %}
-<h1>Editar congelador {{congelador.congelador}}</h1>
-<form method="post" enctype="multipart/form-data">
-    {% csrf_token %}
-    {{ form.as_p }}
-    <button type="submit">Guardar</button>
-</form>
-<p><a href="/archivo/detalles_congelador/{{congelador.congelador}}"> Volver a los detalles del congelador </a></p>
+<link rel ="stylesheet" href="{% static 'forms.css' %}">
+
+<div class="form-container">
+
+    <!-- BARRA DE ACCIONES -->
+    <div class="acciones-estudios">
+        <a href="/archivo/detalles_congelador/{{ congelador.congelador }}"
+           class="accion-btn accion-secundaria">
+            ⬅ Volver a detalles
+        </a>
+    </div>
+
+    <!-- CABECERA -->
+    <div class="form-header">
+        <h1>✏️ Editar congelador {{ congelador.congelador }}</h1>
+        <p class="form-subtitle">
+            Modifique los datos técnicos y la información del congelador.
+        </p>
+    </div>
+
+    <!-- FORMULARIO -->
+    <form method="post" enctype="multipart/form-data" class="styled-form">
+        {% csrf_token %}
+
+        <div class="form-card">
+            <h2>🧊 Datos del congelador</h2>
+
+            {% for field in form %}
+                <div class="form-field">
+                    <label for="{{ field.id_for_label }}">
+                        {{ field.label }}
+                        {% if field.field.required %}
+                            <span class="required">*</span>
+                        {% endif %}
+                    </label>
+
+                    {{ field }}
+
+                    {% if field.help_text %}
+                        <small class="help-text">{{ field.help_text }}</small>
+                    {% endif %}
+
+                    {% if field.errors %}
+                        <div class="error-text">
+                            {{ field.errors|striptags }}
+                        </div>
+                    {% endif %}
+                </div>
+            {% endfor %}
+        </div>
+
+        <!-- ACCIONES -->
+        <div class="form-actions">
+            <button type="submit" class="accion-btn accion-primaria">
+                💾 Guardar cambios
+            </button>
+
+            <a href="/archivo/detalles_congelador/{{ congelador.congelador }}"
+               class="accion-btn accion-secundaria">
+                ↩ Cancelar
+            </a>
+        </div>
+    </form>
+
+</div>
+
 {% endblock %}

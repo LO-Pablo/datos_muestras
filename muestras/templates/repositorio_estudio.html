@@ -3,48 +3,147 @@
 {% block title %}
 Repositorio de documentación del estudio {{estudio.id_estudio}}
 {% endblock %}
+{% load static %}
 <!-- Página que muestra el repositorio de documentos asociados a un estudio específico -->
 {% block content %}
-<p><a href="/"> Volver a las muestras </a></p>
-<p><a href="/estudios"> Volver a la lista de estudios</a></p>
-<p><a href="/estudios/{{id}}/subir"> Subir un documento nuevo</a></p>
+<link rel="stylesheet" href="{% static 'muestras_todas.css' %}">
+<div class="form-container">
 
-<form action="" id="filtros">
-    <input type="text" name="categoria">
-    <select name="usuario" form="filtros">
-            <option value=""></option>
-        {% for user in usuarios %}
-            <option value="{{user.username}}">{{user.username}}</option>
-        {% endfor %}
-    </select>
-    <button type="submit" class="btn btn-primary">
-        🔎 Filtrar
-    </button>
-    <a href="/estudios/{{id}}" class="btn btn-secondary">
-                ✖ Eliminar filtros
-    </a>
-</form>
+    <!-- BARRA DE ACCIONES -->
+    <div class="acciones-estudios">
+        <a href="/" class="accion-btn accion-secundaria">
+            ⬅ Volver a muestras
+        </a>
 
-<table>
-    <tr>
-        <th>Archivo</th>
-        <th>Fecha de subida</th>
-        <th>Categoria</th>
-        <th>Subido por</th>
-        <th>Descripción</th>
-    </tr>
-    <form action ="{% url 'eliminar_documento' %}" method="post">
-    {% csrf_token %}    
-    {%for doc in documentos%}
-    <tr>
-        <td><a href="/estudios/{{id}}/{{doc.id}}">Descargar</a></td>
-        <td>{{doc.fecha_subida}}</td>
-        <td>{{doc.categoria}}</td>
-        <td>{{doc.usuario_subida.username}}</td>
-        <td>{{doc.descripcion}}</td>
-        <td><input type="checkbox" class="form-control" name="doc_id" value="{{doc.id}}"></td>
-    </tr>
-    {%endfor%}
-    <button type="submit" class="btn btn-primary" id='eliminar' onclick="return confirm('¿Quieres eliminar los documentos seleccionados?')">Eliminar documentos seleccionados</button>
-</form>
+        <a href="/estudios" class="accion-btn accion-secundaria">
+            📚 Volver a estudios
+        </a>
+
+        <a href="/estudios/{{ id }}/subir" class="accion-btn accion-primaria">
+            ➕ Subir documento
+        </a>
+    </div>
+
+    <!-- CABECERA -->
+    <div class="form-header">
+        <h1>📂 Documentación del estudio {{ estudio.id_estudio }}</h1>
+        <p class="form-subtitle">
+            Repositorio de archivos asociados a este estudio.
+        </p>
+    </div>
+
+    <!-- FILTROS -->
+    <div class="collapsible">
+    <button class="collapsible-header">🔍 Filtros</button>
+    <div class="collapsible-content">
+         <div class="filter-panel">
+        <form method="get" id="filtros" class="styled-form">
+           <div class="filter-grid">
+                <div class="filter-field">
+                    <label for="categoria">Categoría</label>
+                    <input type="text" name="categoria" id="categoria">
+                </div>
+
+                <div class="filter-field">
+                    <label for="usuario">Usuario</label>
+                    <select name="usuario" id="usuario">
+                        <option value="">Todos</option>
+                        {% for user in usuarios %}
+                            <option value="{{ user.username }}">
+                                {{ user.username }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+            <div class="filter-buttons">
+                <button type="submit" class="accion-btn accion-secundaria">
+                    🔎 Filtrar
+                </button>
+
+                <a href="/estudios/{{ id }}" class="accion-btn accion-secundaria">
+                    ✖ Eliminar filtros
+                </a>
+            </div>
+            </div>
+        </form>
+        </div>
+    </div>
+    </div>
+    <script>
+document.addEventListener("DOMContentLoaded", function() {
+    const headers = document.querySelectorAll(".collapsible-header");
+
+    headers.forEach(header => {
+        header.addEventListener("click", function() {
+            const content = this.nextElementSibling;
+
+            this.classList.toggle("active");
+
+            if (content.style.maxHeight) {
+                content.style.maxHeight = null;
+                content.classList.remove("open");
+            } else {
+                content.style.maxHeight = content.scrollHeight + "px";
+                content.classList.add("open");
+            }
+        });
+    });
+});
+</script>
+
+    <!-- TABLA + FORM DE ELIMINACIÓN -->
+    <form action="{% url 'eliminar_documento' %}" method="post">
+        {% csrf_token %}
+
+        <div class="form-actions" style="margin-bottom: 10px;">
+            <button type="submit"
+                    class="accion-btn accion-peligro"
+                    onclick="return confirm('¿Quieres eliminar los documentos seleccionados?')">
+                🗑 Eliminar documentos seleccionados
+            </button>
+        </div>
+
+        <div class="table-container">
+            <table class="styled-table">
+                <thead>
+                    <tr>
+                        <th>✓</th>
+                        <th>Archivo</th>
+                        <th>Fecha de subida</th>
+                        <th>Categoría</th>
+                        <th>Subido por</th>
+                        <th>Descripción</th>
+                    </tr>
+                </thead>
+
+                <tbody>
+                {% for doc in documentos %}
+                    <tr>
+                        <td>
+                            <input type="checkbox"
+                                   name="doc_id"
+                                   value="{{ doc.id }}">
+                        </td>
+
+                        <td>
+                            <a href="/estudios/{{ id }}/{{ doc.id }}"
+                               class="chip-detalle">
+                                ⬇️ Descargar
+                            </a>
+                        </td>
+
+                        <td>{{ doc.fecha_subida }}</td>
+                        <td>{{ doc.categoria }}</td>
+                        <td>{{ doc.usuario_subida.username }}</td>
+                        <td class="wrap-text">{{ doc.descripcion }}</td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </form>
+
+</div>
+
 {% endblock %}

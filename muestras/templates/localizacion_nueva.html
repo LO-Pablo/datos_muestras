@@ -3,15 +3,94 @@
 {% block title %}
 Subir archivo Excel con las localizaciones nuevas
 {% endblock %}
+{% load static %}
 <!-- Formulario para subir un archivo Excel con nuevas localizaciones -->
 {% block content %}
-<h2>Subir archivo Excel</h2>
-Utilizando la siguiente <a href="{% url 'descargar_plantilla_localizaciones_macros' macro=1 %}" download="plantilla_localizaciones_macros.xlsm">plantilla</a>, cuyas instrucciones de uso se encuentran en la hoja 2 del excel. 
-Si, las macros del excel dan errores, utilizar esta <a href="{% url 'descargar_plantilla_localizaciones' macro=0 %}" download="plantilla_localizaciones.xlsx">plantilla</a>
-<form method="post" enctype="multipart/form-data">
-  {% csrf_token %}
-  {{ form.as_p }}
-  <button type="submit" class="btn btn-primary">Upload excel</button>
-</form>
-<p><a href="/archivo"> Volver al archivo</a></p>
+<link rel="stylesheet" href="{% static 'forms.css' %}">
+<div class="form-container">
+
+    <!-- CABECERA -->
+    <div class="form-header">
+        <h1>📍 Subir localizaciones por Excel</h1>
+        <p class="form-subtitle">
+            Añada nuevas localizaciones al archivo utilizando una plantilla Excel.
+        </p>
+    </div>
+
+    <!-- TARJETA INFORMATIVA -->
+    <div class="form-card info-card">
+        <h2>ℹ️ Instrucciones</h2>
+
+        <p>
+            Utilice preferentemente la plantilla con macros.
+            Las instrucciones de uso se encuentran en la <strong>hoja 2</strong> del Excel.
+        </p>
+
+        <p>
+            Si las macros generan errores, puede utilizar la plantilla alternativa
+            sin macros.
+        </p>
+    </div>
+
+    <!-- DESCARGA DE PLANTILLAS -->
+    <div class="form-card">
+        <h2>⬇️ Descargar plantilla</h2>
+
+            <a href="{% url 'descargar_plantilla_localizaciones_macros' macro=1 %}"
+               download="plantilla_localizaciones_macros.xlsm"
+               class="accion-btn accion-secundaria">
+                📥 Plantilla con macros (.xlsm)
+            </a>
+
+            <a href="{% url 'descargar_plantilla_localizaciones' macro=0 %}"
+               download="plantilla_localizaciones.xlsx"
+               class="accion-btn accion-secundaria">
+                📄 Plantilla sin macros (.xlsx)
+            </a>
+    </div>
+
+    <!-- FORMULARIO DE SUBIDA -->
+    <form method="post" enctype="multipart/form-data" class="styled-form">
+        {% csrf_token %}
+
+        <div class="form-card">
+            <h2>📤 Subir archivo Excel</h2>
+
+            {% for field in form %}
+                <div class="form-field">
+                    <label for="{{ field.id_for_label }}">
+                        {{ field.label }}
+                        {% if field.field.required %}
+                            <span class="required">*</span>
+                        {% endif %}
+                    </label>
+
+                    {{ field }}
+
+                    {% if field.help_text %}
+                        <small class="help-text">{{ field.help_text }}</small>
+                    {% endif %}
+
+                    {% if field.errors %}
+                        <div class="error-text">
+                            {{ field.errors|striptags }}
+                        </div>
+                    {% endif %}
+                </div>
+            {% endfor %}
+        </div>
+
+        <!-- ACCIONES -->
+        <div class="form-actions">
+            <button type="submit" class="accion-btn accion-primaria">
+                ⬆️ Subir Excel
+            </button>
+
+            <a href="/archivo" class="accion-btn accion-secundaria">
+                ↩ Volver al archivo
+            </a>
+        </div>
+    </form>
+
+</div>
 {% endblock %}

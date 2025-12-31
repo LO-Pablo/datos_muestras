@@ -3,14 +3,70 @@
 {% block title %}
 Subir documento
 {% endblock %}
+{% load static %}
 {% block content %}
-<h2>Subir documento</h2>
+<link rel ="stylesheet" href="{% static 'forms.css' %}">
 <!-- Formulario para subir un documento asociado a un estudio específico -->
-<form method="POST" enctype="multipart/form-data">
-    <p>Estudio: {{estudio.nombre_estudio}}</p>
-    {% csrf_token %}
-    {{ form.as_p }}
-    <button type="submit">Subir</button>
-</form>
-<p><a href="/estudios/{{estudio.id_estudio}}"> Volver al repositorio del estudio</a></p>
+<div class="form-container">
+
+    <!-- CABECERA -->
+    <div class="form-header">
+        <h1>📤 Subir documento</h1>
+        <p class="form-subtitle">
+            Añada un nuevo documento al repositorio del estudio.
+        </p>
+    </div>
+
+    <!-- INFO DEL ESTUDIO -->
+    <div class="form-card info-card">
+        <h2>🧬 Estudio</h2>
+        <p><strong>Nombre del estudio:</strong> {{ estudio.nombre_estudio }}</p>
+    </div>
+
+    <!-- FORMULARIO -->
+    <form method="post" enctype="multipart/form-data" class="styled-form">
+        {% csrf_token %}
+
+        <div class="form-card">
+            <h2>📎 Datos del documento</h2>
+
+            {% for field in form %}
+                <div class="form-field">
+                    <label for="{{ field.id_for_label }}">
+                        {{ field.label }}
+                        {% if field.field.required %}
+                            <span class="required">*</span>
+                        {% endif %}
+                    </label>
+
+                    {{ field }}
+
+                    {% if field.help_text %}
+                        <small class="help-text">{{ field.help_text }}</small>
+                    {% endif %}
+
+                    {% if field.errors %}
+                        <div class="error-text">
+                            {{ field.errors|striptags }}
+                        </div>
+                    {% endif %}
+                </div>
+            {% endfor %}
+        </div>
+
+        <!-- ACCIONES -->
+        <div class="form-actions">
+            <button type="submit" class="accion-btn accion-primaria">
+                ⬆️ Subir documento
+            </button>
+
+            <a href="/estudios/{{ estudio.id_estudio }}"
+               class="accion-btn accion-secundaria">
+                ↩ Volver al repositorio
+            </a>
+        </div>
+    </form>
+
+</div>
+
 {%endblock%}

@@ -3,24 +3,121 @@
 {% block title %}
 Detalles de la Muestra
 {% endblock %}
+{% load static %}
 <!-- Detalles de una muestra específica -->
 {% block content %}
-<h1>Detalles de la Muestra</h1>
-<p><strong>ID Individuo:</strong> {{ muestra.id_individuo }}</p>
-<p><strong>Nombre asignado por el laboratorio:</strong> {{ muestra.nom_lab }}</p> 
-<p><strong>Material:</strong>{{ muestra.id_material }}</p>
-<p><strong>Volumen actual:</strong> {%if muestra.volumen_actual != None and muestra.unidad_volumen != None%} {{ muestra.volumen_actual }} {{muestra.unidad_volumen}} {%endif%}</p>  
-<p><strong>Concentración actual:</strong> {%if muestra.concentracion_actual != None and muestra.unidad_concentracion != None%}{{ muestra.concentracion_actual }} {{muestra.unidad_concentracion}} {%endif%}</p>    
-<p><strong>Masa actual:</strong>{%if muestra.masa_actual != None and muestra.unidad_masa != None%} {{muestra.masa_actual}} {{muestra.unidad_masa}} {%endif%}</p>
-<p><strong>Fecha de extracción:</strong> {%if muestra.fecha_extraccion != None%} {{ muestra.fecha_extraccion }} {%endif%}</p>
-<p><strong>Fecha de llegada:</strong>{%if muestra.fecha_llegada != None%} {{ muestra.fecha_llegada }} {%endif%}</p>
-<p><strong>Observaciones:</strong> {%if muestra.observaciones != None%}{{ muestra.observaciones }} {%endif%}</p>
-<p><strong>Estado inicial:</strong> {%if muestra.estado_inicial != None%}{{ muestra.estado_inicial }}{%endif%}</p>
-<p><strong>Estado actual:</strong> {%if muestra.estado_actual != None%}{{ muestra.estado_actual }}{%endif%}</p>
-<p><strong>Centro de procedencia:</strong> {%if muestra.centro_procedencia != None%}{{ muestra.centro_procedencia }} {%endif%}</p>
-<p><strong>Lugar de procedencia:</strong> {%if muestra.lugar_procedencia != None%}{{ muestra.lugar_procedencia }} {%endif%}</p>
-<p><strong>Estudio:</strong> {%if muestra.estudio != None%}{{ muestra.estudio }}{%endif%}</p>
+<link rel ="stylesheet" href="{% static 'forms.css' %}">
+<div class="form-container">
 
-<p><a href='/muestras'> Ir a la lista de muestras </a></p>
-<p><a href='/archivo'> Volver al archivo</a></p>
+    <!-- BARRA DE ACCIONES -->
+    <div class="acciones-estudios">
+        <a href="/muestras" class="accion-btn accion-secundaria">
+            ⬅ Volver a muestras
+        </a>
+
+        <a href="/archivo" class="accion-btn accion-secundaria">
+            🧊 Ver archivo
+        </a>
+
+        <a href="/muestras/{{ muestra.id }}/editar"
+           class="accion-btn accion-primaria">
+            ✏️ Editar muestra
+        </a>
+    </div>
+
+    <!-- CABECERA -->
+    <div class="form-header">
+        <h1>🧬 Detalles de la muestra</h1>
+        <p class="form-subtitle">
+            Información completa y estado actual de la muestra.
+        </p>
+    </div>
+
+    <!-- IDENTIFICACIÓN -->
+    <div class="form-card">
+        <h2>🔖 Identificación</h2>
+
+        <div class="detalle-grid">
+            <p><strong>ID individuo:</strong> {{ muestra.id_individuo }}</p>
+            <p><strong>Nombre laboratorio:</strong> {{ muestra.nom_lab }}</p>
+            <p><strong>Material:</strong> {{ muestra.id_material }}</p>
+            <p><strong>Observaciones:</strong>{{ muestra.observaciones }}</p>
+        </div>
+    </div>
+
+    <!-- MEDIDAS -->
+    <div class="form-card">
+        <h2>⚖️ Medidas actuales</h2>
+
+        <div class="detalle-grid">
+            <p>
+                <strong>Volumen:</strong>
+                {% if muestra.volumen_actual and muestra.unidad_volumen %}
+                    {{ muestra.volumen_actual }} {{ muestra.unidad_volumen }}
+                {% else %} —
+                {% endif %}
+            </p>
+
+            <p>
+                <strong>Concentración:</strong>
+                {% if muestra.concentracion_actual and muestra.unidad_concentracion %}
+                    {{ muestra.concentracion_actual }} {{ muestra.unidad_concentracion }}
+                {% else %} —
+                {% endif %}
+            </p>
+
+            <p>
+                <strong>Masa:</strong>
+                {% if muestra.masa_actual and muestra.unidad_masa %}
+                    {{ muestra.masa_actual }} {{ muestra.unidad_masa }}
+                {% else %} —
+                {% endif %}
+            </p>
+        </div>
+    </div>
+
+    <!-- FECHAS -->
+    <div class="form-card">
+        <h2>📅 Fechas</h2>
+
+        <div class="detalle-grid">
+            <p><strong>Extracción:</strong> {{ muestra.fecha_extraccion|default:"—" }}</p>
+            <p><strong>Llegada:</strong> {{ muestra.fecha_llegada|default:"—" }}</p>
+        </div>
+    </div>
+
+    <!-- ESTADO -->
+    <div class="form-card">
+        <h2>🚦 Estado</h2>
+
+        <div class="detalle-grid">
+            <p><strong>Estado inicial:</strong> {{ muestra.estado_inicial|default:"—" }}</p>
+            <p><strong>Estado actual:</strong>
+                <span class="estado-chip estado-{{ muestra.estado_actual|lower }}">
+                    {{ muestra.estado_actual|default:"—" }}
+                </span>
+            </p>
+        </div>
+    </div>
+
+    <!-- PROCEDENCIA -->
+    <div class="form-card">
+        <h2>🏥 Procedencia y estudio</h2>
+
+        <div class="detalle-grid">
+            <p><strong>Centro:</strong> {{ muestra.centro_procedencia|default:"—" }}</p>
+            <p><strong>Lugar:</strong> {{ muestra.lugar_procedencia|default:"—" }}</p>
+            <p><strong>Estudio:</strong> {{ muestra.estudio|default:"—" }}</p>
+        </div>
+    </div>
+
+    <!-- OBSERVACIONES -->
+    {% if muestra.observaciones %}
+    <div class="form-card">
+        <h2>📝 Observaciones</h2>
+        <p class="wrap-text">{{ muestra.observaciones }}</p>
+    </div>
+    {% endif %}
+
+</div>
 {% endblock %}

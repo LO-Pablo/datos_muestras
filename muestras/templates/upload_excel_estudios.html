@@ -3,15 +3,95 @@
 {% block title %}
 Subir archivo Excel
 {% endblock %}
+{% load static %}
 {% block content %}
 <!-- Formulario para subir un archivo Excel con datos de estudios -->
-<h2>Subir archivo excel de estudios</h2>
-Utilizando la siguiente <a href="{% url 'descargar_plantilla_muestras' macro=3 %}" download="plantilla_estudios.xlsx">plantilla</a>, en la cual están marcadas en rojo las columnas obligatorias.
-Si estas columnas obligatorias no se rellenan, el estudio no se subirá a la base de datos. 
-<form method="post" enctype="multipart/form-data">
-  {% csrf_token %}
-  {{ form.as_p }}
-  <input name="upload_excel" type="submit" class="btn btn-success" value="Upload excel">
-</form>
-<p><a href="/estudios"> Volver a todos los estudios</a></p>
+ 
+<link rel ="stylesheet" href="{% static 'forms.css' %}">
+
+<div class="form-container">
+
+    <!-- CABECERA -->
+    <div class="form-header">
+        <h1>📄 Subir estudios por Excel</h1>
+        <p class="form-subtitle">
+            Cree múltiples estudios utilizando una plantilla Excel.
+        </p>
+    </div>
+
+    <!-- TARJETA INFORMATIVA -->
+    <div class="form-card info-card">
+        <h2>ℹ️ Instrucciones</h2>
+
+        <p>
+            Utilice exclusivamente la siguiente plantilla Excel.
+            En ella, las columnas obligatorias están marcadas en
+            <strong style="color:#d32f2f;">rojo</strong>.
+        </p>
+
+        <p>
+            Si alguna de estas columnas obligatorias no se rellena,
+            el estudio correspondiente <strong>no se añadirá</strong>
+            a la base de datos.
+        </p>
+    </div>
+
+    <!-- DESCARGA DE PLANTILLA -->
+    <div class="form-card">
+        <h2>⬇️ Descargar plantilla</h2>
+
+        <a href="{% url 'descargar_plantilla_muestras' macro=3 %}"
+           download="plantilla_estudios.xlsx"
+           class="accion-btn accion-secundaria">
+            📥 Descargar plantilla de estudios
+        </a>
+    </div>
+
+    <!-- FORMULARIO DE SUBIDA -->
+    <form method="post" enctype="multipart/form-data" class="styled-form">
+        {% csrf_token %}
+
+        <div class="form-card">
+            <h2>📤 Subir archivo Excel</h2>
+
+            {% for field in form %}
+                <div class="form-field">
+                    <label for="{{ field.id_for_label }}">
+                        {{ field.label }}
+                        {% if field.field.required %}
+                            <span class="required">*</span>
+                        {% endif %}
+                    </label>
+
+                    {{ field }}
+
+                    {% if field.help_text %}
+                        <small class="help-text">{{ field.help_text }}</small>
+                    {% endif %}
+
+                    {% if field.errors %}
+                        <div class="error-text">
+                            {{ field.errors|striptags }}
+                        </div>
+                    {% endif %}
+                </div>
+            {% endfor %}
+        </div>
+
+        <!-- ACCIONES -->
+        <div class="form-actions">
+            <button name="upload_excel"
+                    type="submit"
+                    class="accion-btn accion-primaria">
+                ⬆️ Subir Excel
+            </button>
+
+            <a href="/estudios" class="accion-btn accion-secundaria">
+                ↩ Volver a estudios
+            </a>
+        </div>
+    </form>
+
+</div>
+
 {% endblock %}

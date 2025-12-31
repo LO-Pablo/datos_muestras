@@ -3,36 +3,108 @@
 {% block title %}
 Historial de envios
 {% endblock %}
+{% load static %}
 <!-- Página que muestra el historial de envíos de una muestra específica -->
 {% block content %}
-<a href="/muestras"> Volver a la lista de muestras </a><br>
-<h1>Historial de envios de la muestra {{ muestra.nom_lab }}</h1>
-<p>Llegada al laboratorio: {{muestra.fecha_llegada}}</p>
-<p>Centro de procedencia: {{muestra.centro_procedencia}}</p>
-<p>Volumen original: {{volumen_original}} {{muestra.unidad_volumen}}</p>
-{% if muestra.estado_actual == "Parcialmente enviada" %}
-<p>Volumen restante: {{volumen_restante}} {{muestra.unidad_volumen}}</p>
-{% endif %}
-<p>Estado actual: {{muestra.estado_actual}}</p>
+<link rel ="stylesheet" href="{% static 'muestras_todas.css' %}">
+<div class="form-container">
 
-<table>
-    <tr>
-        <th>Fecha de envio</th>
-        <th>Centro de destino</th>
-        <th>Lugar de destino</th>
-        <th>Volumen enviado</th>
-        <th>Concentración enviada</th>
-        <th>Usuario</th>
-    </tr>
-    {% for envio in envios %}
-    <tr>
-        <td>{{ envio.fecha_envio }}</td>
-        <td>{{ envio.centro_destino }}</td>
-        <td>{{ envio.lugar_destino }}</td>
-        <td>{{ envio.volumen_enviado }} {{ envio.unidad_volumen_enviado }}</td>
-        <td>{{ envio.concentracion_enviada }} {{ envio.unidad_concentracion_enviada }}</td>
-        <td>{{ envio.usuario_envio.username }}</td>
-    </tr>
-    {% endfor %}
-</table>
+    <!-- BARRA DE ACCIONES -->
+    <div class="acciones-estudios">
+        <a href="/muestras" class="accion-btn accion-secundaria">
+            ⬅ Volver a muestras
+        </a>
+    </div>
+
+    <!-- CABECERA -->
+    <div class="form-header">
+        <h1>📦 Historial de envíos</h1>
+        <p class="form-subtitle">
+            Muestra: <strong>{{ muestra.nom_lab }}</strong>
+        </p>
+    </div>
+
+    <!-- RESUMEN DE LA MUESTRA -->
+    <div class="form-card">
+        <h2>📋 Resumen de la muestra</h2>
+
+        <div class="detalle-grid">
+            <p>
+                <strong>Llegada al laboratorio:</strong>
+                {{ muestra.fecha_llegada|default:"—" }}
+            </p>
+
+            <p>
+                <strong>Centro de procedencia:</strong>
+                {{ muestra.centro_procedencia|default:"—" }}
+            </p>
+
+            <p>
+                <strong>Volumen original:</strong>
+                {{ volumen_original }} {{ muestra.unidad_volumen }}
+            </p>
+
+            {% if muestra.estado_actual == "PENV" %}
+            <p>
+                <strong>Volumen restante:</strong>
+                {{ volumen_restante }} {{ muestra.unidad_volumen }}
+            </p>
+            {% endif %}
+
+            <p>
+                <strong>Estado actual:</strong>
+                <span class="estado-chip estado-{{ muestra.estado_actual|lower }}">
+                    {{ muestra.estado_actual }}
+                </span>
+            </p>
+        </div>
+    </div>
+
+    <!-- HISTORIAL -->
+    <div class="form-card">
+        <h2>🕒 Historial de envíos</h2>
+
+        <div class="table-container">
+            <table class="styled-table">
+                <thead>
+                    <tr>
+                        <th>Fecha de envío</th>
+                        <th>Centro destino</th>
+                        <th>Lugar destino</th>
+                        <th>Volumen enviado</th>
+                        <th>Concentración enviada</th>
+                        <th>Usuario</th>
+                    </tr>
+                </thead>
+
+                <tbody>
+                {% for envio in envios %}
+                    <tr>
+                        <td>{{ envio.fecha_envio }}</td>
+                        <td>{{ envio.centro_destino }}</td>
+                        <td>{{ envio.lugar_destino }}</td>
+                        <td>
+                            {{ envio.volumen_enviado }}
+                            {{ envio.unidad_volumen_enviado }}
+                        </td>
+                        <td>
+                            {{ envio.concentracion_enviada }}
+                            {{ envio.unidad_concentracion_enviada }}
+                        </td>
+                        <td>{{ envio.usuario_envio.username }}</td>
+                    </tr>
+                {% empty %}
+                    <tr>
+                        <td colspan="6" style="text-align:center;">
+                            No existen envíos registrados para esta muestra.
+                        </td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</div>
+
 {% endblock %}
