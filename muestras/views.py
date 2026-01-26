@@ -1624,12 +1624,18 @@ def eliminar_documento(request):
     for element in ids_documento:
         try:
             doc = Documento.objects.get(pk=element, eliminado=False)
-            doc.eliminado = True
-            doc.fecha_eliminacion = timezone.now()
-            doc.save()
-            return redirect('repositorio_estudio', id_estudio=doc.estudio.id)
+            # Obtener id_estudio antes de eliminar
+            id_estudio = doc.estudio.id
+            # Eliminar el archivo físico del servidor
+            if doc.archivo:
+                ruta_archivo = os.path.join(settings.MEDIA_ROOT, doc.archivo.name)
+                if os.path.exists(ruta_archivo):
+                    os.remove(ruta_archivo)
+            # Eliminar el documento de la base de datos
+            doc.delete()
+            return redirect('repositorio_estudio', id_estudio=id_estudio)
         except:
-            return redirect('repositorio_estudio', id_estudio=doc.estudio.id)
+            return redirect('repositorio_estudio', id_estudio=request.session['id'])
     return redirect('repositorio_estudio', id_estudio=request.session['id'])
 
 # Vistas relacionadas con el envio de muestras
