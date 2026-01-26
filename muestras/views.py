@@ -81,6 +81,9 @@ def muestras_todas(request):
         buffer.seek(0)
         return FileResponse(buffer, as_attachment=True, filename='listado_muestras.pdf')
     '''
+
+
+
      # Crear un Excel con las muestras filtradas 
     if request.GET.get('exportar_excel'):
         response = HttpResponse(content_type='application/ms-excel')
@@ -1610,7 +1613,7 @@ def subir_documento(request, id_estudio):
     template = loader.get_template('subir_documento.html')
     return HttpResponse(template.render({'form':form, 'estudio':estudio},request))
 
-def descargar_documento(request, documento_id,id):
+def descargar_documento(request, id_estudio, documento_id):
     # Vista para descargar un documento del repositorio de un estudio
     doc = Documento.objects.get(pk=documento_id, eliminado=False)      
     return FileResponse(open(doc.archivo.path, 'rb'), as_attachment=True, filename=os.path.basename(doc.archivo.name))
