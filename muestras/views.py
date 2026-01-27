@@ -654,14 +654,22 @@ def cambio_posicion(request):
             filas_validas = request.session.get('filas_validas',[])
             with transaction.atomic():
                 for datos in filas_validas:
-                    subposicion = Subposicion.objects.select_for_update().get(
-                        id=datos["subposicion_id"]
-                    )
-                    subposicion_antigua = Subposicion.objects.select_for_update().get(
-                        id=datos["subposicion_antigua"]
-                    ) 
-                    muestra=Muestra.objects.get(nom_lab=datos['nom_lab'])
-                    localizacion =Localizacion.objects.create(
+                    # Obtener subposición destino
+                    try:
+                        subposicion = Subposicion.objects.select_for_update().get(id=datos["subposicion_id"])
+                    except Subposicion.DoesNotExist:
+                        messages.error(request, f"La subposición destino (id={datos.get('subposicion_id')}) no existe. Operación cancelada.")
+                        raise
+
+                    # Obtener muestra
+                    try:
+                        muestra = Muestra.objects.get(nom_lab=datos['nom_lab'])
+                    except Muestra.DoesNotExist:
+                        messages.error(request, f"La muestra {datos.get('nom_lab')} no existe. Operación cancelada.")
+                        raise
+
+                    # Crear localización basada en la subposición destino
+                    localizacion = Localizacion.objects.create(
                         muestra=muestra,
                         congelador=subposicion.caja.rack.estante.congelador.congelador,
                         estante=subposicion.caja.rack.estante.numero,
@@ -670,20 +678,29 @@ def cambio_posicion(request):
                         subposicion=subposicion.numero,
                     )
 
-                    subposicion_antigua.vacia = True
-                    subposicion_antigua.muestra = None
-                    subposicion_antigua.save()
+                    # Vaciar subposición antigua si existe
+                    antigua_id = datos.get('subposicion_antigua')
+                    if antigua_id:
+                        try:
+                            subposicion_antigua = Subposicion.objects.select_for_update().get(id=antigua_id)
+                            subposicion_antigua.vacia = True
+                            subposicion_antigua.muestra = None
+                            subposicion_antigua.save()
+                        except Subposicion.DoesNotExist:
+                            # Si la subposición antigua no existe, simplemente se ignora y continúa
+                            pass
 
+                    # Asignar la nueva subposición
                     subposicion.vacia = False
                     subposicion.muestra = muestra
                     subposicion.save()
 
                     historial_localizaciones.objects.create(
-                    muestra=muestra,
-                    localizacion=localizacion,
-                    fecha_asignacion=timezone.now(),
-                    usuario_asignacion=request.user
-                )
+                        muestra=muestra,
+                        localizacion=localizacion,
+                        fecha_asignacion=timezone.now(),
+                        usuario_asignacion=request.user
+                    )
 
             return redirect('muestras_todas')
 
@@ -1194,34 +1211,91 @@ def editar_congelador(request,nombre_congelador):
 @permission_required('muestras.can_delete_localizaciones_web')
 def eliminar_localizacion(request):
     # Vista para eliminar localizaciones, requiere permiso para eliminar localizaciones
-    if len(request.POST.getlist('congelador')) > 0:
-        congelador_lista = request.POST.getlist('congelador')
-        for i in range(len(congelador_lista)):
-            Congelador.objects.get(id=congelador_lista[i]).delete()
+    posiciones_ocupadas = []
 
-    if len(request.POST.getlist('estante')) > 0:
-        estante_lista = request.POST.getlist('estante')
-        for i in range(len(estante_lista)):
-            Estante.objects.get(id=estante_lista[i]).delete()
-                
-    if len(request.POST.getlist('rack')) > 0:
-        rack_lista = request.POST.getlist('rack')
-        for i in range(len(rack_lista)):
-            Rack.objects.get(id=rack_lista[i]).delete()
+    # Comprobar congeladores seleccionados: si cualquiera tiene subposiciones ocupadas, bloquear
+    congelador_ids = request.POST.getlist('congelador')
+    if congelador_ids:
+        for congelador_id in congelador_ids:
+            try:
+                cong = Congelador.objects.get(id=congelador_id)
+            except Congelador.DoesNotExist:
+                continue
+            if Subposicion.objects.filter(caja__rack__estante__congelador=cong, vacia=False).exists():
+                posiciones_ocupadas.append(f"Congelador {cong.congelador}")
 
-    if len(request.POST.getlist('caja')) > 0:
-        caja_lista = request.POST.getlist('caja')
-        for i in range(len(caja_lista)):
-            Caja.objects.get(id=caja_lista[i]).delete()
+    # Comprobar estantes seleccionados
+    estante_ids = request.POST.getlist('estante')
+    if estante_ids:
+        for estante_id in estante_ids:
+            try:
+                est = Estante.objects.get(id=estante_id)
+            except Estante.DoesNotExist:
+                continue
+            if Subposicion.objects.filter(caja__rack__estante=est, vacia=False).exists():
+                posiciones_ocupadas.append(f"Estante {est.numero}")
 
-    if len(request.POST.getlist('subposicion')) > 0:
-        subposicion_lista = request.POST.getlist('subposicion')
-        for i in range(len(subposicion_lista)):
-            Subposicion.objects.get(id=subposicion_lista[i]).delete()
+    # Verificar racks seleccionados
+    rack_ids = request.POST.getlist('rack')
+    if rack_ids:
+        for rack_id in rack_ids:
+            try:
+                rack = Rack.objects.get(id=rack_id)
+            except Rack.DoesNotExist:
+                continue
+            if Subposicion.objects.filter(caja__rack=rack, vacia=False).exists():
+                posiciones_ocupadas.append(f"Rack {rack.numero}")
 
-    else:
+    # Verificar cajas seleccionadas
+    caja_ids = request.POST.getlist('caja')
+    if caja_ids:
+        for caja_id in caja_ids:
+            try:
+                caja = Caja.objects.get(id=caja_id)
+            except Caja.DoesNotExist:
+                continue
+            if Subposicion.objects.filter(caja=caja, vacia=False).exists():
+                posiciones_ocupadas.append(f"Caja {caja.numero}")
+
+    # Verificar subposiciones seleccionadas
+    subposicion_ids = request.POST.getlist('subposicion')
+    if subposicion_ids:
+        for subposicion_id in subposicion_ids:
+            try:
+                subposicion = Subposicion.objects.get(id=subposicion_id)
+            except Subposicion.DoesNotExist:
+                continue
+            if not subposicion.vacia:
+                posiciones_ocupadas.append(f"Subposición {subposicion.numero}")
+
+    # Si hay posiciones ocupadas, mostrar error y no eliminar
+    if posiciones_ocupadas:
+        mensaje = f"No se pueden eliminar las siguientes posiciones porque están ocupadas: {', '.join(posiciones_ocupadas[:8])}"
+        if len(posiciones_ocupadas) > 8:
+            mensaje += f" y {len(posiciones_ocupadas) - 8} más."
+        messages.error(request, mensaje)
         return redirect('localizaciones_todas')
-    
+
+    # Si no hay posiciones ocupadas, proceder con la eliminación (de abajo hacia arriba)
+    if subposicion_ids:
+        Subposicion.objects.filter(id__in=subposicion_ids).delete()
+
+    if caja_ids:
+        Caja.objects.filter(id__in=caja_ids).delete()
+
+    if rack_ids:
+        Rack.objects.filter(id__in=rack_ids).delete()
+
+    if estante_ids:
+        Estante.objects.filter(id__in=estante_ids).delete()
+
+    if congelador_ids:
+        Congelador.objects.filter(id__in=congelador_ids).delete()
+
+    messages.success(request, 'Posiciones eliminadas correctamente.')
+    return redirect('localizaciones_todas')
+
+    messages.success(request, 'Posiciones eliminadas correctamente.')
     return redirect('localizaciones_todas')
 
 
