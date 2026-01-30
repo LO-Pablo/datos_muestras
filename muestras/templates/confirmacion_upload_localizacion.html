@@ -28,6 +28,7 @@ Confirmación de la subida del excel de localizaciones
     {% endif %}
 
     <!-- INFORMACIÓN DE ERRORES -->
+    {% if errores_encontrados %}
     <div class="form-card info-card">
         <h2>ℹ️ Resultado de la validación del Excel</h2>
 
@@ -66,6 +67,7 @@ Confirmación de la subida del excel de localizaciones
             </button>
         </form>
     </div>
+    {% endif %}
 
     <!-- CONFIRMACIÓN -->
     <div class="form-card confirm-card">

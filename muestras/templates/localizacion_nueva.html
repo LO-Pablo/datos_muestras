@@ -17,6 +17,12 @@ Subir archivo Excel con las localizaciones nuevas
         </p>
     </div>
 
+    {% if error %}
+        <div class="form-card error-card" style="border-left: 4px solid #dc3545; background-color: #f8d7da;">
+            <p style="color: #721c24; margin: 0;">❌ {{ error }}</p>
+        </div>
+    {% endif %}
+
     <!-- TARJETA INFORMATIVA -->
     <div class="form-card info-card">
         <h2>ℹ️ Instrucciones</h2>
@@ -50,7 +56,7 @@ Subir archivo Excel con las localizaciones nuevas
     </div>
 
     <!-- FORMULARIO DE SUBIDA -->
-    <form method="post" enctype="multipart/form-data" class="styled-form">
+    <form method="post" enctype="multipart/form-data" class="styled-form" id="uploadForm">
         {% csrf_token %}
 
         <div class="form-card">
@@ -82,7 +88,7 @@ Subir archivo Excel con las localizaciones nuevas
 
         <!-- ACCIONES -->
         <div class="form-actions">
-            <button type="submit" class="accion-btn accion-primaria">
+            <button type="submit" id="submitBtn" class="accion-btn accion-primaria" disabled>
                 ⬆️ Subir Excel
             </button>
 
@@ -92,5 +98,27 @@ Subir archivo Excel con las localizaciones nuevas
         </div>
     </form>
 
-</div>
+    <!-- SCRIPT PARA HABILITAR/DESHABILITAR BOTÓN -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const fileInputs = document.querySelectorAll('input[type="file"]');
+            const submitBtn = document.getElementById('submitBtn');
+
+            function updateButtonState() {
+                let hasFile = false;
+                fileInputs.forEach(input => {
+                    if (input.files && input.files.length > 0) {
+                        hasFile = true;
+                    }
+                });
+                submitBtn.disabled = !hasFile;
+            }
+
+            fileInputs.forEach(input => {
+                input.addEventListener('change', updateButtonState);
+            });
+
+            updateButtonState();
+        });
+    </script>
 {% endblock %}

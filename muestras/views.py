@@ -1111,78 +1111,203 @@ def upload_excel_localizaciones(request):
                 excel_bytes = excel_file.read()
                 request.session['excel_file_base64']= base64.b64encode(excel_bytes).decode()
                 excel_stream = io.BytesIO(excel_bytes)
-                df = pd.read_excel(excel_stream)
+                
+                # Validar que sea un archivo Excel válido
+                try:
+                    df = pd.read_excel(excel_stream)
+                except Exception as e:
+                    return render(request, 'localizacion_nueva.html', {'form': form, 'error': f'El archivo no es un Excel válido (.xlsx). Error: {str(e)}'})
+                
+                # Validar que tenga al menos una fila de datos
+                if len(df) == 0:
+                    return render(request, 'localizacion_nueva.html', {'form': form, 'error': 'Error de formato: El archivo no presenta registros'})
+                
+                # Validar que tenga todas las columnas esperadas
+                columnas_esperadas = set(rename_columns.keys())
+                columnas_existentes = set(df.columns)
+                columnas_faltantes = columnas_esperadas - columnas_existentes
+                
+                if columnas_faltantes:
+                    columnas_str = ', '.join(sorted(columnas_faltantes))
+                    return render(request, 'localizacion_nueva.html', {'form': form, 'error': f'Error de formato: El archivo Excel no contiene las siguientes columnas esperadas: {columnas_str}'})
+                
+                # Validar que no haya columnas adicionales
+                columnas_adicionales = columnas_existentes - columnas_esperadas
+                extra_columns = False
+                columnas_adicionales_str = ''
+                if columnas_adicionales:
+                    columnas_adicionales_str = ', '.join(sorted(columnas_adicionales))
+                    # Registrar en la sesión el excel original para descarga y avisar mediante mensajes
+                    request.session['excel_file_base64'] = base64.b64encode(excel_bytes).decode()
+                    request.session['excel_file_name'] = excel_file.name
+                    # Guardar columnas adicionales en sesión para que aparezcan en el Excel de errores
+                    request.session['columnas_adicionales'] = columnas_adicionales_str
+                    extra_columns = True
 
                 # renombrar columnas
                 df.rename(columns=rename_columns, inplace=True)
-                localizaciones_duplicadas = []
+                
+                # Procesar y validar filas
+                errores = {}
                 filas_validas = []
-                filas_vacias = []
-                registros = 0
+                numero_registros = len(df)
+                
                 for idx, row in df.iterrows():
-                    registros += 1
+                    fila_numero = idx + 2
+                    errores[fila_numero] = {"bloqueantes": []}
+                    
                     # Limpiar y normalizar los valores
                     congelador = limpiar_numero(row['congelador'])
                     estante = limpiar_numero(row['estante'])
                     posicion_rack_estante = limpiar_numero(row['posicion_rack_estante'])
                     rack = limpiar_numero(row['rack'])
-                    caja = limpiar_numero(row['caja'])
                     posicion_caja_rack = limpiar_numero(row['posicion_caja_rack'])
+                    caja = limpiar_numero(row['caja'])
                     subpos = limpiar_numero(row['subposicion'])
+                    
                     # Comprobar si hay campos vacíos
-                    if any(v is None for v in [congelador, estante, posicion_rack_estante,rack, posicion_caja_rack,caja, subpos]):
-                        filas_vacias.append(idx + 2)
+                    campos = {
+                        'congelador': congelador,
+                        'estante': estante,
+                        'posicion_rack_estante': posicion_rack_estante,
+                        'rack': rack,
+                        'posicion_caja_rack': posicion_caja_rack,
+                        'caja': caja,
+                        'subposicion': subpos
+                    }
+                    
+                    for nombre_campo, valor in campos.items():
+                        if valor is None:
+                            errores[fila_numero]["bloqueantes"].append(f"campo_obligatorio_vacio:{nombre_campo}")
+                    
+                    if errores[fila_numero]["bloqueantes"]:
                         continue
+                    
                     # Comprobar si la localización ya existe
-                    if Subposicion.objects.filter(numero = subpos,
-                                                caja__numero = caja,
-                                                caja__rack__numero = rack,
-                                                caja__rack__estante__numero = estante, 
-                                                caja__rack__estante__congelador = congelador).exists():
-                        localizaciones_duplicadas.append(idx + 2)
+                    if Subposicion.objects.filter(numero=subpos,
+                                                caja__numero=caja,
+                                                caja__rack__numero=rack,
+                                                caja__rack__estante__numero=estante, 
+                                                caja__rack__estante__congelador__congelador=congelador).exists():
+                        errores[fila_numero]["bloqueantes"].append("localizacion_duplicada")
                     else:
                         # Guardar fila válida
                         filas_validas.append({
                             'congelador': congelador,
                             'estante': estante,
-                            'posicion_rack_estante':posicion_rack_estante,
+                            'posicion_rack_estante': posicion_rack_estante,
                             'rack': rack,
-                            'posicion_caja_rack':posicion_caja_rack,
+                            'posicion_caja_rack': posicion_caja_rack,
                             'caja': caja,
                             'subposicion': subpos
                         })
+                
                 # Guardar en sesión los resultados de la validación
-                request.session['filas_validas']=filas_validas
-                request.session['filas_vacias']=filas_vacias
-                request.session['localizaciones_duplicadas']=localizaciones_duplicadas
+                request.session['filas_validas'] = filas_validas
+                request.session['errores'] = errores
 
                 # Mensajes de información de la subida
-                messages.info(request,f'El excel contiene {registros} registros')
-                if len(filas_validas) == registros:
+                messages.info(request, f'El excel contiene {numero_registros} registros')
+                numero_errores_bloqueantes = sum(1 for fila in errores if errores[fila]['bloqueantes'])
+                
+                # Determinar si hay errores para mostrar la sección de Excel de errores
+                errores_encontrados = (numero_errores_bloqueantes > 0) or extra_columns
+
+                # Lógica de mensajes: mostrar estado de filas con errores y columnas extras de forma uniforme
+                if numero_errores_bloqueantes > 0:
+                    messages.warning(request, f'Pero contiene {numero_errores_bloqueantes} filas con errores graves')
+                
+                if extra_columns:
+                    num_extras = len([c.strip() for c in columnas_adicionales_str.split(',') if c.strip()])
+                    messages.warning(request, f'Tiene {num_extras} columnas extras inválidas: {columnas_adicionales_str}')
+                
+                if numero_errores_bloqueantes == 0 and not extra_columns:
                     messages.success(request, 'Y son todos correctos.')
-                else:
-                    messages.error(request,f'De los cuales {len(localizaciones_duplicadas) + len(filas_vacias)} tienen errores.')
-                return render(request, 'confirmacion_upload_localizacion.html')
+
+                return render(request, 'confirmacion_upload_localizacion.html', {'errores_encontrados': errores_encontrados})
             
         # Si se solicita un excel de errores, este se rellena en base a los errores detectados durante la validación
         elif 'excel_errores' in request.POST:
-            localizaciones_duplicadas = request.session.get('localizaciones_duplicadas',[])
-            filas_vacias = request.session.get('filas_vacias',[])
+            errores = request.session.get('errores', {})
             excel_bytes = base64.b64decode(request.session.get('excel_file_base64'))
             excel_file = io.BytesIO(excel_bytes)
             wb = openpyxl.load_workbook(excel_file)
             ws = wb.active
-            for row in ws.iter_rows(min_row=2, max_row=ws.max_row):
-                if row[0].row in localizaciones_duplicadas:
-                    for cell in row:
-                        cell.fill = openpyxl.styles.PatternFill(start_color="FF0000", end_color="FF0000", fill_type = "solid")
-                elif row[0].row in filas_vacias:
-                    for cell in row:
-                        cell.fill = openpyxl.styles.PatternFill(start_color="FFFF00", end_color="FFFF00", fill_type = "solid")
+            
+            # Definir los estilos para pintar el excel
+            FILL_ERROR_ROW = PatternFill("solid", fgColor="F8D7DA")   # rojo claro
+            FILL_ERROR_CELL = PatternFill("solid", fgColor="F5C2C7")  # rojo fuerte
+            FILL_ERROR_COL = PatternFill("solid", fgColor="F5C2C7")   # rojo fuerte para columnas
+            
+            # Diccionario de mensajes
+            MENSAJES_ERROR = {
+                "campo_obligatorio_vacio": "Campo obligatorio vacío",
+                "localizacion_duplicada": "La localización ya existe en la base de datos"
+            }
+            
+            # Diccionario de columnas del excel
+            columnas_excel = {}
+            for cell in ws[1]:
+                if cell.value in rename_columns:
+                    columnas_excel[rename_columns[cell.value]] = cell.column
+            
+            # Añadir la columna de errores
+            col_errores = ws.max_column + 1
+            ws.cell(row=1, column=col_errores, value="Errores")
+            
+            # Comprobar si hay columnas adicionales registradas en sesión
+            columnas_adicionales_str = request.session.get('columnas_adicionales', '')
+            extra_columns_flag = bool(columnas_adicionales_str)
+
+            # Si hay columnas adicionales, localizar los índices de las columnas inválidas
+            extra_col_indices = []
+            if extra_columns_flag:
+                extra_cols = [c.strip() for c in columnas_adicionales_str.split(',') if c.strip()]
+                # Buscar índices de las columnas adicionales por nombre en la cabecera
+                for cell in ws[1]:
+                    if cell.value in extra_cols:
+                        extra_col_indices.append(cell.column)
+
+            # Recorrer filas con errores (solo filas con bloqueantes) - PRIMERO PINTAR FILAS
+            for fila_numero, info in errores.items():
+                has_error = bool(info.get("bloqueantes"))
+                if not has_error:
+                    continue
+
+                # Pintar la fila completa con rojo claro
+                for col in range(1, ws.max_column + 1):
+                    ws.cell(row=int(fila_numero), column=col).fill = FILL_ERROR_ROW
+
+                # Escribir en la columna de errores y colorear celdas con error
+                mensajes = []
+                for err in info.get("bloqueantes", []):
+                    if ":" in err:
+                        tipo, campo = err.split(":")
+                        mensajes.append(f"[ERROR] {MENSAJES_ERROR[tipo]}")
+                        if campo in columnas_excel:
+                            col = columnas_excel[campo]
+                            celda = ws.cell(row=int(fila_numero), column=col)
+                            celda.fill = FILL_ERROR_CELL
+                            celda.comment = Comment(MENSAJES_ERROR[tipo], "Sistema")
+                    else:
+                        mensajes.append(f"[ERROR] {MENSAJES_ERROR[err]}")
+
+                # No añadir mensajes de columna inválida en la columna 'Errores'.
+                # Solo dejar los mensajes de errores por fila (si los hay).
+                celda_errores = ws.cell(row=int(fila_numero), column=col_errores)
+                celda_errores.value = "\n".join(mensajes)
+            
+            # DESPUÉS PINTAR LAS COLUMNAS EXTRAS (sobrescribe el color de fila con rojo fuerte)
+            if extra_col_indices:
+                for col_idx in extra_col_indices:
+                    for row in ws.iter_rows(min_row=1, max_row=ws.max_row, min_col=col_idx, max_col=col_idx):
+                        for cell in row:
+                            cell.fill = FILL_ERROR_COL
+            
             output = io.BytesIO()    
             wb.save(output)
             wb.close()
-            response = HttpResponse(output.getvalue(),content_type='application/ms-excel')
+            response = HttpResponse(output.getvalue(), content_type='application/ms-excel')
             response['Content-Disposition'] = 'attachment; filename="listado_errores.xlsx"'
             return response        
     else:
