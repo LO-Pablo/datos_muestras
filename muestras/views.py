@@ -387,11 +387,13 @@ def upload_excel(request):
 
                 cache = {
                     'subposiciones': {
-                        (c.caja.rack.estante.congelador.congelador,
-                         c.caja.rack.estante.numero,
-                         c.caja.rack.numero,
-                         c.caja.numero,
-                         c.numero): c
+                        (
+                            str(c.caja.rack.estante.congelador.congelador).lower(),
+                            c.caja.rack.estante.numero,
+                            str(c.caja.rack.numero).lower(),
+                            str(c.caja.numero).lower(),
+                            str(c.numero).lower()
+                        ): c
                          for c in Subposicion.objects.select_related('caja__rack__estante__congelador')
                     },
 
@@ -424,17 +426,24 @@ def upload_excel(request):
                         "centro_procedencia":norm(row['centro_procedencia']),
                         "lugar_procedencia":norm(row['lugar_procedencia']),
                         "estado_actual":norm(row['estado_actual']),
-                        "congelador":norm_code(row['congelador']),
+                        "congelador":(norm_code(row['congelador']) or None),
                         "estante":norm_code(row['estante']),
                         "posicion_rack_estante":norm_code(row['posicion_rack_estante']),
-                        "rack":norm_code(row['rack']),
+                        "rack":(norm_code(row['rack']) or None),
                         "posicion_caja_rack":norm_code(row['posicion_caja_rack']),
-                        "caja":norm_code(row['caja']),
-                        "subposicion":norm_code(row['subposicion']),
+                        "caja":(norm_code(row['caja']) or None),
+                        "subposicion":(norm_code(row['subposicion']) or None),
                         "estudio":norm_code(row['estudio'])  
                     }
-                    # Comprobar si los campos obligatorios están rellenados
-                    obligatorios = ["nom_lab", "id_individuo", "congelador", "estante", "posicion_rack_estante", "rack", "caja", "posicion_caja_rack","subposicion"]
+                    # Normalizar a minúsculas los campos textuales relevantes
+                    if datos['congelador'] is not None:
+                        datos['congelador'] = str(datos['congelador']).lower()
+                    if datos['rack'] is not None:
+                        datos['rack'] = str(datos['rack']).lower()
+                    if datos['caja'] is not None:
+                        datos['caja'] = str(datos['caja']).lower()
+                    if datos['subposicion'] is not None:
+                        datos['subposicion'] = str(datos['subposicion']).lower()
 
                     for campo in obligatorios:
                         if not datos.get(campo):
@@ -756,11 +765,13 @@ def cambio_posicion(request):
 
                 cache = {
                     'subposiciones': {
-                        (c.caja.rack.estante.congelador.congelador,
-                         c.caja.rack.estante.numero,
-                         c.caja.rack.numero,
-                         c.caja.numero,
-                         c.numero): c
+                        (
+                            str(c.caja.rack.estante.congelador.congelador).lower(),
+                            c.caja.rack.estante.numero,
+                            str(c.caja.rack.numero).lower(),
+                            str(c.caja.numero).lower(),
+                            str(c.numero).lower()
+                        ): c
                          for c in Subposicion.objects.select_related('caja__rack__estante__congelador')
                     },
                     'posiciones_actuales': {
@@ -778,14 +789,23 @@ def cambio_posicion(request):
                     errores[fila]={"bloqueantes":[]}
                     datos = {
                         "nom_lab":norm(row['nom_lab']),
-                        "congelador":norm_code(row['congelador']),
+                        "congelador":(norm_code(row['congelador']) or None),
                         "estante":norm_code(row['estante']),
                         "posicion_rack_estante":norm_code(row['posicion_rack_estante']),
-                        "rack":norm_code(row['rack']),
+                        "rack":(norm_code(row['rack']) or None),
                         "posicion_caja_rack":norm_code(row['posicion_caja_rack']),
-                        "caja":norm_code(row['caja']),
-                        "subposicion":norm_code(row['subposicion']), 
+                        "caja":(norm_code(row['caja']) or None),
+                        "subposicion":(norm_code(row['subposicion']) or None), 
                     }
+                    # Normalizar a minúsculas los campos de texto para igualdad por mayúsc/minúsc
+                    if datos['congelador'] is not None:
+                        datos['congelador'] = str(datos['congelador']).lower()
+                    if datos['rack'] is not None:
+                        datos['rack'] = str(datos['rack']).lower()
+                    if datos['caja'] is not None:
+                        datos['caja'] = str(datos['caja']).lower()
+                    if datos['subposicion'] is not None:
+                        datos['subposicion'] = str(datos['subposicion']).lower()
                     # Comprobar si los campos obligatorios están rellenados
                     obligatorios = ["nom_lab", "congelador", "estante", "posicion_rack_estante", "rack", "caja", "posicion_caja_rack","subposicion"]
 
@@ -1065,6 +1085,16 @@ def upload_excel_localizaciones(request):
 
             return valor
 
+        # Normalizar campos de texto para tratar mayúsculas/minúsculas de la misma forma
+        def normalizar_texto(valor):
+            v = limpiar_numero(valor)
+            if v is None:
+                return None
+            try:
+                return str(v).upper()
+            except Exception:
+                return str(v)
+
         # Si el usuario confirma, se guardan las localizaciones en la base de datos      
         if 'confirmar' in request.POST:
             filas = request.session.pop('filas_validas', [])
@@ -1096,7 +1126,6 @@ def upload_excel_localizaciones(request):
                         caja=caja,
                         numero=fila['subposicion']
                     )
-
             messages.success(request, 'Las localizaciones se han añadido correctamente.')
             return redirect('localizaciones_todas')
         # Si el usuario cancela, no se hace nada
@@ -1151,19 +1180,26 @@ def upload_excel_localizaciones(request):
                 errores = {}
                 filas_validas = []
                 numero_registros = len(df)
+                # Mapas para comprobar consistencias:
+                # - que una misma posición de caja no tenga cajas diferentes
+                # - que una misma posición de rack no tenga racks diferentes
+                pos_to_caja = {}
+                pos_rack_to_rack = {}
+                # detectar si la misma subposición se usa más de una vez dentro del Excel
+                subposiciones_usadas = set()
                 
                 for idx, row in df.iterrows():
                     fila_numero = idx + 2
                     errores[fila_numero] = {"bloqueantes": []}
                     
                     # Limpiar y normalizar los valores
-                    congelador = limpiar_numero(row['congelador'])
+                    congelador = normalizar_texto(row['congelador'])
                     estante = limpiar_numero(row['estante'])
-                    posicion_rack_estante = limpiar_numero(row['posicion_rack_estante'])
-                    rack = limpiar_numero(row['rack'])
-                    posicion_caja_rack = limpiar_numero(row['posicion_caja_rack'])
-                    caja = limpiar_numero(row['caja'])
-                    subpos = limpiar_numero(row['subposicion'])
+                    posicion_rack_estante = normalizar_texto(row['posicion_rack_estante'])
+                    rack = normalizar_texto(row['rack'])
+                    posicion_caja_rack = normalizar_texto(row['posicion_caja_rack'])
+                    caja = normalizar_texto(row['caja'])
+                    subpos = normalizar_texto(row['subposicion'])
                     
                     # Comprobar si hay campos vacíos
                     campos = {
@@ -1180,15 +1216,66 @@ def upload_excel_localizaciones(request):
                         if valor is None:
                             errores[fila_numero]["bloqueantes"].append(f"campo_obligatorio_vacio:{nombre_campo}")
                     
+                    # Validar que ciertos campos numéricos sean enteros positivos (>0)
+                    if not errores[fila_numero]["bloqueantes"]:
+                        try:
+                            if estante is not None:
+                                if int(estante) <= 0:
+                                    raise ValueError()
+                        except Exception:
+                            errores[fila_numero]["bloqueantes"].append("formato_incorrecto:estante")
+
+                        try:
+                            if posicion_rack_estante is not None:
+                                if int(posicion_rack_estante) <= 0:
+                                    raise ValueError()
+                        except Exception:
+                            errores[fila_numero]["bloqueantes"].append("formato_incorrecto:posicion_rack_estante")
+
+                        try:
+                            if posicion_caja_rack is not None:
+                                if int(posicion_caja_rack) <= 0:
+                                    raise ValueError()
+                        except Exception:
+                            errores[fila_numero]["bloqueantes"].append("formato_incorrecto:posicion_caja_rack")
+
+                    # Si hay errores bloqueantes hasta ahora, saltar validaciones posteriores
                     if errores[fila_numero]["bloqueantes"]:
                         continue
+
+                    # Comprobar consistencia de rack: misma (congelador, estante, posicion_rack_estante)
+                    # no puede mapear a racks distintos
+                    pos_rack_key = (congelador, estante, posicion_rack_estante)
+                    if pos_rack_key in pos_rack_to_rack:
+                        if pos_rack_to_rack[pos_rack_key] != rack:
+                            errores[fila_numero]["bloqueantes"].append("rack_inconsistente")
+                            continue
+                    else:
+                        pos_rack_to_rack[pos_rack_key] = rack
+
+                    # Comprobar consistencia: una misma posición de caja no puede tener cajas distintas
+                    pos_key = (congelador, estante, posicion_rack_estante, rack, posicion_caja_rack)
+                    if pos_key in pos_to_caja:
+                        if pos_to_caja[pos_key] != caja:
+                            errores[fila_numero]["bloqueantes"].append("caja_inconsistente")
+                            continue
+                    else:
+                        pos_to_caja[pos_key] = caja
+
+                    # Comprobar duplicado dentro del Excel: misma subposición completa ya usada
+                    subpos_key = (congelador, estante, posicion_rack_estante, rack, posicion_caja_rack, subpos)
+                    if subpos_key in subposiciones_usadas:
+                        errores[fila_numero]["bloqueantes"].append("subposicion_duplicada_excel")
+                        continue
+                    else:
+                        subposiciones_usadas.add(subpos_key)
                     
-                    # Comprobar si la localización ya existe
-                    if Subposicion.objects.filter(numero=subpos,
-                                                caja__numero=caja,
-                                                caja__rack__numero=rack,
-                                                caja__rack__estante__numero=estante, 
-                                                caja__rack__estante__congelador__congelador=congelador).exists():
+                    # Comprobar si la localización ya existe (case-insensitive para textos)
+                    if Subposicion.objects.filter(numero__iexact=subpos,
+                                                  caja__numero__iexact=caja,
+                                                  caja__rack__numero__iexact=rack,
+                                                  caja__rack__estante__numero=estante,
+                                                  caja__rack__estante__congelador__congelador__iexact=congelador).exists():
                         errores[fila_numero]["bloqueantes"].append("localizacion_duplicada")
                     else:
                         # Guardar fila válida
@@ -1242,7 +1329,11 @@ def upload_excel_localizaciones(request):
             # Diccionario de mensajes
             MENSAJES_ERROR = {
                 "campo_obligatorio_vacio": "Campo obligatorio vacío",
-                "localizacion_duplicada": "La localización ya existe en la base de datos"
+                "localizacion_duplicada": "La localización ya existe en la base de datos",
+                "subposicion_duplicada_excel": "La subposición aparece duplicada en el Excel",
+                "formato_incorrecto": "Formato incorrecto (debe ser entero positivo)",
+                "caja_inconsistente": "Conflicto de caja en la misma posición",
+                "rack_inconsistente": "Conflicto de rack en la misma posición"
             }
             
             # Diccionario de columnas del excel
@@ -2176,7 +2267,6 @@ def upload_excel_envios(request,centro):
         form = UploadExcel(request)
     template = loader.get_template('upload_excel_envios.html')     
     return HttpResponse(template.render({'form': form},request))
-
 
 
 def historial_envios(request,muestra_id):

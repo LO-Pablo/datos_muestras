@@ -1,0 +1,77 @@
+APLICACIÓN GESTIÓN DE MUESTRAS Y TRAZABILIDAD
+
+1. CONGELADORES
+
+✓✓ Acción de eliminar posiciones:
+✓- Si no hay posiciones seleccionadas, no debería estar disponible la opción de eliminar posiciones.
+✓- Se debe comprovar que no haya posiciones que se quieren eliminar que esten ocupadas. Mandar mensaje de advertencia y no dejar eliminar hasta que la posición este libre.
+
+✓✓ Revisar visualización de Racks
+
+✓✓Validaciones importación Excel:
+
+✓✓Estaria bien que el Excel de errores sea como en el del apartado de Estudios, con el mensaje del Error en una columna nueva.
+
+✓✓ En caso de que no se cumplan estas dos condiciones, directamente en Resultado de la validación del Excel debería aparecer un mensaje de error sin generar el Excel de errores.
+✓- El archivo es un Excel válido (.xlsx) 
+✓- El archivo contiene al menos una fila de datos 
+
+✓- El Excel contiene todas las columnas esperadas: Congelador, Estante, Posición del rack en el estante, Rack, Posición de la caja en el rack, Caja y Subposición
+✓- No hay columnas adicionales -> Mensaje de que la columna X no aparece en la plantilla
+- Todos los campos son obligatorios. No pueden estar vacíos. No se permiten valores con solo espacios en blanco. [PLO -> Preguntas. Subir igual si falta info??]
+
+Comprovar tablas creadas en SQL:
+- Campos de texto: Congelador, Rack, Caja y Subposición.
+- Campos numéricos enteros positivos (>0): Estante, Posición del rack en el estante y Posición de la caja en el rack.
+
+- No se repite la misma ubicación física completa: Congelador + Estante + Posición rack + Rack + Posición caja + Caja + Subposición
+- Un Rack siempre pertenece al mismo: Congelador + Estante + Posición rack + Rack. 
+- Una Caja siempre pertenece al mismo: Congelador + Estante + Posición rack + Rack + Posición caja + Caja. Explicación: Si una posición es Estante 1, Rack 1, Posición caja 1, solo puede existir una Caja, no puede haber dos cajas distintas en la misma posición de la caja en el rack.
+- La Subposición es única dentro de la misma Caja: Congelador + Estante + Posición rack + Rack + Posición caja + Caja
+
+- El sistema gestiona correctamente mayúsculas y minúsculas (se deben tratar de la misma manera)
+
+- Importar dos veces el mismo Excel no genera duplicados
+- No se sobreescriben posiciones existentes sin confirmación
+
+- Se comprueba que no existan saltos ilógicos en la Subposición (por ejemplo, pasar de la subposición 3 a la 5) -> Advertencia (No es prioritario)
+
+SI TODOS LOS REGISTROS SON CORRECTOS, NO SE MUESTRA EL EXCEL DE ERRORES. SOLO DEBERIA MOSTRAR EL APARTADO DE MENSAJES Y LA CONFIRMACIÓN.
+
+2. ESTUDIOS
+
+Acción de eliminar estudios:
+- Se debe comprovar que no haya muestras asociadas a ese estudio. Mandar mensaje de advertencia y no dejar eliminar hasta que la posición este libre.
+
+Validaciones en la importación desde Excel y en la creación a partir del formulario:
+
+En caso de que no se cumplan estas dos condiciones, directamente en Resultado de la validación del Excel debería aparecer un mensaje de error sin generar el Excel de errores.
+- El archivo es un Excel válido (.xlsx) 
+- El archivo contiene al menos una fila de datos 
+
+- El Excel contiene las columnas esperadas: Referencia del estudio, Nombre del estudio, Descripción, Fecha de inicio, Fecha de fin, Investigador principal
+- No hay columnas adicionales -> Mensaje de que la columna X no aparece en la plantilla
+- El campo Nombre del estudio es obligatorio, no se permiten valores con solo espacios en blanco
+- El resto de campos son opcionales
+
+Comprovar tablas creadas en SQL:
+- Campos de texto: Referencia del estudio, Nombre del estudio, Descripción, Investigador principal, 
+- Campos de fecha: Fecha de inicio, Fecha de fin
+
+- La Fecha de inicio tiene un formato de fecha válido
+- La Fecha de fin tiene un formato de fecha válido
+- Si ambas fechas están informadas: Fecha de fin ≥ Fecha de inicio
+- Se permite: Fecha de inicio informada sin Fecha de fin
+
+- El sistema gestiona correctamente mayúsculas y minúsculas (se deben tratar de la misma manera)
+
+- No se permiten dos estudios con el mismo Nombre del estudio
+- No se permiten dos estudios con la misma Referencia del estudio, en caso de que este completada la información.
+
+- Importar dos veces el mismo Excel no genera duplicados
+- No se sobreescriben estudios existentes sin confirmación
+
+SI TODOS LOS REGISTROS SON CORRECTOS, NO SE MUESTRA EL EXCEL DE ERRORES. SOLO DEBERIA MOSTRAR EL APARTADO DE MENSAJES Y LA CONFIRMACIÓN.
+
+No se pueden descargar los documentos subidos. (No es prioritario)
+Seria posible tener un log de las modificaciones que se hagan de los estudios? Es decir el motivo por el que se modifica o elimina un estudio. (No es prioritario)
