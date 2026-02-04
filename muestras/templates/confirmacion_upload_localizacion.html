@@ -13,7 +13,7 @@ Confirmación de la subida del excel de localizaciones
     <div class="form-header">
         <h1>✅ Confirmación de subida de Excel de localizaciones</h1>
         <p class="form-subtitle">
-            Revise los errores detectados antes de confirmar la creación de nuevas localizaciones.
+            
         </p>
     </div>
 
@@ -40,18 +40,9 @@ Confirmación de la subida del excel de localizaciones
         <ul class="requirements-list">
             <li>
                 <strong style="color:#d32f2f;">Filas en rojo</strong>:
-                la localización ya existe en la base de datos.
-            </li>
-            <li>
-                <strong style="color:#fbc02d;">Filas en amarillo</strong>:
-                uno o más campos obligatorios están vacíos.
+                Errores que son necesario corregir para poder importar correctamente el fichero.
             </li>
         </ul>
-
-        <p class="note warning">
-            ⚠️ Las filas que contengan estos errores
-            <strong>no se añadirán</strong> a la base de datos.
-        </p>
     </div>
 
     <!-- DESCARGA DE EXCEL DE ERRORES Y SUBIDA DE ARCHIVO NUEVO -->
@@ -68,6 +59,10 @@ Confirmación de la subida del excel de localizaciones
                     ⬇️ Descargar Excel con errores
                 </button>
             </div>
+
+            <p style="margin-bottom: 15px;">
+                Una vez corregidos los errores, vuelve a subir el archivo Excel.
+            </p>
 
             <div class="form-field">
                 <label for="excel_file_reupload">Excel file *</label>
