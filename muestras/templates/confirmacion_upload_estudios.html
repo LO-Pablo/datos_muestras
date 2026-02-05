@@ -14,7 +14,7 @@ Confirmación subida excel estudios
     <div class="form-header">
         {% if numero_errores_bloqueantes > 0 %}
         <h1>❌ Confirmación de subida de Excel de estudios: Fallo crítico</h1>
-        {% elif numero_errores_advertencia > 0 %}
+        {% elif numero_errores_advertencia > 0 or tiene_columnas_extras %}
         <h1>⚠️ Confirmación de subida de Excel de estudios: Advertencia</h1>
         {% else %}
         <h1>✅ Confirmación de subida de Excel de estudios</h1>
@@ -35,7 +35,7 @@ Confirmación subida excel estudios
     {% endif %}
 
     <!-- INFORMACIÓN DE ERRORES -->
-    {% if numero_errores_bloqueantes > 0 or numero_errores_advertencia > 0 or error %}
+    {% if numero_errores_bloqueantes > 0 or numero_errores_advertencia > 0 or error or tiene_columnas_extras %}
     <div class="form-card info-card">
         <h2>ℹ️ Resultado de la validación del Excel</h2>
 
@@ -46,6 +46,10 @@ Confirmación subida excel estudios
             Se ha generado un archivo Excel donde se indican las filas del
             archivo original que contienen errores:
         </p>
+
+        {% if tiene_columnas_extras %}
+        <p>Contiene {{ numero_columnas_extras }} columnas extras: {{ columnas_extras_str }}</p>
+        {% endif %}
 
         <ul class="requirements-list">
             {% if numero_errores_bloqueantes > 0 %}

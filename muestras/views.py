@@ -1629,6 +1629,17 @@ def excel_estudios(request):
                     'Fecha de fin': 'fecha_fin_estudio',
                     'Investigador principal': 'investigador_principal',
                 }
+                # Validar columnas
+                columnas_esperadas = set(rename_columns.keys())
+                columnas_existentes = set(df.columns)
+                columnas_faltantes = columnas_esperadas - columnas_existentes
+                if columnas_faltantes:
+                    columnas_str = ', '.join(sorted(columnas_faltantes))
+                    return render(request, 'upload_excel_estudios.html', {'form': form, 'error': f'❌ Error de formato: El archivo Excel no contiene las siguientes columnas esperadas: {columnas_str}'})
+                columnas_adicionales = columnas_existentes - columnas_esperadas
+                if columnas_adicionales:
+                    columnas_adicionales_str = ', '.join(sorted(columnas_adicionales))
+                    request.session['columnas_adicionales'] = columnas_adicionales_str
                 df.rename(columns=rename_columns, inplace=True)
                  # Funciones para normalizar las columnas del excel
                 def norm(value):
@@ -1728,7 +1739,18 @@ def excel_estudios(request):
                     messages.error(request, f'Contiene {numero_errores_bloqueantes} filas con errores graves')
                 if numero_errores_bloqueantes == 0 and numero_errores_advertencia == 0:
                     messages.success(request, 'Y no tiene errores en ningún campo.')
-                return render(request, 'confirmacion_upload_estudios.html', {'numero_errores_bloqueantes': numero_errores_bloqueantes, 'numero_errores_advertencia': numero_errores_advertencia})
+                tiene_columnas_extras = bool(request.session.get('columnas_adicionales'))
+                numero_columnas_extras = len(request.session.get('columnas_adicionales', '').split(', ')) if request.session.get('columnas_adicionales') else 0
+                columnas_extras_str = request.session.pop('columnas_adicionales', '')
+                if tiene_columnas_extras:
+                    messages.warning(request, f'Contiene {numero_columnas_extras} columnas extras: {columnas_extras_str}')
+                return render(request, 'confirmacion_upload_estudios.html', {
+                    'numero_errores_bloqueantes': numero_errores_bloqueantes, 
+                    'numero_errores_advertencia': numero_errores_advertencia,
+                    'tiene_columnas_extras': tiene_columnas_extras,
+                    'numero_columnas_extras': numero_columnas_extras,
+                    'columnas_extras_str': columnas_extras_str
+                })
             
         # Si se solicita un excel de errores, este se rellena en base a los errores detectados durante la validación
         elif 'excel_errores' in request.POST:
@@ -1761,7 +1783,7 @@ def excel_estudios(request):
                     'Investigador principal': 'investigador_principal',
                     }
                     for cell in ws[1]:
-                        columnas_excel[rename_columns[cell.value]] = cell.column
+                        columnas_excel[rename_columns.get(cell.value, cell.value)] = cell.column
                     # Añadir la columna de errores
                     col_errores = ws.max_column + 1
                     ws.cell(row=1, column=col_errores, value="Errores")
@@ -1801,6 +1823,18 @@ def excel_estudios(request):
                             celda.fill = FILL_WARN_CELL
                             celda.comment = Comment(MENSAJES_ERROR[tipo], "Sistema")
                         ws.cell(row=int(fila), column=col_errores, value="\n".join(mensajes))
+
+                    # Pintar columnas extras en amarillo
+                    expected_renamed = set(rename_columns.values())
+                    for col_name, col_num in columnas_excel.items():
+                        if col_name not in expected_renamed:
+                            # Pintar el encabezado
+                            header_cell = ws.cell(row=1, column=col_num)
+                            header_cell.fill = FILL_WARN_CELL
+                            header_cell.comment = Comment("Columna adicional - será ignorada", "Sistema")
+                            # Pintar todas las celdas de datos en la columna
+                            for row in range(2, ws.max_row + 1):
+                                ws.cell(row=row, column=col_num).fill = FILL_WARN_CELL
 
                     output = io.BytesIO()    
                     wb.save(output)
