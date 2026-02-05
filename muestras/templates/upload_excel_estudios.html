@@ -19,6 +19,12 @@ Subir archivo Excel
         </p>
     </div>
 
+    {% if error %}
+        <div class="form-card error-card" style="border-left: 4px solid #dc3545; background-color: #f8d7da;">
+            <p style="color: #721c24; margin: 0;">{{ error }}</p>
+        </div>
+    {% endif %}
+
     <!-- MENSAJES DEL SISTEMA -->
     {% if messages %}
     <div class="form-card messages-card">

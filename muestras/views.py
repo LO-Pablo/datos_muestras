@@ -1613,16 +1613,14 @@ def excel_estudios(request):
                 # Leer excel y preparar columnas
                 excel_file = request.FILES['excel_file']
                 if not excel_file.name.lower().endswith(('.xlsx', '.xls')):
-                    messages.error(request, '❌ Error de formato: El archivo debe ser un Excel (.xlsx o .xls).')
-                    return render(request, 'upload_excel_estudios.html', {'form': form})
+                    return render(request, 'upload_excel_estudios.html', {'form': form, 'error': '❌ Error de formato: El archivo debe ser un Excel (.xlsx o .xls).'})
                 excel_bytes = excel_file.read()
                 request.session['excel_file_name'] = excel_file.name
                 request.session['excel_file_base64']= base64.b64encode(excel_bytes).decode()
                 excel_stream = io.BytesIO(excel_bytes)
                 df = pd.read_excel(excel_stream)
                 if df.empty:
-                    messages.error(request, '❌ Error de formato: El archivo Excel está vacío o no contiene filas de datos.')
-                    return render(request, 'upload_excel_estudios.html', {'form': form})
+                    return render(request, 'upload_excel_estudios.html', {'form': form, 'error': '❌ Error de formato: El archivo Excel está vacío o no contiene filas de datos.'})
                 rename_columns = {
                     'Referencia del estudio': 'referencia_estudio', 
                     'Nombre del estudio': 'nombre_estudio',
