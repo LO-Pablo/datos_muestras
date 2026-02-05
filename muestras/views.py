@@ -1612,6 +1612,9 @@ def excel_estudios(request):
             if form.is_valid():
                 # Leer excel y preparar columnas
                 excel_file = request.FILES['excel_file']
+                if not excel_file.name.lower().endswith(('.xlsx', '.xls')):
+                    messages.error(request, '❌ Error de formato: El archivo debe ser un Excel (.xlsx o .xls).')
+                    return render(request, 'upload_excel_estudios.html', {'form': form})
                 excel_bytes = excel_file.read()
                 request.session['excel_file_name'] = excel_file.name
                 request.session['excel_file_base64']= base64.b64encode(excel_bytes).decode()
