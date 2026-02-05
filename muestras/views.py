@@ -1617,6 +1617,9 @@ def excel_estudios(request):
                 request.session['excel_file_base64']= base64.b64encode(excel_bytes).decode()
                 excel_stream = io.BytesIO(excel_bytes)
                 df = pd.read_excel(excel_stream)
+                if df.empty:
+                    messages.error(request, '❌ Error de formato: El archivo Excel está vacío o no contiene filas de datos.')
+                    return render(request, 'upload_excel_estudios.html', {'form': form})
                 rename_columns = {
                     'Referencia del estudio': 'referencia_estudio', 
                     'Nombre del estudio': 'nombre_estudio',

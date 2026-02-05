@@ -19,6 +19,15 @@ Subir archivo Excel
         </p>
     </div>
 
+    <!-- MENSAJES DEL SISTEMA -->
+    {% if messages %}
+    <div class="form-card messages-card">
+        {% for message in messages %}
+            <p class="message-item {{ message.tags }}">{{ message }}</p>
+        {% endfor %}
+    </div>
+    {% endif %}
+
     <!-- TARJETA INFORMATIVA -->
     <div class="form-card info-card">
         <h2>ℹ️ Instrucciones</h2>
