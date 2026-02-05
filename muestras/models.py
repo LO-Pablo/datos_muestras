@@ -80,6 +80,13 @@ class Congelador(models.Model):
     localizacion_edificio = models.CharField(max_length=50,blank=True, null=True)
     fotografia = models.ImageField(upload_to='congeladores/', blank=True, null=True)
 
+    def save(self, *args, **kwargs):
+        if self.pk:
+            old = Congelador.objects.get(pk=self.pk)
+            if old.congelador != self.congelador:
+                Localizacion.objects.filter(congelador=old.congelador).update(congelador=self.congelador)
+        super().save(*args, **kwargs)
+
 
 class Estante(models.Model):
     # Modelo estante, que está relacionado con un congelador
@@ -94,6 +101,13 @@ class Estante(models.Model):
             )
         ]
 
+    def save(self, *args, **kwargs):
+        if self.pk:
+            old = Estante.objects.get(pk=self.pk)
+            if old.numero != self.numero:
+                Localizacion.objects.filter(congelador=self.congelador.congelador, estante=old.numero).update(estante=self.numero)
+        super().save(*args, **kwargs)
+
 
 class Rack(models.Model):
     # Modelo rack, que está relacionado con un estante y contiene la posición del mismo dentro del estante
@@ -106,8 +120,23 @@ class Rack(models.Model):
             models.UniqueConstraint(
                 fields=['estante', 'numero'],
                 name='unique_rack_por_estante'
+            ),
+            models.UniqueConstraint(
+                fields=['estante', 'posicion_rack_estante'],
+                name='unique_posicion_rack_por_estante'
             )
         ]
+
+    def save(self, *args, **kwargs):
+        if self.pk:
+            old = Rack.objects.get(pk=self.pk)
+            if old.numero != self.numero:
+                Localizacion.objects.filter(
+                    congelador=self.estante.congelador.congelador,
+                    estante=self.estante.numero,
+                    rack=old.numero
+                ).update(rack=self.numero)
+        super().save(*args, **kwargs)
 
 
 class Caja(models.Model):
@@ -121,8 +150,24 @@ class Caja(models.Model):
             models.UniqueConstraint(
                 fields=['rack', 'numero'],
                 name='unique_caja_por_rack'
+            ),
+            models.UniqueConstraint(
+                fields=['rack', 'posicion_caja_rack'],
+                name='unique_posicion_caja_por_rack'
             )
         ]
+
+    def save(self, *args, **kwargs):
+        if self.pk:
+            old = Caja.objects.get(pk=self.pk)
+            if old.numero != self.numero:
+                Localizacion.objects.filter(
+                    congelador=self.rack.estante.congelador.congelador,
+                    estante=self.rack.estante.numero,
+                    rack=self.rack.numero,
+                    caja=old.numero
+                ).update(caja=self.numero)
+        super().save(*args, **kwargs)
 
 
 class Subposicion(models.Model):
@@ -139,6 +184,19 @@ class Subposicion(models.Model):
                 name='unique_subposicion_por_caja'
             )
         ]
+
+    def save(self, *args, **kwargs):
+        if self.pk:
+            old = Subposicion.objects.get(pk=self.pk)
+            if old.numero != self.numero:
+                Localizacion.objects.filter(
+                    congelador=self.caja.rack.estante.congelador.congelador,
+                    estante=self.caja.rack.estante.numero,
+                    rack=self.caja.rack.numero,
+                    caja=self.caja.numero,
+                    subposicion=old.numero
+                ).update(subposicion=self.numero)
+        super().save(*args, **kwargs)
 
 class historial_localizaciones(models.Model):
     # Modelo que guarda el historial de localizaciones de una muestra

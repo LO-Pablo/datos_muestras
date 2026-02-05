@@ -11,7 +11,7 @@ Confirmación de la subida del excel de localizaciones
 
     <!-- CABECERA -->
     <div class="form-header">
-        <h1>✅ Confirmación de subida de Excel de localizaciones</h1>
+        <h1>{% if errores_encontrados %}❌ Problemas con la subida del Excel de localizaciones:{% else %}✅ Confirmación de subida de Excel de localizaciones{% endif %} {% if errores_encontrados %} ERRORES DETECTADOS{% endif %}</h1>
         <p class="form-subtitle">
             
         </p>

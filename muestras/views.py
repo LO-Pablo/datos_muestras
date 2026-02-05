@@ -1270,6 +1270,25 @@ def upload_excel_localizaciones(request):
                     else:
                         subposiciones_usadas.add(subpos_key)
                     
+                    # Comprobar si la posición del rack ya está ocupada por otro rack
+                    if Rack.objects.filter(
+                        estante__congelador__congelador__iexact=congelador,
+                        estante__numero__iexact=estante,
+                        posicion_rack_estante__iexact=posicion_rack_estante
+                    ).exclude(numero__iexact=rack).exists():
+                        errores[fila_numero]["bloqueantes"].append("posicion_rack_ocupada")
+                        continue
+                    
+                    # Comprobar si la posición de la caja ya está ocupada por otra caja
+                    if Caja.objects.filter(
+                        rack__estante__congelador__congelador__iexact=congelador,
+                        rack__estante__numero__iexact=estante,
+                        rack__numero__iexact=rack,
+                        posicion_caja_rack__iexact=posicion_caja_rack
+                    ).exclude(numero__iexact=caja).exists():
+                        errores[fila_numero]["bloqueantes"].append("posicion_caja_ocupada")
+                        continue
+                    
                     # Comprobar si la localización ya existe (case-insensitive para textos)
                     if Subposicion.objects.filter(numero__iexact=subpos,
                                                   caja__numero__iexact=caja,
@@ -1333,7 +1352,9 @@ def upload_excel_localizaciones(request):
                 "subposicion_duplicada_excel": "La subposición aparece duplicada en el Excel",
                 "formato_incorrecto": "Formato incorrecto (debe ser entero positivo)",
                 "caja_inconsistente": "Conflicto de caja en la misma posición",
-                "rack_inconsistente": "Conflicto de rack en la misma posición"
+                "rack_inconsistente": "Conflicto de rack en la misma posición",
+                "posicion_rack_ocupada": "La posición del rack ya está ocupada por otro rack",
+                "posicion_caja_ocupada": "La posición de la caja ya está ocupada por otra caja"
             }
             
             # Diccionario de columnas del excel
