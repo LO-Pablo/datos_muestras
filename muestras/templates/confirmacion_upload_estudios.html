@@ -47,10 +47,6 @@ Confirmación subida excel estudios
             archivo original que contienen errores:
         </p>
 
-        {% if tiene_columnas_extras %}
-        <p>Contiene {{ numero_columnas_extras }} columnas extras: {{ columnas_extras_str }}</p>
-        {% endif %}
-
         <ul class="requirements-list">
             {% if numero_errores_bloqueantes > 0 %}
             <li>
@@ -61,7 +57,7 @@ Confirmación subida excel estudios
             {% endif %}
             <li>
                 <strong style="color:#fbc02d;">Filas en amarillo</strong>:
-                uno o más campos no obligatorios están vacíos.
+                uno o más campos no obligatorios están vacíos o hay columnas extras.
             </li>
         </ul>
 
