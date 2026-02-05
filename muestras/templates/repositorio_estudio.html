@@ -89,6 +89,19 @@ document.addEventListener("DOMContentLoaded", function() {
             }
         });
     });
+
+    // Habilitar/deshabilitar botón de eliminar según checkboxes
+    const checkboxes = document.querySelectorAll('input[name="doc_id"]');
+    const deleteButton = document.getElementById('delete-button');
+
+    function toggleDeleteButton() {
+        const checked = document.querySelectorAll('input[name="doc_id"]:checked');
+        deleteButton.disabled = checked.length === 0;
+    }
+
+    checkboxes.forEach(checkbox => {
+        checkbox.addEventListener('change', toggleDeleteButton);
+    });
 });
 </script>
 
@@ -98,7 +111,9 @@ document.addEventListener("DOMContentLoaded", function() {
 
         <div class="form-actions" style="margin-bottom: 10px;">
             <button type="submit"
+                    id="delete-button"
                     class="accion-btn accion-peligro"
+                    disabled
                     onclick="return confirm('¿Quieres eliminar los documentos seleccionados?')">
                 🗑 Eliminar documentos seleccionados
             </button>

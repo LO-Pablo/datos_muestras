@@ -12,7 +12,13 @@ Confirmación subida excel estudios
 
     <!-- CABECERA -->
     <div class="form-header">
+        {% if numero_errores_bloqueantes > 0 %}
+        <h1>❌ Confirmación de subida de Excel de estudios: Fallo crítico</h1>
+        {% elif numero_errores_advertencia > 0 %}
+        <h1>⚠️ Confirmación de subida de Excel de estudios: Advertencia</h1>
+        {% else %}
         <h1>✅ Confirmación de subida de Excel de estudios</h1>
+        {% endif %}
         <p class="form-subtitle">
             Revise los errores detectados antes de confirmar la creación de nuevos estudios.
         </p>
@@ -23,26 +29,32 @@ Confirmación subida excel estudios
     <div class="form-card messages-card">
         <h2>📢 Mensajes</h2>
         {% for message in messages %}
-            <p class="message-item">{{ message }}</p>
+            <p class="message-item {{ message.tags }}">{{ message }}</p>
         {% endfor %}
     </div>
     {% endif %}
 
     <!-- INFORMACIÓN DE ERRORES -->
+    {% if numero_errores_bloqueantes > 0 or numero_errores_advertencia > 0 or error %}
     <div class="form-card info-card">
         <h2>ℹ️ Resultado de la validación del Excel</h2>
 
+        {% if error %}
+        <p class="error-message">{{ error }}</p>
+        {% else %}
         <p>
             Se ha generado un archivo Excel donde se indican las filas del
             archivo original que contienen errores:
         </p>
 
         <ul class="requirements-list">
+            {% if numero_errores_bloqueantes > 0 %}
             <li>
                 <strong style="color:#d32f2f;">Filas en rojo</strong>:
                 el estudio ya existe en la base de datos o dentro del propio Excel,
                 o las fechas tienen un formato incorrecto.
             </li>
+            {% endif %}
             <li>
                 <strong style="color:#fbc02d;">Filas en amarillo</strong>:
                 uno o más campos no obligatorios están vacíos.
@@ -50,15 +62,12 @@ Confirmación subida excel estudios
         </ul>
 
         <p class="note warning">
-            ⚠️ Las filas que contengan errores
-            <strong>no se añadirán</strong> a la base de datos.
-        </p>
-
-        <p class="note warning">
             ⚠️ No utilice el Excel de errores generado para subir nuevos estudios.
         </p>
+        {% endif %}
     </div>
 
+    {% if not error %}
     <!-- DESCARGA DE EXCEL DE ERRORES -->
     <div class="form-card">
         <h2>📄 Excel con errores</h2>
@@ -72,8 +81,11 @@ Confirmación subida excel estudios
             </button>
         </form>
     </div>
+    {% endif %}
+    {% endif %}
 
     <!-- CONFIRMACIÓN -->
+    {% if numero_errores_bloqueantes == 0 %}
     <div class="form-card confirm-card">
         <h2>❓ Confirmación</h2>
         <p>¿Desea añadir los estudios válidos del archivo Excel?</p>
@@ -94,6 +106,7 @@ Confirmación subida excel estudios
             </button>
         </form>
     </div>
+    {% endif %}
 
     <!-- VOLVER -->
     <div class="form-actions">
@@ -102,6 +115,45 @@ Confirmación subida excel estudios
         </a>
     </div>
 
+    <!-- SUBIR OTRO EXCEL -->
+    <div class="form-card">
+        <h2>📤 Subir otro archivo Excel</h2>
+
+        <form method="post" enctype="multipart/form-data" class="styled-form">
+            {% csrf_token %}
+
+            <div class="form-field">
+                <label for="id_excel_file">
+                    Excel file <span class="required">*</span>
+                </label>
+                <input type="file" name="excel_file" accept=".xlsx,.xlsm,.xls" required id="id_excel_file">
+            </div>
+
+            <div class="form-actions">
+                <button name="upload_excel"
+                        id="upload-button"
+                        type="submit"
+                        class="accion-btn accion-primaria"
+                        disabled>
+                    ⬆️ Subir Excel
+                </button>
+            </div>
+        </form>
+    </div>
+
 </div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    const fileInput = document.querySelector('input[name="excel_file"]');
+    const uploadButton = document.getElementById('upload-button');
+
+    function toggleUploadButton() {
+        uploadButton.disabled = !fileInput.files.length;
+    }
+
+    fileInput.addEventListener('change', toggleUploadButton);
+});
+</script>
 
 {% endblock %}

@@ -77,9 +77,15 @@ Lista de estudios del investigador
                     </a>
                     {% endif %}
                     {% if perms.muestras.can_delete_estudios_web %}
+                    {% if estudio.num_muestras > 0 %}
+                    <span class="chip-detalle disabled" title="No se puede eliminar porque tiene muestras asociadas">
+                        🗑️ Eliminar
+                    </span>
+                    {% else %}
                     <a href="/estudios/{{estudio.id}}/eliminar" class="chip-detalle" onclick="return confirm('¿Quieres eliminar este estudio?')">
                         🗑️ Eliminar
                     </a>
+                    {% endif %}
                     {% endif %}
                 </td>
             </tr>

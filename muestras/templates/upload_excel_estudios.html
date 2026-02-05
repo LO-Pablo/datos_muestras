@@ -81,8 +81,10 @@ Subir archivo Excel
         <!-- ACCIONES -->
         <div class="form-actions">
             <button name="upload_excel"
+                    id="upload-button"
                     type="submit"
-                    class="accion-btn accion-primaria">
+                    class="accion-btn accion-primaria"
+                    disabled>
                 ⬆️ Subir Excel
             </button>
 
@@ -93,5 +95,18 @@ Subir archivo Excel
     </form>
 
 </div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    const fileInput = document.querySelector('input[name="excel_file"]');
+    const uploadButton = document.getElementById('upload-button');
+
+    function toggleUploadButton() {
+        uploadButton.disabled = !fileInput.files.length;
+    }
+
+    fileInput.addEventListener('change', toggleUploadButton);
+});
+</script>
 
 {% endblock %}

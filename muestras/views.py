@@ -6,6 +6,7 @@ from django.db import transaction
 from django.contrib import messages  
 from django.shortcuts import render,redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required, permission_required
+from django.utils.safestring import mark_safe
 import pandas as pd
 import io,base64
 # No quitar en caso de necesitar exportar las muestras en formato PDF
@@ -1553,9 +1554,9 @@ def historial_localizaciones_muestra(request,muestra_id):
 def estudios_todos(request):
     # Vista para ver todos los estudios, los investigadores solo ven los suyos asociados
     if request.user.groups.filter(name='Investigadores'):
-        estudios = Estudio.objects.filter(investigadores_asociados=request.user)
+        estudios = Estudio.objects.filter(investigadores_asociados=request.user).annotate(num_muestras=Count('muestra'))
     else:
-        estudios = Estudio.objects.all()
+        estudios = Estudio.objects.all().annotate(num_muestras=Count('muestra'))
     template = loader.get_template('estudios_todos.html')
     context = {
         'estudios':estudios
@@ -1656,7 +1657,7 @@ def excel_estudios(request):
                 nombre_estudios_excel = set()
                 numero_registros = 0
                 cache = {
-                    'estudios_existentes': Estudio.objects.values_list('nombre_estudio',flat=True)
+                    'estudios_existentes_lower': set(Estudio.objects.values_list('nombre_estudio', flat=True).distinct())
                 }
                 
                 for idx, row in df.iterrows():
@@ -1693,12 +1694,13 @@ def excel_estudios(request):
 
                     # Detectar si el estudio ya existe
                     nombre_estudio = datos['nombre_estudio']
-                    if nombre_estudio in cache['estudios_existentes']:
+                    if nombre_estudio and nombre_estudio.lower() in {n.lower() for n in cache['estudios_existentes_lower']}:
                         errores[fila]["bloqueantes"].append(f"estudio_existente")
-                    if nombre_estudio in nombre_estudios_excel:
+                    nombre_estudio_lower = nombre_estudio.lower() if nombre_estudio else ''
+                    if nombre_estudio_lower in nombre_estudios_excel:
                         errores[fila]["bloqueantes"].append("estudio_duplicado_excel")
                     else:
-                        nombre_estudios_excel.add(nombre_estudio)
+                        nombre_estudios_excel.add(nombre_estudio_lower)
                    
                    # Registrar filas validas
                     if not errores[fila]["bloqueantes"]:
@@ -1708,7 +1710,6 @@ def excel_estudios(request):
                 request.session['errores'] = errores
 
                 # Mensajes de información de la subida
-                messages.info(request, f'El excel subido tiene {numero_registros} registros.')
                 numero_errores_bloqueantes = 0
                 numero_errores_advertencia = 0
                 for fila in errores:
@@ -1716,13 +1717,14 @@ def excel_estudios(request):
                         numero_errores_bloqueantes+=1
                     if errores[fila]["advertencias"]:
                         numero_errores_advertencia+=1
-                if numero_errores_bloqueantes == 0:
+                messages.info(request, f'El excel subido tiene {numero_registros} registros.')
+                if numero_errores_advertencia > 0:
+                    messages.warning(request, f'Contiene {numero_errores_advertencia} filas con advertencias (datos opcionales faltantes)')
+                if numero_errores_bloqueantes > 0:
+                    messages.error(request, f'Contiene {numero_errores_bloqueantes} filas con errores graves')
+                if numero_errores_bloqueantes == 0 and numero_errores_advertencia == 0:
                     messages.success(request, 'Y no tiene errores en ningún campo.')
-                    if numero_errores_advertencia!=0:
-                        messages.info(request,f"Aunque tiene {numero_errores_advertencia} filas con errores en algunos campos no críticos.")
-                else:
-                    messages.warning(request, f'Pero contiene {numero_errores_bloqueantes} filas con errores graves.')
-                return render(request, 'confirmacion_upload_estudios.html')
+                return render(request, 'confirmacion_upload_estudios.html', {'numero_errores_bloqueantes': numero_errores_bloqueantes, 'numero_errores_advertencia': numero_errores_advertencia})
             
         # Si se solicita un excel de errores, este se rellena en base a los errores detectados durante la validación
         elif 'excel_errores' in request.POST:
@@ -1822,6 +1824,9 @@ def editar_estudio(request, id_estudio):
 def eliminar_estudio(request, id_estudio):
     # Vista para eliminar un estudio existente
     estudio = get_object_or_404(Estudio,id=id_estudio)
+    if Muestra.objects.filter(estudio=estudio).exists():
+        messages.error(request, mark_safe(f'No se puede eliminar el estudio "{estudio.nombre_estudio}" porque tiene muestras asociadas. Desasocia las muestras primero.'))
+        return redirect('estudios_todos')
     estudio.delete()
     messages.success(request,'Estudio eliminado correctamente')
     return redirect('estudios_todos')
