@@ -1632,6 +1632,14 @@ def nuevo_estudio(request):
                     template = loader.get_template('nuevo_estudio.html')
                     return HttpResponse(template.render({'form': form}, request))
 
+            # Validar que fecha_inicio <= fecha_fin si ambas están presentes
+            fecha_inicio = form.cleaned_data.get('fecha_inicio_estudio')
+            fecha_fin = form.cleaned_data.get('fecha_fin_estudio')
+            if fecha_inicio and fecha_fin and fecha_fin < fecha_inicio:
+                form.add_error('fecha_fin_estudio', 'La fecha de fin debe ser igual o posterior a la fecha de inicio.')
+                template = loader.get_template('nuevo_estudio.html')
+                return HttpResponse(template.render({'form': form}, request))
+
             form.save()
             messages.success(request,'Estudio añadido correctamente')
             return redirect('estudios_todos')
@@ -2007,6 +2015,13 @@ def editar_estudio(request, id_estudio):
                 if qs_ref.exists():
                     form.add_error('referencia_estudio', 'Ya existe otro estudio con esa referencia.')
                     duplicate = True
+
+            # Validar que fecha_inicio <= fecha_fin si ambas están presentes
+            fecha_inicio = form.cleaned_data.get('fecha_inicio_estudio')
+            fecha_fin = form.cleaned_data.get('fecha_fin_estudio')
+            if fecha_inicio and fecha_fin and fecha_fin < fecha_inicio:
+                form.add_error('fecha_fin_estudio', 'La fecha de fin debe ser igual o posterior a la fecha de inicio.')
+                duplicate = True
 
             if duplicate:
                 template = loader.get_template('editar_estudio.html')
