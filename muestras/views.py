@@ -1794,10 +1794,10 @@ def excel_estudios(request):
                                         fecha = pd.to_datetime(fecha_str, format='%d-%m-%Y')
                                         datos[campo] = fecha.date().isoformat()
                                     else:
-                                        errores[fila]["advertencias"].append(f"fecha_invalida:{campo}")
+                                        errores[fila]["bloqueantes"].append(f"fecha_invalida:{campo}")
                                         datos[campo] = None
                             except Exception:
-                                errores[fila]["advertencias"].append(f"fecha_invalida:{campo}")
+                                errores[fila]["bloqueantes"].append(f"fecha_invalida:{campo}")
                                 datos[campo] = None
 
                     # Validar que fecha_fin >= fecha_inicio si ambas están informadas
@@ -1806,7 +1806,7 @@ def excel_estudios(request):
                     if fecha_inicio and fecha_fin:
                         # Ambas fechas están informadas y son válidas
                         if fecha_fin < fecha_inicio:
-                            errores[fila]["advertencias"].append("fecha_fin_menor_que_inicio")
+                            errores[fila]["bloqueantes"].append("fecha_fin_menor_que_inicio")
 
                     # Detectar si el estudio ya existe
                     nombre_estudio = datos['nombre_estudio']
