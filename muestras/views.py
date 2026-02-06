@@ -21,6 +21,7 @@ from django.core.exceptions import ObjectDoesNotExist
 from openpyxl.styles import PatternFill
 from openpyxl.comments import Comment
 from datetime import date
+from .parameters_config import get_upload_messages, get_excel_colors
 
 # Archivo que define las vistas de la aplicación, es decir, la manera de organizar,recoger y enviar al navegador los datos de los modelos del modelo 
 # Los @ son decoradores de permisos, que limitan el acceso a las vistas de los distintos usuarios en base a si tienen ese permiso activado 
@@ -534,8 +535,13 @@ def upload_excel(request):
                 request.session['filas_validas']=filas_validas
                 request.session['errores'] = errores
 
-                # Mensajes de información de la subida
-                messages.info(request, f'El excel subido tiene {numero_registros} registros.')
+                # Obtener configuración de mensajes para muestras
+                msg_config = get_upload_messages('muestras')
+                
+                # Mensaje inicial con número de registros
+                messages.info(request, f'{msg_config["titulo_inicial"]} {numero_registros} registros.')
+                
+                # Contar errores
                 numero_errores_bloqueantes = 0
                 numero_errores_advertencia = 0
                 for fila in errores:
@@ -544,14 +550,16 @@ def upload_excel(request):
                     if errores[fila]["advertencias"]:
                         numero_errores_advertencia += 1
 
-                # Construir mensajes en el formato solicitado
+                # Generar mensajes según el estado
                 if numero_errores_bloqueantes == 0 and numero_errores_advertencia == 0:
-                    messages.success(request, 'No tiene errores en ningún campo.')
+                    messages.success(request, msg_config['sin_errores'])
                 else:
                     if numero_errores_advertencia > 0:
-                        messages.warning(request, f'Contiene {numero_errores_advertencia} filas con advertencias')
+                        msg = msg_config['con_advertencias'].format(count=numero_errores_advertencia)
+                        messages.warning(request, msg)
                     if numero_errores_bloqueantes > 0:
-                        messages.error(request, f'Contiene {numero_errores_bloqueantes} filas con errores graves')
+                        msg = msg_config['con_bloqueantes'].format(count=numero_errores_bloqueantes)
+                        messages.error(request, msg)
 
                 # Pasar contadores a la plantilla para mostrar cabeceras y descripciones como en estudios/congeladores
                 context = {
@@ -567,12 +575,12 @@ def upload_excel(request):
                     excel_file = io.BytesIO(excel_bytes)
                     wb = openpyxl.load_workbook(excel_file)
                     ws = wb.active
-                    # Definir los estilos para pintar el excel
-                    FILL_ERROR_ROW = PatternFill("solid", fgColor="F8D7DA")   # rojo claro
-                    FILL_WARN_ROW  = PatternFill("solid", fgColor="FFF3CD")   # amarillo claro
-                    # Celda de error con rojo un intenso 
-                    FILL_ERROR_CELL = PatternFill("solid", fgColor="F5C2C7")  # rojo fuerte
-                    FILL_WARN_CELL  = PatternFill("solid", fgColor="FFECB5")  # amarillo fuerte
+                    # Definir los estilos para pintar el excel usando configuración centralizada
+                    colors = get_excel_colors()
+                    FILL_ERROR_ROW = PatternFill("solid", fgColor=colors['error_row'])
+                    FILL_WARN_ROW  = PatternFill("solid", fgColor=colors['warning_row'])
+                    FILL_ERROR_CELL = PatternFill("solid", fgColor=colors['error_cell'])
+                    FILL_WARN_CELL  = PatternFill("solid", fgColor=colors['warning_cell'])
                     # Diccionario de mensajes
                     MENSAJES_ERROR = {
                         "campo_obligatorio_vacio": "Campo obligatorio vacío",
@@ -619,9 +627,9 @@ def upload_excel(request):
                     ws.cell(row=1, column=col_errores, value="Errores")
                     # Recorrer filas con errores 
                     for fila, info in errores.items():
-                        # Pintar las filas
-                        has_error = bool(info["bloqueantes"])
-                        has_warn = bool(info["advertencias"])
+                        # Pintar las filas (acceso defensivo)
+                        has_error = bool(info.get("bloqueantes", []))
+                        has_warn = bool(info.get("advertencias", []))
 
                         if has_error:
                             fill_fila = FILL_ERROR_ROW
@@ -634,7 +642,7 @@ def upload_excel(request):
 
                         # Escribir en la columna de errores, colorear las celdas con error y poner un comentario en ellas
                         mensajes = []
-                        for err in info["bloqueantes"]:
+                        for err in info.get("bloqueantes", []):
                             if ":" in err:
                                 tipo, campo = err.split(":")
                                 if not f"[ERROR] {MENSAJES_ERROR[tipo]}" in mensajes:
@@ -645,7 +653,7 @@ def upload_excel(request):
                                 celda.comment = Comment(MENSAJES_ERROR[tipo], "Sistema")
                             else:
                                 mensajes.append(f"[ERROR] {MENSAJES_ERROR[err]}")
-                        for warn in info["advertencias"]:
+                        for warn in info.get("advertencias", []):
                             if ":" in warn:
                                 tipo, campo = warn.split(":")
                                 if not f"[WARN] {MENSAJES_ERROR[tipo]}" in mensajes:
@@ -665,7 +673,7 @@ def upload_excel(request):
                             "localizacion_no_existe": "subposicion",
                             "localizacion_ocupada": "subposicion"
                         }
-                        for err in info["bloqueantes"]:
+                        for err in info.get("bloqueantes", []):
                             if ":" in err:
                                 _, campo = err.split(":")
                             else:
@@ -1362,23 +1370,30 @@ def upload_excel_localizaciones(request):
                 request.session['filas_validas'] = filas_validas
                 request.session['errores'] = errores
 
-                # Mensajes de información de la subida
-                messages.info(request, f'El excel contiene {numero_registros} registros')
+                # Obtener configuración de mensajes para localizaciones
+                msg_config = get_upload_messages('localizaciones')
+                
+                # Mensaje inicial
+                messages.info(request, f'{msg_config["titulo_inicial"]} {numero_registros} registros')
+                
+                # Contar errores
                 numero_errores_bloqueantes = sum(1 for fila in errores if errores[fila]['bloqueantes'])
                 
                 # Determinar si hay errores para mostrar la sección de Excel de errores
                 errores_encontrados = (numero_errores_bloqueantes > 0) or extra_columns
 
-                # Lógica de mensajes: mostrar estado de filas con errores y columnas extras de forma uniforme
+                # Generar mensajes según el estado
                 if numero_errores_bloqueantes > 0:
-                    messages.warning(request, f'Pero contiene {numero_errores_bloqueantes} filas con errores graves')
+                    msg = msg_config['con_bloqueantes'].format(count=numero_errores_bloqueantes)
+                    messages.warning(request, msg)
                 
                 if extra_columns:
                     num_extras = len([c.strip() for c in columnas_adicionales_str.split(',') if c.strip()])
-                    messages.warning(request, f'Tiene {num_extras} columnas extras inválidas: {columnas_adicionales_str}')
+                    msg = msg_config['columnas_extras'].format(count=num_extras, detalles=columnas_adicionales_str)
+                    messages.warning(request, msg)
                 
                 if numero_errores_bloqueantes == 0 and not extra_columns:
-                    messages.success(request, 'Y son todos correctos.')
+                    messages.success(request, msg_config['sin_errores'])
 
                 return render(request, 'confirmacion_upload_localizacion.html', {'errores_encontrados': errores_encontrados})
             
@@ -1390,10 +1405,12 @@ def upload_excel_localizaciones(request):
             wb = openpyxl.load_workbook(excel_file)
             ws = wb.active
             
-            # Definir los estilos para pintar el excel
-            FILL_ERROR_ROW = PatternFill("solid", fgColor="F8D7DA")   # rojo claro
-            FILL_ERROR_CELL = PatternFill("solid", fgColor="F5C2C7")  # rojo fuerte
-            FILL_ERROR_COL = PatternFill("solid", fgColor="F5C2C7")   # rojo fuerte para columnas
+            # Definir los estilos para pintar el excel usando configuración centralizada
+            colors = get_excel_colors()
+            FILL_ERROR_ROW = PatternFill("solid", fgColor=colors['error_row'])
+            FILL_WARN_ROW = PatternFill("solid", fgColor=colors['warning_row'])
+            FILL_ERROR_CELL = PatternFill("solid", fgColor=colors['error_cell'])
+            FILL_ERROR_COL = PatternFill("solid", fgColor=colors['extra_column'])
             
             # Diccionario de mensajes
             MENSAJES_ERROR = {
@@ -1859,7 +1876,10 @@ def excel_estudios(request):
                 request.session['filas_validas']=filas_validas
                 request.session['errores'] = errores
 
-                # Mensajes de información de la subida
+                # Obtener configuración de mensajes para estudios
+                msg_config = get_upload_messages('estudios')
+                
+                # Contar errores
                 numero_errores_bloqueantes = 0
                 numero_errores_advertencia = 0
                 for fila in errores:
@@ -1867,18 +1887,27 @@ def excel_estudios(request):
                         numero_errores_bloqueantes+=1
                     if errores[fila]["advertencias"]:
                         numero_errores_advertencia+=1
-                messages.info(request, f'El excel subido tiene {numero_registros} registros.')
+                
+                # Mensaje inicial
+                messages.info(request, f'{msg_config["titulo_inicial"]} {numero_registros} registros.')
+                
+                # Generar mensajes según el estado
                 if numero_errores_advertencia > 0:
-                    messages.warning(request, f'Contiene {numero_errores_advertencia} filas con advertencias')
+                    msg = msg_config['con_advertencias'].format(count=numero_errores_advertencia)
+                    messages.warning(request, msg)
                 if numero_errores_bloqueantes > 0:
-                    messages.error(request, f'Contiene {numero_errores_bloqueantes} filas con errores graves')
+                    msg = msg_config['con_bloqueantes'].format(count=numero_errores_bloqueantes)
+                    messages.error(request, msg)
                 if numero_errores_bloqueantes == 0 and numero_errores_advertencia == 0:
-                    messages.success(request, 'Y no tiene errores en ningún campo.')
+                    messages.success(request, msg_config['sin_errores'])
+                
+                # Manejar columnas extras
                 tiene_columnas_extras = bool(request.session.get('columnas_adicionales'))
                 numero_columnas_extras = len(request.session.get('columnas_adicionales', '').split(', ')) if request.session.get('columnas_adicionales') else 0
                 columnas_extras_str = request.session.pop('columnas_adicionales', '')
                 if tiene_columnas_extras:
-                    messages.warning(request, f'Contiene {numero_columnas_extras} columnas extras: {columnas_extras_str}')
+                    msg = msg_config['columnas_extras'].format(count=numero_columnas_extras, detalles=columnas_extras_str)
+                    messages.warning(request, msg)
                 return render(request, 'confirmacion_upload_estudios.html', {
                     'numero_errores_bloqueantes': numero_errores_bloqueantes, 
                     'numero_errores_advertencia': numero_errores_advertencia,
@@ -1894,11 +1923,12 @@ def excel_estudios(request):
                     excel_file = io.BytesIO(excel_bytes)
                     wb = openpyxl.load_workbook(excel_file)
                     ws = wb.active
-                    # Definir los estilos para pintar el excel
-                    FILL_ERROR_ROW = PatternFill("solid", fgColor="F8D7DA")   # rojo claro
-                    FILL_WARN_ROW  = PatternFill("solid", fgColor="FFF3CD")   # amarillo claro
-                    FILL_ERROR_CELL = PatternFill("solid", fgColor="F5C2C7")  # rojo fuerte
-                    FILL_WARN_CELL  = PatternFill("solid", fgColor="FFECB5")  # amarillo fuerte
+                    # Definir los estilos para pintar el excel usando configuración centralizada
+                    colors = get_excel_colors()
+                    FILL_ERROR_ROW = PatternFill("solid", fgColor=colors['error_row'])
+                    FILL_WARN_ROW  = PatternFill("solid", fgColor=colors['warning_row'])
+                    FILL_ERROR_CELL = PatternFill("solid", fgColor=colors['error_cell'])
+                    FILL_WARN_CELL  = PatternFill("solid", fgColor=colors['warning_cell'])
                     # Diccionario de mensajes
                     MENSAJES_ERROR = {
                         "campo_obligatorio_vacio": "Campo obligatorio vacío",
@@ -1927,9 +1957,9 @@ def excel_estudios(request):
                     ws.cell(row=1, column=col_errores, value="Errores")
                     # Recorrer filas con errores 
                     for fila, info in errores.items():
-                        # Pintar las filas
-                        has_error = bool(info["bloqueantes"])
-                        has_warn = bool(info["advertencias"])
+                        # Pintar las filas (acceso defensivo con .get())
+                        has_error = bool(info.get("bloqueantes", []))
+                        has_warn = bool(info.get("advertencias", []))
 
                         if has_error:
                             fill_fila = FILL_ERROR_ROW
@@ -1942,7 +1972,7 @@ def excel_estudios(request):
 
                         # Escribir en la columna de errores, colorear las celdas con error y poner un comentario en ellas
                         mensajes = []
-                        for err in info["bloqueantes"]:
+                        for err in info.get("bloqueantes", []):
                             if ":" in err:
                                 tipo, campo = err.split(":")
                                 mensajes.append(f"[ERROR] {MENSAJES_ERROR[tipo]}")
@@ -1952,7 +1982,7 @@ def excel_estudios(request):
                                 celda.comment = Comment(MENSAJES_ERROR[tipo], "Sistema")
                             else:
                                 mensajes.append(f"[ERROR] {MENSAJES_ERROR[err]}")
-                        for warn in info["advertencias"]:
+                        for warn in info.get("advertencias", []): 
                             # Algunos warnings tienen formato 'tipo:campo', otros son solo 'tipo'
                             if ":" in warn:
                                 tipo, campo = warn.split(":", 1)
