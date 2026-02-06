@@ -8,6 +8,14 @@ Lista de Muestras
 <!-- Página que muestra todas las muestras almacenadas con opciones de filtrado y acciones masivas -->
 <link rel ="stylesheet" href="{% static 'muestras_todas.css' %}">
 
+<style>
+  button[disabled] {
+    opacity: 0.5 !important;
+    cursor: not-allowed !important;
+    pointer-events: none !important;
+  }
+</style>
+
 
 {% load muestras_filters %}
 <div class="collapsible">
@@ -89,19 +97,20 @@ Lista de Muestras
       function seleccionar_todo(valor) {
         checkboxes = document.getElementsByTagName('input');
         for (var i=0; i<checkboxes.length; i++) {
-          if (checkboxes[i].type == 'checkbox')
+          if (checkboxes[i].type == 'checkbox' && checkboxes[i].name == 'muestra_id')
             checkboxes[i].checked = valor;
         }
+        actualizarEstadoBotones();
       }
     </script>
-   <form action="{% url 'acciones_post' %}" method="post">
+   <form action="{% url 'acciones_post' %}" method="post" id="acciones-form">
     {%csrf_token%}
     {% if perms.muestras.can_delete_muestras_web %}
-    <button type="submit"  value = "true" id='eliminar' name ='eliminar' onclick="return confirm('¿Quieres eliminar las muestras seleccionadas?')"class="btn btn-danger">🗑️ Eliminar seleccionadas</button>
+    <button type="submit"  value = "true" id='eliminar_muestras' name ='eliminar' onclick="return validarSeleccion(event, '¿Quieres eliminar las muestras seleccionadas?')" class="btn btn-danger" disabled>🗑️ Eliminar seleccionadas</button>
     {%endif%}
     {% if perms.muestras.can_change_estudios_web %}
-    <button type="submit" value="true" id='estudio' name ='estudio'class="btn">🧬 Añadir al estudio</button>
-    <button type="submit" value="true" id='destruir' name ='destruir' onclick="return confirm('¿Quieres actualizar el estado de las muestras seleccionadas a Destruida?')" class="btn btn-danger">🔥 Destruir muestra</button>
+    <button type="submit" value="true" id='estudio' name ='estudio'class="btn" disabled>🧬 Añadir al estudio</button>
+    <button type="submit" value="true" id='destruir' name ='destruir' onclick="return validarSeleccion(event, '¿Quieres actualizar el estado de las muestras seleccionadas a Destruida?')" class="btn btn-danger" disabled>🔥 Destruir muestra</button>
     {%endif%}
     {% if perms.muestras.can_change_muestras_web %}
     <button type="submit"  value="true" id='envio' name ='envio' class="btn btn-success">📦 Registrar envío</button>
@@ -246,6 +255,40 @@ Lista de Muestras
 </div>
 </form>
 <script>
+function validarSeleccion(event, mensaje) {
+  const checkboxes = document.querySelectorAll('input[type="checkbox"][name="muestra_id"]');
+  const haySeleccionados = Array.from(checkboxes).some(cb => cb.checked);
+  
+  if (!haySeleccionados) {
+    event.preventDefault();
+    alert('Por favor selecciona al menos una muestra');
+    return false;
+  }
+  
+  return confirm(mensaje);
+}
+
+function actualizarEstadoBotones() {
+  const checkboxes = document.querySelectorAll('input[type="checkbox"][name="muestra_id"]');
+  const botonesADesactivar = ['eliminar_muestras', 'estudio', 'destruir'];
+  
+  const haySeleccionados = Array.from(checkboxes).some(cb => cb.checked);
+  console.log('Checkboxes encontrados:', checkboxes.length);
+  console.log('Hay seleccionados:', haySeleccionados);
+  
+  botonesADesactivar.forEach(botonId => {
+    const boton = document.getElementById(botonId);
+    if (boton) {
+      if (haySeleccionados) {
+        boton.removeAttribute('disabled');
+      } else {
+        boton.setAttribute('disabled', 'disabled');
+      }
+      console.log(`Botón ${botonId}: ${haySeleccionados ? 'habilitado' : 'deshabilitado'}`);
+    }
+  });
+}
+
 document.addEventListener("DOMContentLoaded", function() {
     const headers = document.querySelectorAll(".collapsible-header");
 
@@ -263,6 +306,16 @@ document.addEventListener("DOMContentLoaded", function() {
                 content.classList.add("open");
             }
         });
+    });
+
+    setTimeout(function() {
+      actualizarEstadoBotones();
+      console.log('Inicialización completada');
+    }, 100);
+    
+    const checkboxes = document.querySelectorAll('input[type="checkbox"][name="muestra_id"]');
+    checkboxes.forEach(checkbox => {
+      checkbox.addEventListener('change', actualizarEstadoBotones);
     });
 });
 </script>
