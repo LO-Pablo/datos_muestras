@@ -37,6 +37,7 @@ Lista de estudios del investigador
     <table class="styled-table">
         <thead>
             <tr>
+                <th>ID</th>
                 <th>Referencia</th>
                 <th>Nombre</th>
                 <th class="wrap-text">Descripción</th>
@@ -50,6 +51,7 @@ Lista de estudios del investigador
         <tbody>
         {% for estudio in estudios %}
             <tr>
+                <td>{{ estudio.id }}</td>
                 <td>{{ estudio.referencia_estudio|default:"—" }}</td>
 
                 <td>{{ estudio.nombre_estudio }}</td>

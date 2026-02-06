@@ -11,9 +11,18 @@ Confirmación subida
 
     <!-- CABECERA -->
     <div class="form-header">
+        {% if numero_errores_bloqueantes > 0 %}
+        <h1>❌ Problemas con la subida del Excel de de muestras: Fallo crítico: ERRORES DETECTADOS</h1>
+
+        {% elif numero_errores_advertencia > 0 %}
+        <h1>⚠️ Confirmación de subida de Excel de muestras: Advertencia</h1>
+
+        {% else %}
         <h1>✅ Confirmación de subida de Excel</h1>
+
+        {% endif %}
         <p class="form-subtitle">
-            Revisa la información antes de confirmar la creación de muestras.
+            
         </p>
     </div>
 
@@ -28,6 +37,7 @@ Confirmación subida
     {% endif %}
 
     <!-- EXPLICACIÓN DE ERRORES -->
+    {% if numero_errores_bloqueantes > 0 or numero_errores_advertencia > 0 %}
     <div class="form-card info-card">
         <h2>ℹ️ Resultado de la validación del Excel</h2>
 
@@ -47,17 +57,10 @@ Confirmación subida
                 campos no obligatorios vacíos, marcados con un comentario. Estudio no existe en la base de datos. 
             </li>
         </ul>
-
-        <p>
-            Todos los detalles se describen en la columna
-            <strong>“Errores”</strong>.
-        </p>
-
-        <p class="note warning">
-            ⚠️ El Excel de errores <strong>NO debe subirse directamente</strong>
-            para crear muestras.
-        </p>
+       
     </div>
+
+    
 
     <!-- DESCARGA EXCEL ERRORES -->
     <div class="form-card">
@@ -65,33 +68,85 @@ Confirmación subida
 
         <form method="post">
             {% csrf_token %}
-            <button name="excel_errores" type="submit"
-                    class="accion-btn accion-secundaria">
+            <button name="excel_errores" type="submit" class="accion-btn accion-secundaria">
                 ⬇️ Descargar Excel con errores
             </button>
+        </form>
+        <p style="margin-bottom: 15px;">
+        Una vez corregidos los errores, puede vuelver a subir el archivo Excel.
+        </p>
+        <p class="note warning">
+            ⚠️ El Excel de errores <strong>NO debe subirse directamente</strong>
+            para añadir las muestras.
+        </p>
+    </div>
+
+    {% endif %}
+
+    <!-- SUBIR OTRO EXCEL -->
+    <div class="form-card">
+        <h2>📤 Subir otro archivo Excel</h2>
+
+        <form method="post" enctype="multipart/form-data" class="styled-form">
+            {% csrf_token %}
+
+            <div class="form-field">
+                <label for="id_excel_file">Excel file <span class="required">*</span></label>
+                <input type="file" name="excel_file" accept=".xlsx,.xlsm,.xls" required id="id_excel_file">
+                <small class="error-text" style="display: block; color: #dc3545; margin-top: 5px;">Este campo es obligatorio.</small>
+            </div>
+
+            <div class="form-actions">
+                <button name="upload_excel" id="upload-button" type="submit" class="accion-btn accion-primaria" disabled>
+                    ⬆️ Subir Excel
+                </button>
+            </div>
         </form>
     </div>
 
     <!-- CONFIRMACIÓN -->
+    {% if numero_errores_bloqueantes == 0 %}
     <div class="form-card confirm-card">
         <h2>❓ Confirmación</h2>
-        <p>¿Desea continuar con la subida del archivo Excel?</p>
+        <p>¿Desea añadir las muestras válidas del archivo Excel?</p>
 
         <form method="post" class="form-actions">
             {% csrf_token %}
 
-            <button type="submit" name="confirmar"
-                    class="accion-btn accion-primaria">
+            <button type="submit" name="confirmar" class="accion-btn accion-primaria">
                 ✅ Confirmar subida
             </button>
 
-            <button type="submit" name="cancelar"
-                    class="accion-btn accion-peligro">
+            <button type="submit" name="cancelar" class="accion-btn accion-peligro">
                 ❌ Cancelar
             </button>
         </form>
     </div>
+    {% endif %}
 
+    <!-- VOLVER -->
+    <div class="form-actions">
+        <a href="/muestras" class="accion-btn accion-secundaria">
+            ↩ Volver a muestras
+        </a>
+    </div>
 </div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    const fileInput = document.querySelector('input[name="excel_file"]') || document.querySelector('input[type="file"]');
+    const uploadButton = document.getElementById('upload-button');
+
+    function toggleUploadButton() {
+        if (!fileInput || !uploadButton) return;
+        uploadButton.disabled = !fileInput.files.length;
+    }
+
+    if (fileInput && uploadButton) {
+        fileInput.addEventListener('change', toggleUploadButton);
+        toggleUploadButton();
+    }
+});
+</script>
 
 {% endblock %}

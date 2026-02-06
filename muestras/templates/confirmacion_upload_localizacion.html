@@ -11,7 +11,13 @@ Confirmación de la subida del excel de localizaciones
 
     <!-- CABECERA -->
     <div class="form-header">
-        <h1>{% if errores_encontrados %}❌ Problemas con la subida del Excel de localizaciones:{% else %}✅ Confirmación de subida de Excel de localizaciones{% endif %} {% if errores_encontrados %} ERRORES DETECTADOS{% endif %}</h1>
+        {% if errores_encontrados %}
+        <h1>❌ Problemas con la subida del Excel de localizaciones: Fallo crítico: ERRORES DETECTADOS</h1>
+
+        {% else %}
+        <h1>✅ Confirmación de subida de Excel de localizaciones</h1>
+
+        {% endif %}
         <p class="form-subtitle">
             
         </p>
@@ -45,42 +51,48 @@ Confirmación de la subida del excel de localizaciones
         </ul>
     </div>
 
-    <!-- DESCARGA DE EXCEL DE ERRORES Y SUBIDA DE ARCHIVO NUEVO -->
+    <!-- DESCARGA DE EXCEL DE ERRORES -->
     <div class="form-card">
         <h2>📄 Excel con errores</h2>
 
-        <form method="post" enctype="multipart/form-data">
+        <form method="post">
             {% csrf_token %}
             
-            <div style="display: flex; gap: 10px; margin-bottom: 15px;">
-                <button name="excel_errores"
-                        type="submit"
-                        class="accion-btn accion-secundaria">
-                    ⬇️ Descargar Excel con errores
-                </button>
-            </div>
+            <button name="excel_errores"
+                    type="submit"
+                    class="accion-btn accion-secundaria">
+                ⬇️ Descargar Excel con errores
+            </button>
+        </form>
+        <p style="margin-bottom: 15px; margin-top: 15px;">
+            Una vez corregidos los errores, vuelva a subir el archivo Excel.
+        </p>
+        <p class="note warning">
+            ⚠️ El Excel de errores <strong>NO debe subirse directamente</strong>
+            para crear las localizaciones.
+        </p>
+    </div>
+    {% endif %}
 
-            <p style="margin-bottom: 15px;">
-                Una vez corregidos los errores, vuelva a subir el archivo Excel.
-            </p>
-            <p class="note warning">
-            ⚠️ No utilice el Excel de errores generado para subir nuevas localizaciones.
-            </p>
-                <h2>📤 Subir otro archivo Excel</h2>
+    <!-- SUBIR OTRO EXCEL (siempre visible) -->
+    <div class="form-card">
+        <h2>📤 Subir otro archivo Excel</h2>
+
+        <form method="post" enctype="multipart/form-data" class="styled-form">
+            {% csrf_token %}
+
             <div class="form-field">
-                <label for="excel_file_reupload">Excel file *</label>
-                <input type="file" 
-                       id="excel_file_reupload" 
-                       name="excel_file" 
-                       accept=".xlsx,.xlsm"
-                       onchange="toggleSubmitButton()">
+                <label for="id_excel_file">
+                    Excel file <span class="required">*</span>
+                </label>
+                <input type="file" name="excel_file" accept=".xlsx,.xlsm,.xls" required id="id_excel_file">
                 <small class="error-text" style="display: block; color: #dc3545; margin-top: 5px;">Este campo es obligatorio.</small>
             </div>
 
-            <div style="display: flex; justify-content: flex-end; margin-top: 10px;">
-                <button type="submit" 
-                        id="submitExcelBtn"
-                        name="excel_file"
+            <div class="form-actions">
+                <button name="upload_excel"
+                        id="upload-button"
+                        type="submit"
                         class="accion-btn accion-primaria"
                         disabled>
                     ⬆️ Subir Excel
@@ -88,16 +100,6 @@ Confirmación de la subida del excel de localizaciones
             </div>
         </form>
     </div>
-
-    <script>
-        function toggleSubmitButton() {
-            const fileInput = document.getElementById('excel_file_reupload');
-            const submitBtn = document.getElementById('submitExcelBtn');
-            submitBtn.disabled = !fileInput.value;
-        }
-    </script>
-    {% endif %}
-
     <!-- CONFIRMACIÓN -->
     {% if not errores_encontrados %}
     <div class="form-card confirm-card">
@@ -130,5 +132,22 @@ Confirmación de la subida del excel de localizaciones
     </div>
 
 </div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    const fileInput = document.querySelector('input[name="excel_file"]') || document.querySelector('input[type="file"]');
+    const uploadButton = document.getElementById('upload-button');
+
+    function toggleUploadButton() {
+        if (!fileInput || !uploadButton) return;
+        uploadButton.disabled = !fileInput.files.length;
+    }
+
+    if (fileInput && uploadButton) {
+        fileInput.addEventListener('change', toggleUploadButton);
+        toggleUploadButton();
+    }
+});
+</script>
 
 {% endblock %}

@@ -14,6 +14,11 @@ Lista de Muestras
     cursor: not-allowed !important;
     pointer-events: none !important;
   }
+  .btn.disabled {
+    opacity: 0.5 !important;
+    cursor: not-allowed !important;
+    pointer-events: none !important;
+  }
   
   .accion-buttons {
     display: flex;
@@ -90,9 +95,13 @@ Lista de Muestras
     <a href="/muestras/nueva" class="btn">
       ➕🧪 Nueva muestra
     </a>
-    <a href="/muestras/upload_excel" class="btn">
-      📤📄 Subir Excel de Muestras
-    </a>
+    {% if request.session.excel_file_base64 %}
+      <a href="/muestras/upload_excel" class="btn">
+        📤📄 Subir Excel de Muestras
+      </a>
+    {% else %}
+      <a class="btn disabled" aria-disabled="true">📤📄 Subir Excel de Muestras</a>
+    {% endif %}
     {% endif %}
     {% if perms.muestras.can_change_estudios_web %}
       <button type="button" onclick="document.getElementById('acciones-form').elements['estudio'].click()" class="btn" id='estudio-btn' disabled>🧬 Añadir al estudio</button>

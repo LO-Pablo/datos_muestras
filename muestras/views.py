@@ -384,6 +384,9 @@ def upload_excel(request):
                 errores = {}
                 nom_lab_excel = set()
                 numero_registros = 0
+                
+                # Definir campos obligatorios para una muestra
+                obligatorios = ["id_individuo", "nom_lab"]
 
                 cache = {
                     'subposiciones': {
@@ -478,12 +481,17 @@ def upload_excel(request):
                     # Comprobar si el estudio existe en la base de datos
                     estudio_id = datos.get("estudio")
                     if estudio_id:
-                        estudio = cache["estudios"].get(estudio_id)
-                        if not estudio:
+                        try:
+                            estudio_id = int(estudio_id)  # Convertir a integer para buscar en BD
+                            estudio = cache["estudios"].get(estudio_id)
+                            if not estudio:
+                                errores[fila]["advertencias"].append("estudio_no_existe")
+                                datos["estudio"] = None
+                            else:
+                                datos["estudio"] = estudio.id
+                        except (ValueError, TypeError):
                             errores[fila]["advertencias"].append("estudio_no_existe")
                             datos["estudio"] = None
-                        else:
-                            datos["estudio"] = estudio.id
 
                     # Comprobar si la localización está ocupada o existe
                     key = (
@@ -532,16 +540,25 @@ def upload_excel(request):
                 numero_errores_advertencia = 0
                 for fila in errores:
                     if errores[fila]['bloqueantes']:
-                        numero_errores_bloqueantes+=1
+                        numero_errores_bloqueantes += 1
                     if errores[fila]["advertencias"]:
-                        numero_errores_advertencia+=1
-                if numero_errores_bloqueantes == 0:
-                    messages.success(request, 'Y no tiene errores en ningún campo.')
-                    if numero_errores_advertencia!=0:
-                        messages.info(request,f"Aunque tiene {numero_errores_advertencia} filas con errores en algunos campos no críticos.")
+                        numero_errores_advertencia += 1
+
+                # Construir mensajes en el formato solicitado
+                if numero_errores_bloqueantes == 0 and numero_errores_advertencia == 0:
+                    messages.success(request, 'No tiene errores en ningún campo.')
                 else:
-                    messages.warning(request, f'Pero contiene {numero_errores_bloqueantes} filas con errores graves.')
-                return render(request, 'confirmacion_upload.html')
+                    if numero_errores_advertencia > 0:
+                        messages.warning(request, f'Contiene {numero_errores_advertencia} filas con advertencias')
+                    if numero_errores_bloqueantes > 0:
+                        messages.error(request, f'Contiene {numero_errores_bloqueantes} filas con errores graves')
+
+                # Pasar contadores a la plantilla para mostrar cabeceras y descripciones como en estudios/congeladores
+                context = {
+                    'numero_errores_bloqueantes': numero_errores_bloqueantes,
+                    'numero_errores_advertencia': numero_errores_advertencia,
+                }
+                return render(request, 'confirmacion_upload.html', context)
         # Si se solicita un excel de errores, este se rellena en base a los errores detectados durante la validación 
         elif 'excel_errores' in request.POST:
                     # Leer los errores y el excel de la sesión
