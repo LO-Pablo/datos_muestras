@@ -2,6 +2,10 @@ from django.db import models
 from django.utils import timezone
 from django.contrib.auth.models import User
 from django.conf import settings
+import os
+import shutil
+from django.db.models.signals import post_delete
+from django.dispatch import receiver
 
 # Archivo que define las tablas(modelos) de la base de datos de la aplicación 
 class Muestra(models.Model):
@@ -271,3 +275,27 @@ class agenda_envio(models.Model):
     direccion=models.TextField()
     persona_contacto = models.CharField(max_length=200,blank=True, null=True)
     telefono_contacto=models.IntegerField(blank=True, null=True)
+
+
+@receiver(post_delete, sender=Documento)
+def eliminar_archivo_documento(sender, instance, **kwargs):
+    """Eliminar el archivo físico cuando se borra la fila Documento."""
+    try:
+        if instance.archivo:
+            instance.archivo.delete(save=False)
+    except Exception:
+        # No interrumpir la eliminación por errores en el borrado del fichero
+        pass
+
+
+@receiver(post_delete, sender=Estudio)
+def eliminar_carpeta_estudio(sender, instance, **kwargs):
+    """Eliminar la carpeta `media/estudios/<id>` tras borrar el estudio (si existe)."""
+    try:
+        media_root = settings.MEDIA_ROOT
+        carpeta = os.path.join(media_root, 'estudios', str(instance.id))
+        if os.path.exists(carpeta) and os.path.isdir(carpeta):
+            shutil.rmtree(carpeta)
+    except Exception:
+        # Silenciar errores de borrado de carpeta para no bloquear la eliminación del objeto
+        pass

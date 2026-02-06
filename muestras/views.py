@@ -554,6 +554,7 @@ def upload_excel(request):
                     # Definir los estilos para pintar el excel
                     FILL_ERROR_ROW = PatternFill("solid", fgColor="F8D7DA")   # rojo claro
                     FILL_WARN_ROW  = PatternFill("solid", fgColor="FFF3CD")   # amarillo claro
+                    # Celda de error con rojo un intenso 
                     FILL_ERROR_CELL = PatternFill("solid", fgColor="F5C2C7")  # rojo fuerte
                     FILL_WARN_CELL  = PatternFill("solid", fgColor="FFECB5")  # amarillo fuerte
                     # Diccionario de mensajes
@@ -640,6 +641,22 @@ def upload_excel(request):
                             else:
                                 mensajes.append(f"[WARN] {MENSAJES_ERROR[warn]}")
                         ws.cell(row=int(fila), column=col_errores, value="\n".join(mensajes))
+                        # Reaplicar el color intenso a las celdas de error para asegurar que sobrescriba la fila
+                        # Mapear errores sin campo a sus columnas específicas (para muestras)
+                        error_campo_map = {
+                            "muestra_duplicada_bd": "nom_lab",
+                            "muestra_duplicada_excel": "nom_lab",
+                            "localizacion_no_existe": "subposicion",
+                            "localizacion_ocupada": "subposicion"
+                        }
+                        for err in info["bloqueantes"]:
+                            if ":" in err:
+                                _, campo = err.split(":")
+                            else:
+                                campo = error_campo_map.get(err)
+                            if campo and campo in columnas_excel:
+                                col_err = columnas_excel[campo]
+                                ws.cell(row=int(fila), column=col_err).fill = FILL_ERROR_CELL
 
 
                     # Rertornar el excel de errores    
@@ -906,6 +923,7 @@ def cambio_posicion(request):
                             fill_fila = FILL_ERROR_ROW
                         else:
                             continue
+                        # Pintar la fila completa con rojo claro
                         for col in range(1, ws.max_column + 1):
                             ws.cell(row=int(fila), column=col).fill = fill_fila
 
@@ -922,6 +940,21 @@ def cambio_posicion(request):
                             else:
                                 mensajes.append(f"[ERROR] {MENSAJES_ERROR[err]}")
                         ws.cell(row=int(fila), column=col_errores, value="\n".join(mensajes))
+                        # Reaplicar el color intenso a las celdas de error con mapeo de errores sin campo
+                        error_campo_map_cambio = {
+                            "muestra_no_existe_bd": "nom_lab",
+                            "muestra_duplicada_excel": "nom_lab",
+                            "localizacion_ocupada": "subposicion",
+                            "localizacion_no_existe": "congelador"
+                        }
+                        for err in info.get("bloqueantes", []):
+                            if ":" in err:
+                                _, campo = err.split(":")
+                            else:
+                                campo = error_campo_map_cambio.get(err)
+                            if campo and campo in columnas_excel:
+                                col_err = columnas_excel[campo]
+                                ws.cell(row=int(fila), column=col_err).fill = FILL_ERROR_CELL
                     # Rertornar el excel de errores    
                     output = io.BytesIO()    
                     wb.save(output)
@@ -1410,6 +1443,28 @@ def upload_excel_localizaciones(request):
                 celda_errores = ws.cell(row=int(fila_numero), column=col_errores)
                 celda_errores.value = "\n".join(mensajes)
             
+            # Reaplicar color intenso a las celdas con error
+            # Mapeo de errores sin campo a sus columnas específicas (de localizaciones)
+            error_campo_map_loc = {
+                "localizacion_duplicada": "subposicion",
+                "subposicion_duplicada_excel": "subposicion",
+                "caja_inconsistente": "caja",
+                "rack_inconsistente": "rack",
+                "posicion_rack_ocupada": "posicion_rack_estante",
+                "posicion_caja_ocupada": "posicion_caja_rack"
+            }
+            for fila_numero, info in errores.items():
+                if not info.get("bloqueantes"):
+                    continue
+                for err in info["bloqueantes"]:
+                    if ":" in err:
+                        _, campo = err.split(":")
+                    else:
+                        campo = error_campo_map_loc.get(err)
+                    if campo and campo in columnas_excel:
+                        col_err = columnas_excel[campo]
+                        ws.cell(row=int(fila_numero), column=col_err).fill = FILL_ERROR_CELL
+            
             # DESPUÉS PINTAR LAS COLUMNAS EXTRAS (sobrescribe el color de fila con rojo fuerte)
             if extra_col_indices:
                 for col_idx in extra_col_indices:
@@ -1672,8 +1727,10 @@ def excel_estudios(request):
                 nombre_estudios_excel = set()
                 numero_registros = 0
                 cache = {
-                    'estudios_existentes_lower': set(Estudio.objects.values_list('nombre_estudio', flat=True).distinct())
+                    'estudios_existentes_lower': set(n.lower() for n in Estudio.objects.values_list('nombre_estudio', flat=True).distinct() if n),
+                    'referencias_existentes_lower': set(str(x).strip().lower() for x in Estudio.objects.values_list('referencia_estudio', flat=True).distinct() if x is not None)
                 }
+                referencias_excel = set()
                 
                 for idx, row in df.iterrows():
                     # Recorrer el df para detectar errores y normalizar
@@ -1709,13 +1766,31 @@ def excel_estudios(request):
 
                     # Detectar si el estudio ya existe
                     nombre_estudio = datos['nombre_estudio']
-                    if nombre_estudio and nombre_estudio.lower() in {n.lower() for n in cache['estudios_existentes_lower']}:
-                        errores[fila]["bloqueantes"].append(f"estudio_existente")
-                    nombre_estudio_lower = nombre_estudio.lower() if nombre_estudio else ''
-                    if nombre_estudio_lower in nombre_estudios_excel:
-                        errores[fila]["bloqueantes"].append("estudio_duplicado_excel")
+                    if nombre_estudio:
+                        # Normalizar a string en caso de que sea numérico
+                        nombre_estudio_str = str(nombre_estudio).strip()
+                        nombre_estudio_lower = nombre_estudio_str.lower()
+                        if nombre_estudio_lower in cache['estudios_existentes_lower']:
+                            errores[fila]["bloqueantes"].append(f"estudio_existente")
+                        if nombre_estudio_lower in nombre_estudios_excel:
+                            errores[fila]["bloqueantes"].append("estudio_duplicado_excel")
+                        else:
+                            nombre_estudios_excel.add(nombre_estudio_lower)
                     else:
-                        nombre_estudios_excel.add(nombre_estudio_lower)
+                        nombre_estudio_lower = ''
+                    # Validar referencia_estudio: si existe, no puede coincidir con otras en DB ni duplicarse en el Excel
+                    referencia = datos.get('referencia_estudio')
+                    if referencia:
+                        # Normalizar a string antes de usar lower() para admitir valores numéricos en Excel
+                        ref_str = str(referencia).strip()
+                        if ref_str:
+                            ref_lower = ref_str.lower()
+                            if ref_lower in cache['referencias_existentes_lower']:
+                                errores[fila]["bloqueantes"].append("referencia_existente")
+                            if ref_lower in referencias_excel:
+                                errores[fila]["bloqueantes"].append("referencia_duplicada_excel")
+                            else:
+                                referencias_excel.add(ref_lower)
                    
                    # Registrar filas validas
                     if not errores[fila]["bloqueantes"]:
@@ -1769,7 +1844,9 @@ def excel_estudios(request):
                         "campo_obligatorio_vacio": "Campo obligatorio vacío",
                         "formato_incorrecto": "Formato incorrecto",
                         "estudio_existente": "El estudio ya existe en la base de datos",
-                        "estudio_duplicado_excel": "Muestra duplicada dentro del Excel",
+                        "estudio_duplicado_excel": "Estudio duplicado dentro del Excel",
+                        "referencia_existente": "Referencia ya existe en la base de datos",
+                        "referencia_duplicada_excel": "Referencia duplicada dentro del Excel",
                         "campo_optativo_vacio": "Campo opcional vacío"
                     }
                     # Diccionario de columnas del excel
@@ -1823,6 +1900,21 @@ def excel_estudios(request):
                             celda.fill = FILL_WARN_CELL
                             celda.comment = Comment(MENSAJES_ERROR[tipo], "Sistema")
                         ws.cell(row=int(fila), column=col_errores, value="\n".join(mensajes))
+                        # Reaplicar color intenso a las celdas con error usando mapeo de errores sin campo
+                        error_campo_map_study = {
+                            "estudio_existente": "nombre_estudio",
+                            "estudio_duplicado_excel": "nombre_estudio",
+                            "referencia_existente": "referencia_estudio",
+                            "referencia_duplicada_excel": "referencia_estudio"
+                        }
+                        for err in info["bloqueantes"]:
+                            if ":" in err:
+                                _, campo = err.split(":")
+                            else:
+                                campo = error_campo_map_study.get(err)
+                            if campo and campo in columnas_excel:
+                                col_err = columnas_excel[campo]
+                                ws.cell(row=int(fila), column=col_err).fill = FILL_ERROR_CELL
 
                     # Pintar columnas extras en amarillo
                     expected_renamed = set(rename_columns.values())
@@ -2319,7 +2411,14 @@ def upload_excel_envios(request,centro):
                             celda.comment = Comment(MENSAJES_ERROR[tipo], "Sistema")
                         else:
                             mensajes.append(f"[ERROR] {MENSAJES_ERROR[err]}")
-                    ws.cell(row=int(fila), column=col_errores, value="\n".join(mensajes))
+                        ws.cell(row=int(fila), column=col_errores, value="\n".join(mensajes))
+                        # Asegurar que las celdas de error queden con el color intenso
+                        for err in info["bloqueantes"]:
+                            if ":" in err:
+                                _, campo = err.split(":")
+                                if campo in columnas_excel:
+                                    col_err = columnas_excel[campo]
+                                    ws.cell(row=int(fila), column=col_err).fill = FILL_ERROR_CELL
                 # Retornar el excel de errores 
                 output = io.BytesIO()    
                 wb.save(output)
