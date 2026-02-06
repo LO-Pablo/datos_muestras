@@ -14,6 +14,20 @@ Lista de Muestras
     cursor: not-allowed !important;
     pointer-events: none !important;
   }
+  
+  .accion-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: center;
+  }
+  
+  .action-row {
+    width: 100%;
+    display: flex;
+    gap: 10px;
+    align-items: center;
+  }
 </style>
 
 
@@ -71,18 +85,25 @@ Lista de Muestras
     <button class="collapsible-header">⚙️ Acciones</button>
     <div class="collapsible-content">
  <div class="action-buttons">
+   <div class="action-row">
    {% if perms.muestras.can_add_muestras_web %}
     <a href="/muestras/nueva" class="btn">
       ➕🧪 Nueva muestra
     </a>
     <a href="/muestras/upload_excel" class="btn">
-      📤📄 Subir Excel
+      📤📄 Subir Excel de Muestras
     </a>
     {% endif %}
+    {% if perms.muestras.can_change_estudios_web %}
+      <button type="button" onclick="document.getElementById('acciones-form').elements['estudio'].click()" class="btn" id='estudio-btn' disabled>🧬 Añadir al estudio</button>
+    {%endif%}
+    {% if perms.muestras.can_change_muestras_web %}
+      <button type="button" onclick="document.getElementById('acciones-form').elements['envio'].click()" class="btn btn-success" id='envio-btn'>📦 Registrar envío</button>
+      <button type="button" onclick="document.getElementById('acciones-form').elements['cambio_posicion'].click()" class="btn btn-success" id='cambio_posicion-btn'> 🔄 Cambio de posición</button>
+    {%endif%}
+   </div>
 
-    <input type="button" value="☑️ Seleccionar todo" onclick="seleccionar_todo(true)" class="btn btn-secondary">
-    <input type="button" value="☐ Deseleccionar" onclick="seleccionar_todo(false)" class="btn btn-secondary">
-
+    <div class="action-row">
     <form action="" method="GET" style="display:inline;">
         {% for key, value in request.GET.items %}
             {% if key != 'exportar_excel' %}
@@ -93,33 +114,33 @@ Lista de Muestras
           📊⬇ Exportar Excel
         </button>
     </form>
-    <script language="JavaScript">
-      function seleccionar_todo(valor) {
-        checkboxes = document.getElementsByTagName('input');
-        for (var i=0; i<checkboxes.length; i++) {
-          if (checkboxes[i].type == 'checkbox' && checkboxes[i].name == 'muestra_id')
-            checkboxes[i].checked = valor;
-        }
-        actualizarEstadoBotones();
-      }
-    </script>
-   <form action="{% url 'acciones_post' %}" method="post" id="acciones-form">
-    {%csrf_token%}
-    {% if perms.muestras.can_delete_muestras_web %}
-    <button type="submit"  value = "true" id='eliminar_muestras' name ='eliminar' onclick="return validarSeleccion(event, '¿Quieres eliminar las muestras seleccionadas?')" class="btn btn-danger" disabled>🗑️ Eliminar seleccionadas</button>
-    {%endif%}
-    {% if perms.muestras.can_change_estudios_web %}
-    <button type="submit" value="true" id='estudio' name ='estudio'class="btn" disabled>🧬 Añadir al estudio</button>
-    <button type="submit" value="true" id='destruir' name ='destruir' onclick="return validarSeleccion(event, '¿Quieres actualizar el estado de las muestras seleccionadas a Destruida?')" class="btn btn-danger" disabled>🔥 Destruir muestra</button>
-    {%endif%}
-    {% if perms.muestras.can_change_muestras_web %}
-    <button type="submit"  value="true" id='envio' name ='envio' class="btn btn-success">📦 Registrar envío</button>
-    <button type="submit"  value="true" id='cambio_posicion' name ='cambio_posicion' class="btn btn-success"> 🔄 Cambio de posición</button>
-    {%endif%}
+    </div>
+
+    <div class="action-row">
+      {% if perms.muestras.can_delete_muestras_web %}
+      <button type="button" onclick="validarSeleccion('eliminar', '¿Quieres eliminar las muestras seleccionadas?')" class="btn btn-danger" id='eliminar-btn' disabled>🗑️ Eliminar seleccionadas</button>
+      {%endif%}
+      {% if perms.muestras.can_change_estudios_web %}
+      <button type="button" onclick="validarSeleccion('destruir', '¿Quieres actualizar el estado de las muestras seleccionadas a Destruida?')" class="btn btn-danger" id='destruir-btn' disabled>🔥 Destruir muestra</button>
+      {%endif%}
+    </div>
+
+    <div class="action-row">
+    <input type="button" value="☑️ Seleccionar todo" onclick="seleccionar_todo(true)" class="btn btn-secondary">
+    <input type="button" value="☐ Deseleccionar" onclick="seleccionar_todo(false)" class="btn btn-secondary">
+    </div>
  </div>
  </div>
 </div>
 
+<form action="{% url 'acciones_post' %}" method="post" id="acciones-form">
+  {%csrf_token%}
+  <!-- Botones ocultos para acciones -->
+  <button type="submit" value="true" name="estudio" style="display:none;"></button>
+  <button type="submit" value="true" name="eliminar" style="display:none;"></button>
+  <button type="submit" value="true" name="destruir" style="display:none;"></button>
+  <button type="submit" value="true" name="envio" style="display:none;"></button>
+  <button type="submit" value="true" name="cambio_posicion" style="display:none;"></button>
 
 <!--
 <form action="" method="GET" style="display:inline;">
@@ -254,23 +275,38 @@ Lista de Muestras
   </table>
 </div>
 </form>
+
+    <script language="JavaScript">
+      function seleccionar_todo(valor) {
+        checkboxes = document.getElementsByTagName('input');
+        for (var i=0; i<checkboxes.length; i++) {
+          if (checkboxes[i].type == 'checkbox' && checkboxes[i].name == 'muestra_id')
+            checkboxes[i].checked = valor;
+        }
+        actualizarEstadoBotones();
+      }
+    </script>
+
 <script>
-function validarSeleccion(event, mensaje) {
+function validarSeleccion(botonName, mensaje) {
   const checkboxes = document.querySelectorAll('input[type="checkbox"][name="muestra_id"]');
   const haySeleccionados = Array.from(checkboxes).some(cb => cb.checked);
   
   if (!haySeleccionados) {
-    event.preventDefault();
     alert('Por favor selecciona al menos una muestra');
     return false;
   }
   
-  return confirm(mensaje);
+  if (confirm(mensaje)) {
+    document.getElementById('acciones-form').elements[botonName].click();
+    return true;
+  }
+  return false;
 }
 
 function actualizarEstadoBotones() {
   const checkboxes = document.querySelectorAll('input[type="checkbox"][name="muestra_id"]');
-  const botonesADesactivar = ['eliminar_muestras', 'estudio', 'destruir'];
+  const botonesADesactivar = ['eliminar-btn', 'estudio-btn', 'destruir-btn'];
   
   const haySeleccionados = Array.from(checkboxes).some(cb => cb.checked);
   console.log('Checkboxes encontrados:', checkboxes.length);

@@ -162,9 +162,8 @@ def acciones_post(request):
                     sample.concentracion_actual = 0
                     sample.save()
                     if Localizacion.objects.filter(muestra=sample).exists():
-                        loc = Localizacion.objects.get(muestra=sample)
-                        loc.muestra = None
-                        loc.save()
+                        # Actualizar todas las localizaciones de esta muestra
+                        Localizacion.objects.filter(muestra=sample).update(muestra=None)
                     registro_destruccion = registro_destruido.objects.create(muestra = sample,
                                                                              fecha = timezone.now(),
                                                                              usuario = request.user)
