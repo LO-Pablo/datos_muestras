@@ -51,13 +51,12 @@ Confirmación subida excel estudios
             {% if numero_errores_bloqueantes > 0 %}
             <li>
                 <strong style="color:#d32f2f;">Filas en rojo</strong>:
-                el estudio ya existe en la base de datos o dentro del propio Excel,
-                o las fechas tienen un formato incorrecto.
+                el estudio y/o su referencia ya existe en la base de datos o dentro del propio Excel.
             </li>
             {% endif %}
             <li>
                 <strong style="color:#fbc02d;">Filas en amarillo</strong>:
-                uno o más campos no obligatorios están vacíos o hay columnas extras.
+                uno o más campos no obligatorios están vacíos o hay columnas extras, o hay errores de formatos menores.
             </li>
         </ul>
 

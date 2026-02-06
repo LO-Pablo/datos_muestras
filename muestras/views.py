@@ -1623,6 +1623,15 @@ def nuevo_estudio(request):
     if request.method == 'POST':
         form = EstudioForm(request.POST)
         if form.is_valid():
+            # Comprobar que la referencia no existe ya en la base de datos
+            referencia = form.cleaned_data.get('referencia_estudio')
+            if referencia:
+                referencia_norm = str(referencia).strip()
+                if Estudio.objects.filter(referencia_estudio__iexact=referencia_norm).exists():
+                    form.add_error('referencia_estudio', 'La referencia indicada ya existe en la base de datos.')
+                    template = loader.get_template('nuevo_estudio.html')
+                    return HttpResponse(template.render({'form': form}, request))
+
             form.save()
             messages.success(request,'Estudio añadido correctamente')
             return redirect('estudios_todos')
@@ -1755,14 +1764,41 @@ def excel_estudios(request):
                         if not datos.get(campo):
                             errores[fila]["bloqueantes"].append(f"campo_obligatorio_vacio:{campo}")
                     
-                    # Detectar formato de fecha erróneo
+                    # Detectar formato de fecha incorrecto (advertencia)
                     for campo in ['fecha_inicio_estudio', 'fecha_fin_estudio']:
                         if datos[campo] != None:
                             try:
-                                fecha = pd.to_datetime(datos[campo])
-                                datos[campo] = fecha.date().isoformat()
+                                # Si es un Timestamp de pandas o datetime, usar directamente
+                                if isinstance(datos[campo], (pd.Timestamp, type(pd.NaT))):
+                                    if pd.isna(datos[campo]):
+                                        datos[campo] = None
+                                    else:
+                                        # Convertir Timestamp/datetime a ISO string
+                                        datos[campo] = datos[campo].date().isoformat()
+                                elif isinstance(datos[campo], date):
+                                    # Si es un objeto date, convertir directamente a ISO
+                                    datos[campo] = datos[campo].isoformat()
+                                else:
+                                    # Si es string, parsear con formato DD-MM-AAAA
+                                    fecha_str = str(datos[campo]).strip()
+                                    partes = fecha_str.split('-')
+                                    if len(partes) == 3 and all(p.isdigit() for p in partes):
+                                        fecha = pd.to_datetime(fecha_str, format='%d-%m-%Y')
+                                        datos[campo] = fecha.date().isoformat()
+                                    else:
+                                        errores[fila]["advertencias"].append(f"fecha_invalida:{campo}")
+                                        datos[campo] = None
                             except Exception:
-                                errores[fila]["bloqueantes"].append(f"formato_incorrecto:{campo}")
+                                errores[fila]["advertencias"].append(f"fecha_invalida:{campo}")
+                                datos[campo] = None
+
+                    # Validar que fecha_fin >= fecha_inicio si ambas están informadas
+                    fecha_inicio = datos.get('fecha_inicio_estudio')
+                    fecha_fin = datos.get('fecha_fin_estudio')
+                    if fecha_inicio and fecha_fin:
+                        # Ambas fechas están informadas y son válidas
+                        if fecha_fin < fecha_inicio:
+                            errores[fila]["advertencias"].append("fecha_fin_menor_que_inicio")
 
                     # Detectar si el estudio ya existe
                     nombre_estudio = datos['nombre_estudio']
@@ -1809,7 +1845,7 @@ def excel_estudios(request):
                         numero_errores_advertencia+=1
                 messages.info(request, f'El excel subido tiene {numero_registros} registros.')
                 if numero_errores_advertencia > 0:
-                    messages.warning(request, f'Contiene {numero_errores_advertencia} filas con advertencias (datos opcionales faltantes)')
+                    messages.warning(request, f'Contiene {numero_errores_advertencia} filas con advertencias')
                 if numero_errores_bloqueantes > 0:
                     messages.error(request, f'Contiene {numero_errores_bloqueantes} filas con errores graves')
                 if numero_errores_bloqueantes == 0 and numero_errores_advertencia == 0:
@@ -1842,7 +1878,8 @@ def excel_estudios(request):
                     # Diccionario de mensajes
                     MENSAJES_ERROR = {
                         "campo_obligatorio_vacio": "Campo obligatorio vacío",
-                        "formato_incorrecto": "Formato incorrecto",
+                        "fecha_invalida": "Fecha inválida (Formato correcto: DD-MM-AAAA)",
+                        "fecha_fin_menor_que_inicio": "Fecha de fin anterior a fecha de inicio",
                         "estudio_existente": "El estudio ya existe en la base de datos",
                         "estudio_duplicado_excel": "Estudio duplicado dentro del Excel",
                         "referencia_existente": "Referencia ya existe en la base de datos",
@@ -1892,13 +1929,23 @@ def excel_estudios(request):
                             else:
                                 mensajes.append(f"[ERROR] {MENSAJES_ERROR[err]}")
                         for warn in info["advertencias"]:
-                            tipo, campo = warn.split(":")
-                            if not f"[WARN] {MENSAJES_ERROR[tipo]}" in mensajes:
-                                mensajes.append(f"[WARN] {MENSAJES_ERROR[tipo]}")
-                            col = columnas_excel[campo]
-                            celda = ws.cell(row=int(fila), column=col)
-                            celda.fill = FILL_WARN_CELL
-                            celda.comment = Comment(MENSAJES_ERROR[tipo], "Sistema")
+                            # Algunos warnings tienen formato 'tipo:campo', otros son solo 'tipo'
+                            if ":" in warn:
+                                tipo, campo = warn.split(":", 1)
+                                mensaje_warn = MENSAJES_ERROR.get(tipo, tipo)
+                                if not f"[WARN] {mensaje_warn}" in mensajes:
+                                    mensajes.append(f"[WARN] {mensaje_warn}")
+                                # Colorear y añadir comentario solo si se conoce la columna
+                                if campo in columnas_excel:
+                                    col = columnas_excel[campo]
+                                    celda = ws.cell(row=int(fila), column=col)
+                                    celda.fill = FILL_WARN_CELL
+                                    celda.comment = Comment(mensaje_warn, "Sistema")
+                            else:
+                                tipo = warn
+                                mensaje_warn = MENSAJES_ERROR.get(tipo, tipo.replace("_", " "))
+                                if not f"[WARN] {mensaje_warn}" in mensajes:
+                                    mensajes.append(f"[WARN] {mensaje_warn}")
                         ws.cell(row=int(fila), column=col_errores, value="\n".join(mensajes))
                         # Reaplicar color intenso a las celdas con error usando mapeo de errores sin campo
                         error_campo_map_study = {
@@ -1944,6 +1991,27 @@ def editar_estudio(request, id_estudio):
     if request.method == 'POST':
         form = EstudioForm(request.POST, instance=estudio)
         if form.is_valid():
+            # Validar que no existan duplicados de nombre o referencia (excluyendo el estudio actual)
+            nombre = form.cleaned_data.get('nombre_estudio')
+            referencia = form.cleaned_data.get('referencia_estudio')
+            duplicate = False
+            if nombre:
+                nombre_norm = str(nombre).strip()
+                qs_nombre = Estudio.objects.filter(nombre_estudio__iexact=nombre_norm).exclude(id=estudio.id)
+                if qs_nombre.exists():
+                    form.add_error('nombre_estudio', 'Ya existe otro estudio con ese nombre.')
+                    duplicate = True
+            if referencia:
+                referencia_norm = str(referencia).strip()
+                qs_ref = Estudio.objects.filter(referencia_estudio__iexact=referencia_norm).exclude(id=estudio.id)
+                if qs_ref.exists():
+                    form.add_error('referencia_estudio', 'Ya existe otro estudio con esa referencia.')
+                    duplicate = True
+
+            if duplicate:
+                template = loader.get_template('editar_estudio.html')
+                return HttpResponse(template.render({'form': form, 'estudio': estudio}, request))
+
             form.save()
             messages.info(request,'El estudio se ha modificado correctamente')
             return redirect('estudios_todos')
